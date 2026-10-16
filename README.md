@@ -8,7 +8,8 @@
 | :--- | :--- | :--- | :--- |
 | **Android TV (Vers 1)** | `/tv` | `releases/KhoPhim_TV_v1.0.0.apk` | ✅ Hoàn thành & Tối ưu remote D-pad |
 | **Android Mobile** | `/mobile-android` | `releases/KhoPhim_Mobile_v1.0.0.apk` | ✅ Màn dọc, xoay ngang khi phát |
-| **iOS (iPhone/iPad)** | `/mobile-ios` | SwiftUI Xcode Project | ✅ Native SwiftUI & AVPlayer |
+| **Web App (iPhone/iPad/Web)** | `/docs` | [Trang Web Kho Phim](https://dodangquang.github.io/kho-phim/) | ✅ Web App tối ưu iPhone, Safari PWA |
+| **iOS (iPhone/iPad Xcode)** | `/mobile-ios` | SwiftUI Xcode Project | ✅ Native SwiftUI & AVPlayer |
 
 ## 🌟 Tính Năng Chính
 - **Màn hình dọc & Xoay ngang tự động:** Lướt phim ở màn hình dọc; khi bấm xem phim, player tự động xoay ngang toàn màn hình (Landscape) với đầy đủ điều khiển chạm (tua 10s, kéo slider, chọn tập, đổi server).

@@ -44,8 +44,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.phimmoi.mobile.data.EpisodeSource
 import com.phimmoi.mobile.data.WatchHistoryManager
@@ -123,7 +125,6 @@ fun MobilePlayerScreen(
     var isSeeking by remember { mutableStateOf(false) }
     var seekSliderPos by remember { mutableStateOf(0f) }
     var showEpisodeSheet by remember { mutableStateOf(false) }
-    var hasSeekedInitial by remember { mutableStateOf(false) }
 
     BackHandler {
         onBackPress()
@@ -141,9 +142,17 @@ fun MobilePlayerScreen(
             .setUsage(C.USAGE_MEDIA)
             .build()
 
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(context.applicationContext)
+            .setDataSourceFactory(httpDataSourceFactory)
+
         ExoPlayer.Builder(context.applicationContext)
             .setLoadControl(loadControl)
-            .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ false)
             .build().apply {
                 playWhenReady = true
             }
@@ -156,10 +165,6 @@ fun MobilePlayerScreen(
                 if (state == Player.STATE_READY) {
                     totalDuration = exoPlayer.duration.coerceAtLeast(0L)
                     errorMessage = null
-                    if (!hasSeekedInitial && initialPositionMs > 1000L) {
-                        exoPlayer.seekTo(initialPositionMs)
-                        hasSeekedInitial = true
-                    }
                 }
             }
 
@@ -213,7 +218,8 @@ fun MobilePlayerScreen(
                         }
                     }
                     .build()
-                exoPlayer.setMediaItem(mediaItem)
+                val startPos = if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                exoPlayer.setMediaItem(mediaItem, startPos)
                 exoPlayer.prepare()
                 exoPlayer.play()
             } catch (e: Exception) {
@@ -286,9 +292,6 @@ fun MobilePlayerScreen(
                     playerView.player = exoPlayer
                 }
             },
-            onRelease = { playerView ->
-                playerView.player = null
-            },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -326,7 +329,8 @@ fun MobilePlayerScreen(
                                             }
                                         }
                                         .build()
-                                    exoPlayer.setMediaItem(mediaItem)
+                                    val retryPos = if (currentPos > 1000L) currentPos else if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                                    exoPlayer.setMediaItem(mediaItem, retryPos)
                                     exoPlayer.prepare()
                                     exoPlayer.play()
                                 } catch (e: Exception) {

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kho Phim - Xem Phim Miễn Phí Full HD</title>
+
+  <!-- iOS Safari Web App Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kho Phim">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#121212">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Kho Phim - Xem Phim Online Trực Tuyến Nhanh Nhất">
+  <meta property="og:description" content="Trải nghiệm xem phim chất lượng cao Full HD, Vietsub, Thuyết minh, Lồng tiếng không quảng cáo. Tương thích hoàn hảo mọi iPhone, iPad và Android.">
+  <meta property="og:image" content="icon.png">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- HLS.js CDN for non-Safari browsers -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area" onclick="window.selectCategoryById('all')">
+        <img src="icon.png" alt="Kho Phim" class="logo-icon">
+        <span class="logo-title">Kho Phim</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="document.querySelector('[data-tab=search]').click()" title="Tìm kiếm">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Category Pill Filter Bar (Always accessible) -->
+    <div id="category-filter-bar" class="category-filter-bar"></div>
+
+    <!-- MAIN VIEWS -->
+
+    <!-- 1. Home View -->
+    <main id="view-home" class="view-container active">
+      <section id="hero-banner" class="hero-banner"></section>
+      <section id="home-sections"></section>
+    </main>
+
+    <!-- 2. Browse View (Category Grid) -->
+    <main id="view-browse" class="view-container">
+      <div style="padding: 16px 16px 4px 16px;">
+        <h2 id="browse-title" style="font-size: 20px; font-weight: 800;">Khám phá</h2>
+      </div>
+      <div id="browse-grid" class="movie-grid"></div>
+      <div style="text-align: center; padding: 20px;">
+        <button id="browse-load-more" class="btn-secondary" style="display: none; padding: 10px 24px;">Tải thêm phim</button>
+      </div>
+    </main>
+
+    <!-- 3. Search View -->
+    <main id="view-search" class="view-container">
+      <div class="search-box-wrap">
+        <div class="search-input-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="search-input" type="search" placeholder="Tìm tên phim, diễn viên, đạo diễn..." autocomplete="off">
+          <button id="search-clear-btn" class="clear-btn" style="display:none;">✕</button>
+        </div>
+      </div>
+      <div id="search-status">
+        <div class="search-empty">Nhập từ khoá để tìm kiếm bộ phim yêu thích của bạn.</div>
+      </div>
+      <div id="search-grid" class="movie-grid"></div>
+    </main>
+
+    <!-- 4. Watch History View -->
+    <main id="view-history" class="view-container">
+      <div style="padding: 16px 16px 8px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 20px; font-weight: 800;">Lịch sử xem</h2>
+        <button onclick="clearHistoryDirect()" style="font-size: 13px; color: var(--accent-red); font-weight: 600;">Xoá tất cả</button>
+      </div>
+      <div id="history-empty" class="history-empty" style="display:none;">
+        Bạn chưa xem bộ phim nào gần đây.
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </main>
+
+    <!-- 5. Download App View -->
+    <main id="view-download" class="view-container">
+      <div class="download-screen">
+        <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 16px;">Tải Ứng Dụng Kho Phim</h2>
+
+        <!-- iPhone Instruction -->
+        <div class="download-card" style="border-left: 4px solid var(--accent-red);">
+          <h3>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.5c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.66-1.09 1.73-.95 2.76.99.08 2.06-.51 2.68-1.26z"/></svg>
+            Dành cho iPhone / iPad (iOS)
+          </h3>
+          <p>Trên iPhone, bạn không cần cài đặt qua App Store! Bạn có thể thêm trực tiếp trang web này ra màn hình chính để dùng như một ứng dụng độc lập với tốc độ mượt mà tuyệt đối:</p>
+          <div class="pwa-instruction">
+            <strong>Cách đưa ra Màn hình chính trên Safari iPhone:</strong>
+            <ol>
+              <li>Mở trang này trên trình duyệt <strong>Safari</strong>.</li>
+              <li>Nhấn vào biểu tượng <strong>Chia sẻ (Share)</strong> <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg> ở thanh dưới cùng.</li>
+              <li>Cuộn xuống chọn <strong>"Thêm vào MH chính" (Add to Home Screen)</strong>.</li>
+              <li>Nhấn <strong>Thêm (Add)</strong>. Biểu tượng Kho Phim sẽ xuất hiện trên màn hình iPhone của bạn!</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- Android Mobile APK -->
+        <div class="download-card">
+          <h3>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.68-.06-.85.26l-1.88 3.24c-1.33-.59-2.79-.92-4.45-.92-1.65 0-3.12.33-4.44.92L5.67 5.71c-.17-.32-.56-.41-.85-.26-.3.16-.42.54-.26.85l1.84 3.18C3.76 11.02 2 13.79 2 17h20c0-3.21-1.77-5.98-4.4-7.52zM7 14.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm10 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            Kho Phim Mobile (Android APK)
+          </h3>
+          <p>Ứng dụng native dành cho điện thoại Android với giao diện Netflix Dark, hỗ trợ xoay ngang tự động và tiết kiệm pin.</p>
+          <a class="download-btn" href="https://github.com/dodangquang/kho-phim/releases/download/v1.0.0/KhoPhim_Mobile_v1.0.0.apk" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            Tải KhoPhim_Mobile_v1.0.0.apk
+          </a>
+        </div>
+
+        <!-- Android TV APK -->
+        <div class="download-card">
+          <h3>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+            Kho Phim TV (Android TV APK)
+          </h3>
+          <p>Ứng dụng chuẩn Google TV và Android TV (Sony, Samsung, Xiaomi, LG, Casper, TCL...) tối ưu điều khiển bằng Remote.</p>
+          <a class="download-btn" href="https://github.com/dodangquang/kho-phim/releases/download/v1.0.0/KhoPhim_TV_v1.0.0.apk" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            Tải KhoPhim_TV_v1.0.0.apk
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-tab="home">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span>Trang chủ</span>
+      </button>
+      <button class="nav-tab" data-tab="browse">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Danh mục</span>
+      </button>
+      <button class="nav-tab" data-tab="search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <span>Tìm kiếm</span>
+      </button>
+      <button class="nav-tab" data-tab="history">
+        <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        <span>Lịch sử</span>
+      </button>
+      <button class="nav-tab" data-tab="download">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        <span>Tải App</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="modal-overlay"></div>
+
+  <!-- Fullscreen / Landscape Video Player Overlay -->
+  <div id="player-overlay" class="player-overlay">
+    <div class="player-header">
+      <button class="icon-btn" onclick="closeVideoPlayer()" title="Quay lại">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="player-title-info">
+        <div id="player-movie-title" class="player-movie-title">Tên Phim</div>
+        <div id="player-ep-title" class="player-ep-title">Tập 1</div>
+      </div>
+      <button class="icon-btn" onclick="playNextEpisode()" title="Tập tiếp theo">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+
+    <div class="video-container">
+      <video
+        id="video-player"
+        playsinline
+        controls
+        webkit-playsinline
+        x5-playsinline
+        preload="auto"
+      ></video>
+
+      <iframe id="iframe-player" allowfullscreen></iframe>
+
+      <div id="player-error-banner" class="player-error-banner">
+        <p id="player-error-text">Không thể phát luồng video.</p>
+        <button id="player-try-embed-btn" class="btn-primary" style="font-size:12px; padding:8px 14px;">
+          Chuyển sang Trình phát Dự phòng (Web Embed)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
