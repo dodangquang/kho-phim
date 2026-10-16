@@ -28,8 +28,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.phimmoi.mobile.data.*
 import com.phimmoi.mobile.ui.components.MobileMovieCard
-import com.phimmoi.mobile.ui.player.PlayerActivity
-import com.phimmoi.mobile.ui.player.PlayerSession
 import com.phimmoi.mobile.ui.theme.NetflixBlack
 import com.phimmoi.mobile.ui.theme.NetflixCard
 import com.phimmoi.mobile.ui.theme.NetflixRed
@@ -41,6 +39,7 @@ fun DetailScreen(
     movie: MovieItem,
     repository: PhimMoiRepository,
     watchHistoryManager: WatchHistoryManager,
+    onPlayEpisode: (EpisodeSource, List<EpisodeSource>, Long) -> Unit,
     onBackPress: () -> Unit
 ) {
     val context = LocalContext.current
@@ -76,14 +75,7 @@ fun DetailScreen(
     val filteredEpisodes = episodes.filter { it.serverName == selectedServer }
 
     fun launchPlayer(ep: EpisodeSource, startPos: Long = 0L) {
-        PlayerSession.set(
-            movie = movie,
-            episode = ep,
-            episodes = episodes,
-            startPositionMs = startPos
-        )
-        val intent = Intent(context, PlayerActivity::class.java)
-        context.startActivity(intent)
+        onPlayEpisode(ep, episodes, startPos)
     }
 
     Box(

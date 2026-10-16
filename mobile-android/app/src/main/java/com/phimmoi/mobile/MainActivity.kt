@@ -23,6 +23,7 @@ import com.phimmoi.mobile.data.*
 import com.phimmoi.mobile.ui.detail.DetailScreen
 import com.phimmoi.mobile.ui.history.HistoryScreen
 import com.phimmoi.mobile.ui.home.HomeScreen
+import com.phimmoi.mobile.ui.player.MobilePlayerScreen
 import com.phimmoi.mobile.ui.search.SearchScreen
 import com.phimmoi.mobile.ui.settings.SettingsScreen
 import com.phimmoi.mobile.ui.theme.NetflixBlack
@@ -44,6 +45,12 @@ enum class MobileTab(val label: String, val icon: ImageVector) {
 sealed interface Screen {
     data class Main(val tab: MobileTab = MobileTab.HOME) : Screen
     data class Detail(val movie: MovieItem) : Screen
+    data class Player(
+        val movie: MovieItem,
+        val initialEpisode: EpisodeSource,
+        val allEpisodes: List<EpisodeSource> = emptyList(),
+        val initialPositionMs: Long = 0L
+    ) : Screen
     data object Settings : Screen
 }
 
@@ -94,12 +101,14 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val isMainScreen = currentScreen is Screen.Main
+                val isPlayerScreen = currentScreen is Screen.Player
                 val activeTab = when (val s = currentScreen) {
                     is Screen.Main -> s.tab
                     else -> (screenStack.firstOrNull { it is Screen.Main } as? Screen.Main)?.tab ?: MobileTab.HOME
                 }
 
                 Scaffold(
+                    contentWindowInsets = if (isPlayerScreen) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
                     bottomBar = {
                         if (isMainScreen) {
                             NavigationBar(
@@ -138,11 +147,12 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { paddingValues ->
+                    val contentPadding = if (isPlayerScreen) PaddingValues(0.dp) else paddingValues
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(NetflixBlack)
-                            .padding(paddingValues)
+                            .padding(contentPadding)
                     ) {
                         // Main screen content
                         if (isMainScreen) {
@@ -202,6 +212,36 @@ class MainActivity : ComponentActivity() {
                                 movie = detailScreen.movie,
                                 repository = repository,
                                 watchHistoryManager = watchHistoryManager,
+                                onPlayEpisode = { ep, allEps, startPos ->
+                                    screenStack.add(
+                                        Screen.Player(
+                                            movie = detailScreen.movie,
+                                            initialEpisode = ep,
+                                            allEpisodes = allEps,
+                                            initialPositionMs = startPos
+                                        )
+                                    )
+                                },
+                                onBackPress = {
+                                    if (screenStack.size > 1) {
+                                        screenStack.removeAt(screenStack.lastIndex)
+                                    }
+                                }
+                            )
+                        }
+
+                        // Player screen overlay
+                        val playerScreen = currentScreen as? Screen.Player
+                        if (playerScreen != null) {
+                            MobilePlayerScreen(
+                                movieSlug = playerScreen.movie.slug,
+                                movieTitle = playerScreen.movie.title,
+                                posterUrl = playerScreen.movie.posterUrl,
+                                bannerUrl = playerScreen.movie.bannerUrl,
+                                initialEpisode = playerScreen.initialEpisode,
+                                allEpisodes = playerScreen.allEpisodes,
+                                watchHistoryManager = watchHistoryManager,
+                                initialPositionMs = playerScreen.initialPositionMs,
                                 onBackPress = {
                                     if (screenStack.size > 1) {
                                         screenStack.removeAt(screenStack.lastIndex)
