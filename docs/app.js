@@ -81,18 +81,36 @@
     if (trimmed.startsWith('https://')) return trimmed;
     if (trimmed.startsWith('//')) return 'https:' + trimmed;
 
-    // Handle domain prefixes without protocol (e.g. danviet.vn/..., i.ex-cdn.com/...)
-    if (trimmed.includes('.vn/') || trimmed.includes('.com/') || trimmed.includes('.net/') || trimmed.includes('.org/')) {
-      return 'https://' + trimmed.replace(/^\/+/, '');
+    const clean = trimmed.replace(/^\/+/, '');
+
+    // Check if it's already an upload path for CDN
+    if (clean.startsWith('uploads/') || clean.startsWith('upload/')) {
+      return `${IMG_BASE}/${clean}`;
     }
 
-    const clean = trimmed.replace(/^\/+/, '');
+    // Check if domain prefix without protocol (e.g. danviet.vn/..., i.ex-cdn.com/..., phimimg.com/...)
+    if (/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\//.test(clean)) {
+      return 'https://' + clean;
+    }
+
     return `${IMG_BASE}/${clean}`;
   }
 
   function resolveImageUrl(url) {
     const formatted = formatImageUrl(url);
     return formatted || 'icon.png';
+  }
+
+  function isBlockedOrThirdPartyDomain(url) {
+    if (!url) return true;
+    const lower = url.toLowerCase();
+    return lower.includes('danviet') || lower.includes('kenh14') || lower.includes('soha.vn') || lower.includes('zingnews');
+  }
+
+  function isReliableCdn(url) {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    return (lower.includes('phimimg.com') || lower.includes('img.phimapi.com') || lower.includes('kkphim')) && !isBlockedOrThirdPartyDomain(url);
   }
 
   function getMovieImageUrls(movie) {
@@ -102,36 +120,38 @@
     const resolvedPoster = formatImageUrl(rawPoster);
     const resolvedThumb = formatImageUrl(rawThumb);
 
-    // Identify if images are on CDN and not known hotlink-blocked domains
-    const isPosterCdn = resolvedPoster.includes('phimimg.com') && !resolvedPoster.includes('danviet') && !resolvedPoster.includes('kenh14');
-    const isThumbCdn = resolvedThumb.includes('phimimg.com') && !resolvedThumb.includes('danviet') && !resolvedThumb.includes('kenh14');
+    const posterIsCdn = isReliableCdn(resolvedPoster);
+    const thumbIsCdn = isReliableCdn(resolvedThumb);
+    const posterIsBlocked = isBlockedOrThirdPartyDomain(resolvedPoster);
+    const thumbIsBlocked = isBlockedOrThirdPartyDomain(resolvedThumb);
 
-    let poster = '';
-    let fallbackPoster = '';
+    let primary = '';
+    let fallback = '';
 
-    if (isThumbCdn && !isPosterCdn) {
-      poster = resolvedThumb;
-      fallbackPoster = (resolvedPoster && resolvedPoster !== resolvedThumb) ? resolvedPoster : 'icon.png';
-    } else if (isPosterCdn) {
-      poster = resolvedPoster;
-      fallbackPoster = (resolvedThumb && resolvedThumb !== resolvedPoster) ? resolvedThumb : 'icon.png';
-    } else if (resolvedThumb) {
-      poster = resolvedThumb;
-      fallbackPoster = resolvedPoster || 'icon.png';
-    } else if (resolvedPoster) {
-      poster = resolvedPoster;
-      fallbackPoster = 'icon.png';
+    // If thumb is valid CDN and poster is blocked/unreliable (e.g. Phù Sa)
+    if (thumbIsCdn && (!posterIsCdn || posterIsBlocked)) {
+      primary = resolvedThumb;
+      fallback = (posterIsCdn && !posterIsBlocked) ? resolvedPoster : 'icon.png';
+    } else if (posterIsCdn) {
+      primary = resolvedPoster;
+      fallback = (thumbIsCdn && resolvedThumb !== resolvedPoster) ? resolvedThumb : 'icon.png';
+    } else if (resolvedThumb && !thumbIsBlocked) {
+      primary = resolvedThumb;
+      fallback = (resolvedPoster && !posterIsBlocked) ? resolvedPoster : 'icon.png';
+    } else if (resolvedPoster && !posterIsBlocked) {
+      primary = resolvedPoster;
+      fallback = 'icon.png';
     } else {
-      poster = 'icon.png';
-      fallbackPoster = 'icon.png';
+      primary = resolvedThumb || resolvedPoster || 'icon.png';
+      fallback = 'icon.png';
     }
 
-    let banner = isThumbCdn ? resolvedThumb : (resolvedThumb || resolvedPoster || 'icon.png');
+    let banner = thumbIsCdn ? resolvedThumb : ((!thumbIsBlocked && resolvedThumb) ? resolvedThumb : (posterIsCdn ? resolvedPoster : (primary || 'icon.png')));
 
     return {
-      primary: poster,
-      fallback: fallbackPoster,
-      banner: banner
+      primary: primary || 'icon.png',
+      fallback: fallback || 'icon.png',
+      banner: banner || 'icon.png'
     };
   }
 
@@ -287,7 +307,7 @@
           alt="${movie.name}"
           loading="lazy"
           referrerpolicy="no-referrer"
-          onerror="if(this.dataset.failedOnce!=='1'){this.dataset.failedOnce='1';this.src='${fallback}';}else{this.src='icon.png';}"
+          onerror="if(this.dataset.failed!=='1'&&'${fallback}'&&'${fallback}'!==this.src){this.dataset.failed='1';this.src='${fallback}';}else{this.onerror=null;this.src='icon.png';}"
         >
         ${badge ? `<span class="movie-badge-top-left">${badge}</span>` : ''}
         ${epBadge ? `<span class="movie-badge-top-right">${epBadge}</span>` : ''}
@@ -784,6 +804,12 @@
       streamWatchdogTimer = null;
     }
 
+    // Ensure protocols are https to prevent Mixed Content
+    if (streamUrl.startsWith('//')) streamUrl = 'https:' + streamUrl;
+    if (streamUrl.startsWith('http://')) streamUrl = 'https://' + streamUrl.slice(7);
+    if (embedUrl.startsWith('//')) embedUrl = 'https:' + embedUrl;
+    if (embedUrl.startsWith('http://')) embedUrl = 'https://' + embedUrl.slice(7);
+
     const applyResumePosition = () => {
       if (resumePosition > 0) {
         try {
@@ -815,7 +841,7 @@
               requestPlayerFullscreen();
             })
             .catch(e => {
-              console.warn('Native iOS Autoplay prevented:', e);
+              console.log('Native iOS Autoplay prevented (waiting for tap):', e);
             });
         }
       }
@@ -831,10 +857,10 @@
           lowLatencyMode: false,
           backBufferLength: 60,
           maxBufferLength: 30,
-          manifestLoadingTimeOut: 15000,
-          manifestLoadingMaxRetry: 3,
-          fragLoadingTimeOut: 20000,
-          fragLoadingMaxRetry: 4,
+          manifestLoadingTimeOut: 12000,
+          manifestLoadingMaxRetry: 2,
+          fragLoadingTimeOut: 15000,
+          fragLoadingMaxRetry: 3,
           nudgeMaxRetry: 5
         });
         hlsInstance.loadSource(streamUrl);
@@ -842,20 +868,29 @@
 
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
           applyResumePosition();
-          videoPlayer.play()
-            .then(() => {
-              requestPlayerFullscreen();
-            })
-            .catch(e => console.warn('Hls.js autoplay prevented:', e));
+          const playPromise = videoPlayer.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                requestPlayerFullscreen();
+              })
+              .catch(e => console.log('Hls.js autoplay prevented (tap to play):', e));
+          }
         });
 
         hlsInstance.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
+                // If CORS preflight blocked or 0 status, fallback to Web Embed immediately
+                if (data.response && data.response.code === 0) {
+                  console.warn('HLS stream CORS/network blocked, auto-falling back to Web Embed immediately.');
+                  handlePlaybackError(streamUrl, embedUrl);
+                  return;
+                }
                 if (hlsRecoveryAttempts < 2) {
                   hlsRecoveryAttempts++;
-                  console.warn('Hls network error, reloading...', hlsRecoveryAttempts);
+                  console.warn('Hls network error, reloading attempt', hlsRecoveryAttempts);
                   hlsInstance.startLoad();
                 } else {
                   console.warn('Hls unrecoverable network error, auto-fallback to embed');
@@ -895,13 +930,13 @@
         });
       }
 
-      // Stream watchdog: if after 12s nothing plays and video is stalled/error
+      // Stream watchdog: only if playback was started but stalled at 0s for >10s
       streamWatchdogTimer = setTimeout(() => {
-        if (currentPlayerMode === 'hls' && videoPlayer.paused && videoPlayer.currentTime === 0) {
-          console.warn('Stream watchdog timed out, auto-falling back to embed.');
+        if (currentPlayerMode === 'hls' && !videoPlayer.paused && videoPlayer.currentTime === 0) {
+          console.warn('Stream watchdog detected stall at 0s, auto-falling back to embed.');
           handlePlaybackError(streamUrl, embedUrl);
         }
-      }, 12000);
+      }, 10000);
     } else if (embedUrl) {
       fallbackToIframe(embedUrl, false);
     } else {
@@ -919,6 +954,11 @@
     if (embedUrl && currentPlayerMode === 'hls') {
       console.warn('Direct stream failed, automatically switching to Web Embed.');
       fallbackToIframe(embedUrl, true);
+      return;
+    }
+
+    // In embed mode, never obstruct the iframe with the error dialog
+    if (currentPlayerMode === 'embed') {
       return;
     }
 
@@ -945,11 +985,15 @@
       clearTimeout(streamWatchdogTimer);
       streamWatchdogTimer = null;
     }
+    // Update player mode FIRST so any videoPlayer events know embed is active
+    currentPlayerMode = 'embed';
+    updatePlayerModeButton();
+    playerErrorBanner.style.display = 'none';
+
     if (hlsInstance) {
       try { hlsInstance.destroy(); } catch (_) {}
       hlsInstance = null;
     }
-    playerErrorBanner.style.display = 'none';
     try {
       videoPlayer.pause();
       videoPlayer.removeAttribute('src');
@@ -961,9 +1005,6 @@
     if (iframePlayer.src !== embedUrl) {
       iframePlayer.src = embedUrl;
     }
-
-    currentPlayerMode = 'embed';
-    updatePlayerModeButton();
 
     if (isAuto) {
       showPlayerToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)');
@@ -1070,10 +1111,11 @@
   });
 
   videoPlayer.addEventListener('error', (e) => {
-    if (videoPlayer.src && videoPlayer.src !== 'about:blank') {
-      console.warn('HTML5 video error, auto-falling back to embed:', videoPlayer.error);
-      handlePlaybackError(videoPlayer.src, currentPlayingEpisode?.link_embed);
-    }
+    if (currentPlayerMode !== 'hls') return;
+    const currentSrc = videoPlayer.getAttribute('src');
+    if (!currentSrc || currentSrc === 'about:blank' || !videoPlayer.error) return;
+    console.warn('HTML5 video error, auto-falling back to embed:', videoPlayer.error);
+    handlePlaybackError(videoPlayer.src, currentPlayingEpisode?.link_embed);
   });
 
   // Handle native iOS Safari "Done" button to cleanly exit player overlay
@@ -1082,7 +1124,13 @@
   });
 
   // Save history on pause and when user switches apps or minimizes Safari
-  videoPlayer.addEventListener('pause', trackAndSaveHistory);
+  videoPlayer.addEventListener('pause', () => {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+    trackAndSaveHistory();
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) trackAndSaveHistory();
   });
@@ -1169,7 +1217,7 @@
       const formattedTotal = formatTime(item.duration);
 
       card.innerHTML = `
-        <img class="history-thumb" src="${item.posterUrl}" alt="${item.movieTitle}" onerror="this.src='icon.png'">
+        <img class="history-thumb" src="${item.posterUrl}" alt="${item.movieTitle}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
         <div class="history-info">
           <div class="history-title">${item.movieTitle}</div>
           <div class="history-sub">${item.episodeName} • ${item.serverName || 'VIP'}</div>
@@ -1225,7 +1273,9 @@
     formatImageUrl,
     resolveImageUrl,
     getMovieImageUrls,
-    startVideoPlayback
+    startVideoPlayback,
+    fallbackToIframe,
+    handlePlaybackError
   };
 
   // App Init

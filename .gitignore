@@ -15,3 +15,13 @@ xcuserdata/
 
 # Keep releases
 !releases/*.apk
+
+# Scratch and test runners
+test_*.py
+test_*.html
+check_out.py
+out.html
+verify_suite.py
+docs/test_*.html
+docs/run_verification.html
+docs/verification_dom.html

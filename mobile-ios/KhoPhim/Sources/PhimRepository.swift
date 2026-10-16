@@ -4,18 +4,25 @@ class PhimRepository {
     static let shared = PhimRepository()
 
     private func formatImageUrl(_ url: String) -> String {
-        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return "" }
-        if trimmed.starts(with: "http://") || trimmed.starts(with: "https://") {
+        if trimmed.starts(with: "http://") {
+            trimmed = "https://" + String(trimmed.dropFirst(7))
+        }
+        if trimmed.starts(with: "https://") {
             return trimmed
         }
         if trimmed.starts(with: "//") {
             return "https:" + trimmed
         }
-        if trimmed.contains(".vn/") || trimmed.contains(".com/") || trimmed.contains(".net/") || trimmed.contains(".org/") {
-            return "https://" + trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let clean = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if clean.starts(with: "uploads/") || clean.starts(with: "upload/") {
+            return "https://phimimg.com/" + clean
         }
-        return "https://phimimg.com/" + trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if clean.contains(".vn/") || clean.contains(".com/") || clean.contains(".net/") || clean.contains(".org/") {
+            return "https://" + clean
+        }
+        return "https://phimimg.com/" + clean
     }
 
     private func parseMovies(from json: [String: Any]) -> [MovieItem] {

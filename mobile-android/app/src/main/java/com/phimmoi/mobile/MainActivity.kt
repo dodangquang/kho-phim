@@ -1,5 +1,6 @@
 package com.phimmoi.mobile
 
+import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -8,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.phimmoi.mobile.data.*
 import com.phimmoi.mobile.ui.detail.DetailScreen
@@ -27,11 +30,13 @@ import com.phimmoi.mobile.ui.player.MobilePlayerScreen
 import com.phimmoi.mobile.ui.search.SearchScreen
 import com.phimmoi.mobile.ui.settings.SettingsScreen
 import com.phimmoi.mobile.ui.theme.NetflixBlack
+import com.phimmoi.mobile.ui.theme.NetflixCard
 import com.phimmoi.mobile.ui.theme.NetflixRed
 import com.phimmoi.mobile.ui.theme.PhimMoiMobileTheme
 import com.phimmoi.mobile.ui.theme.TextMuted
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class MobileTab(val label: String, val icon: ImageVector) {
@@ -79,9 +84,30 @@ class MainActivity : ComponentActivity() {
                 val currentScreen = screenStack.lastOrNull() ?: Screen.Main(MobileTab.HOME)
                 var lastBackPressedTime by remember { mutableStateOf(0L) }
                 val context = LocalContext.current
+                val coroutineScope = rememberCoroutineScope()
+
+                var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+                var showUpdateDialog by remember { mutableStateOf(false) }
+                var updateProgress by remember { mutableStateOf<Float?>(null) }
+                var updateError by remember { mutableStateOf<String?>(null) }
+
+                LaunchedEffect(Unit) {
+                    delay(1500L)
+                    try {
+                        val info = appUpdateManager.checkUpdate(BuildConfig.VERSION_CODE)
+                        if (info != null) {
+                            updateInfo = info
+                            showUpdateDialog = true
+                        }
+                    } catch (e: Exception) {
+                        // Silently handle error on auto check
+                    }
+                }
 
                 BackHandler(enabled = true) {
-                    if (screenStack.size > 1) {
+                    if (showUpdateDialog && updateProgress == null) {
+                        showUpdateDialog = false
+                    } else if (screenStack.size > 1) {
                         screenStack.removeAt(screenStack.lastIndex)
                     } else {
                         val root = screenStack.firstOrNull()
@@ -291,6 +317,116 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+
+                if (showUpdateDialog && updateInfo != null) {
+                    val info = updateInfo!!
+                    AlertDialog(
+                        onDismissRequest = {
+                            if (updateProgress == null) {
+                                showUpdateDialog = false
+                            }
+                        },
+                        title = {
+                            Text(
+                                text = "Cập Nhật Ứng Dụng",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        },
+                        text = {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Đã có bản cập nhật mới v${info.versionName} - Bạn có muốn cập nhật ngay không?",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White
+                                )
+                                if (info.changelog.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = info.changelog,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextMuted
+                                    )
+                                }
+                                if (updateProgress != null) {
+                                    val p = updateProgress ?: 0f
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Đang tải bản cập nhật...",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "${(p * 100).toInt()}%",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NetflixRed
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LinearProgressIndicator(
+                                        progress = { p },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp),
+                                        color = NetflixRed,
+                                        trackColor = Color(0xFF333333)
+                                    )
+                                }
+                                if (updateError != null) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = updateError ?: "",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Red
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            if (updateProgress == null) {
+                                Button(
+                                    onClick = {
+                                        val act = context as? Activity ?: return@Button
+                                        coroutineScope.launch {
+                                            updateProgress = 0f
+                                            updateError = null
+                                            appUpdateManager.downloadAndInstallApk(
+                                                activity = act,
+                                                apkUrl = info.apkUrl,
+                                                onProgress = { p -> updateProgress = p },
+                                                onError = { err ->
+                                                    updateError = err
+                                                    updateProgress = null
+                                                }
+                                            )
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Cập nhật ngay", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        },
+                        dismissButton = {
+                            if (updateProgress == null) {
+                                TextButton(
+                                    onClick = { showUpdateDialog = false }
+                                ) {
+                                    Text("Để sau", color = TextMuted)
+                                }
+                            }
+                        },
+                        containerColor = NetflixCard,
+                        shape = RoundedCornerShape(16.dp)
+                    )
                 }
             }
         }

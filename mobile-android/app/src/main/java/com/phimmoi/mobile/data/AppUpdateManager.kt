@@ -26,28 +26,36 @@ data class UpdateInfo(
 class AppUpdateManager(private val context: Context) {
 
     private val client = NetworkModule.okHttpClient
-    private val defaultUpdateUrl = "https://raw.githubusercontent.com/dodan84/phimmoi-tv-release/main/version.json"
+    private val defaultUpdateUrl = "https://raw.githubusercontent.com/dodangquang/kho-phim/main/version.json"
+    private val fallbackUpdateUrl = "https://dodangquang.github.io/kho-phim/version.json"
 
     suspend fun checkUpdate(currentVersionCode: Int): UpdateInfo? = withContext(Dispatchers.IO) {
-        try {
-            val req = Request.Builder()
-                .url(defaultUpdateUrl)
-                .header("Cache-Control", "no-cache")
-                .build()
-            val resp = client.newCall(req).execute()
-            if (resp.isSuccessful) {
-                val jsonStr = resp.body?.string() ?: return@withContext null
-                val obj = JSONObject(jsonStr)
-                val remoteVersionCode = obj.optInt("versionCode", 0)
-                val remoteVersionName = obj.optString("versionName", "")
-                val apkUrl = obj.optString("apkUrl", "")
-                val changelog = obj.optString("changelog", "Bản cập nhật mới.")
-                if (remoteVersionCode > currentVersionCode && apkUrl.isNotEmpty()) {
-                    return@withContext UpdateInfo(remoteVersionCode, remoteVersionName, apkUrl, changelog)
+        val urls = listOf(defaultUpdateUrl, fallbackUpdateUrl)
+        for (url in urls) {
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .header("Cache-Control", "no-cache")
+                    .build()
+                val resp = client.newCall(req).execute()
+                if (resp.isSuccessful) {
+                    val jsonStr = resp.body?.string()
+                    if (!jsonStr.isNullOrBlank()) {
+                        val obj = JSONObject(jsonStr)
+                        val remoteVersionCode = obj.optInt("versionCode", 0)
+                        val remoteVersionName = obj.optString("versionName", "")
+                        val apkUrl = obj.optString("apkUrl", "")
+                        val changelog = obj.optString("changelog", "Bản cập nhật mới.")
+                        if (remoteVersionCode > currentVersionCode && apkUrl.isNotEmpty()) {
+                            return@withContext UpdateInfo(remoteVersionCode, remoteVersionName, apkUrl, changelog)
+                        } else if (remoteVersionCode > 0) {
+                            return@withContext null
+                        }
+                    }
                 }
+            } catch (e: Exception) {
+                Log.w("AppUpdateManager", "Không thể kiểm tra cập nhật từ $url: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.w("AppUpdateManager", "Không thể kiểm tra cập nhật: ${e.message}")
         }
         return@withContext null
     }

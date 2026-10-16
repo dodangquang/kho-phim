@@ -132,15 +132,18 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
     }
 
     private fun formatImageUrl(url: String): String {
-        val trimmed = url.trim()
+        var trimmed = url.trim()
         if (trimmed.isEmpty()) return ""
+        if (trimmed.startsWith("http://")) {
+            trimmed = "https://" + trimmed.removePrefix("http://")
+        }
+        val clean = trimmed.trimStart('/')
         return when {
-            trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
+            trimmed.startsWith("https://") -> trimmed
             trimmed.startsWith("//") -> "https:$trimmed"
-            trimmed.startsWith("uploads/") || trimmed.startsWith("/uploads/") ||
-            trimmed.startsWith("upload/") || trimmed.startsWith("/upload/") -> "https://phimimg.com/" + trimmed.trimStart('/')
-            trimmed.contains(".vn/") || trimmed.contains(".com/") || trimmed.contains(".net/") || trimmed.contains(".org/") -> "https://$trimmed"
-            else -> "https://phimimg.com/" + trimmed.trimStart('/')
+            clean.startsWith("uploads/") || clean.startsWith("upload/") -> "https://phimimg.com/$clean"
+            clean.contains(".vn/") || clean.contains(".com/") || clean.contains(".net/") || clean.contains(".org/") -> "https://$clean"
+            else -> "https://phimimg.com/$clean"
         }
     }
 
