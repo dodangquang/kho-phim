@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
                 var showUpdateDialog by remember { mutableStateOf(false) }
                 var updateProgress by remember { mutableStateOf<Float?>(null) }
                 var updateError by remember { mutableStateOf<String?>(null) }
+                var isDownloaded by remember { mutableStateOf(false) }
                 val updateBtnFocusRequester = remember { FocusRequester() }
 
                 LaunchedEffect(Unit) {
@@ -129,8 +130,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(showUpdateDialog) {
-                    if (showUpdateDialog) {
+                LaunchedEffect(showUpdateDialog, isDownloaded) {
+                    if (showUpdateDialog && updateProgress == null) {
                         delay(200L)
                         try {
                             updateBtnFocusRequester.requestFocus()
@@ -142,6 +143,8 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = true) {
                     if (showUpdateDialog && updateProgress == null) {
                         showUpdateDialog = false
+                        isDownloaded = false
+                        updateProgress = null
                     } else if (screenStack.size > 1) {
                         screenStack.removeAt(screenStack.lastIndex)
                     } else {
@@ -361,6 +364,8 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = {
                             if (updateProgress == null) {
                                 showUpdateDialog = false
+                                isDownloaded = false
+                                updateProgress = null
                             }
                         },
                         title = {
@@ -374,7 +379,11 @@ class MainActivity : ComponentActivity() {
                         text = {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
-                                    text = "Đã có bản cập nhật mới v${info.versionName} - Bạn có muốn cập nhật ngay không?",
+                                    text = if (isDownloaded) {
+                                        "Đã tải xong bản cập nhật v${info.versionName}. Bấm 'Cài đặt ngay' để tiến hành cập nhật ứng dụng."
+                                    } else {
+                                        "Đã có bản cập nhật mới v${info.versionName} - Bạn có muốn cập nhật ngay không?"
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.White
                                 )
@@ -428,23 +437,57 @@ class MainActivity : ComponentActivity() {
                         confirmButton = {
                             if (updateProgress == null) {
                                 TvButton(
-                                    text = "Cập nhật ngay",
+                                    text = if (isDownloaded) "Cài đặt ngay" else "Cập nhật ngay",
                                     isPrimary = true,
                                     focusRequester = updateBtnFocusRequester,
                                     onClick = {
                                         val act = context as? Activity ?: return@TvButton
-                                        coroutineScope.launch {
-                                            updateProgress = 0f
-                                            updateError = null
-                                            appUpdateManager.downloadAndInstallApk(
+                                        if (isDownloaded) {
+                                            val launched = appUpdateManager.installApk(
                                                 activity = act,
-                                                apkUrl = info.apkUrl,
-                                                onProgress = { p -> updateProgress = p },
-                                                onError = { err ->
-                                                    updateError = err
-                                                    updateProgress = null
-                                                }
+                                                apkFile = appUpdateManager.getCachedApkFile(act, info.versionCode)
                                             )
+                                            if (launched) {
+                                                showUpdateDialog = false
+                                                isDownloaded = false
+                                                updateProgress = null
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Vui lòng cho phép cài đặt ứng dụng từ nguồn này rồi bấm 'Cài đặt ngay'",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        } else {
+                                            coroutineScope.launch {
+                                                updateProgress = 0f
+                                                updateError = null
+                                                appUpdateManager.downloadAndInstallApk(
+                                                    activity = act,
+                                                    apkUrl = info.apkUrl,
+                                                    versionCode = info.versionCode,
+                                                    onProgress = { p -> updateProgress = p },
+                                                    onSuccess = { launched ->
+                                                        updateProgress = null
+                                                        if (launched) {
+                                                            showUpdateDialog = false
+                                                            isDownloaded = false
+                                                        } else {
+                                                            isDownloaded = true
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Vui lòng cho phép cài đặt ứng dụng từ nguồn này rồi bấm 'Cài đặt ngay'",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
+                                                    },
+                                                    onError = { err ->
+                                                        updateError = err
+                                                        updateProgress = null
+                                                        isDownloaded = false
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 )
@@ -454,7 +497,11 @@ class MainActivity : ComponentActivity() {
                             if (updateProgress == null) {
                                 TvButton(
                                     text = "Để sau",
-                                    onClick = { showUpdateDialog = false }
+                                    onClick = {
+                                        showUpdateDialog = false
+                                        isDownloaded = false
+                                        updateProgress = null
+                                    }
                                 )
                             }
                         },

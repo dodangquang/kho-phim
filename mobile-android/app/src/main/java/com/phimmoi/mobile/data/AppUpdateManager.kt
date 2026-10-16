@@ -37,19 +37,20 @@ class AppUpdateManager(private val context: Context) {
                     .url(url)
                     .header("Cache-Control", "no-cache")
                     .build()
-                val resp = client.newCall(req).execute()
-                if (resp.isSuccessful) {
-                    val jsonStr = resp.body?.string()
-                    if (!jsonStr.isNullOrBlank()) {
-                        val obj = JSONObject(jsonStr)
-                        val remoteVersionCode = obj.optInt("versionCode", 0)
-                        val remoteVersionName = obj.optString("versionName", "")
-                        val apkUrl = obj.optString("apkUrl", "")
-                        val changelog = obj.optString("changelog", "Bản cập nhật mới.")
-                        if (remoteVersionCode > currentVersionCode && apkUrl.isNotEmpty()) {
-                            return@withContext UpdateInfo(remoteVersionCode, remoteVersionName, apkUrl, changelog)
-                        } else if (remoteVersionCode > 0) {
-                            return@withContext null
+                client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val jsonStr = resp.body?.string()
+                        if (!jsonStr.isNullOrBlank()) {
+                            val obj = JSONObject(jsonStr)
+                            val remoteVersionCode = obj.optInt("versionCode", 0)
+                            val remoteVersionName = obj.optString("versionName", "")
+                            val apkUrl = obj.optString("apkUrlMobile", "").ifEmpty { obj.optString("apkUrl", "") }
+                            val changelog = obj.optString("changelog", "Bản cập nhật mới.")
+                            if (remoteVersionCode > currentVersionCode && apkUrl.isNotEmpty()) {
+                                return@withContext UpdateInfo(remoteVersionCode, remoteVersionName, apkUrl, changelog)
+                            } else if (remoteVersionCode > 0) {
+                                return@withContext null
+                            }
                         }
                     }
                 }
@@ -60,57 +61,34 @@ class AppUpdateManager(private val context: Context) {
         return@withContext null
     }
 
-    suspend fun downloadAndInstallApk(
-        activity: Activity,
-        apkUrl: String,
-        onProgress: (Float) -> Unit,
-        onError: (String) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val req = Request.Builder().url(apkUrl).build()
-            val resp = client.newCall(req).execute()
-            if (!resp.isSuccessful) {
-                withContext(Dispatchers.Main) { onError("Tải thất bại: HTTP ${resp.code}") }
-                return@withContext
-            }
-            val body = resp.body ?: run {
-                withContext(Dispatchers.Main) { onError("Không có dữ liệu") }
-                return@withContext
-            }
-            val totalBytes = body.contentLength()
-            val updateFile = File(activity.cacheDir, "update.apk")
-            if (updateFile.exists()) updateFile.delete()
-            body.byteStream().use { input ->
-                FileOutputStream(updateFile).use { output ->
-                    val buffer = ByteArray(8 * 1024)
-                    var bytesRead: Int
-                    var downloaded: Long = 0
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        downloaded += bytesRead
-                        if (totalBytes > 0) {
-                            withContext(Dispatchers.Main) { onProgress(downloaded.toFloat() / totalBytes.toFloat()) }
-                        }
-                    }
-                    output.flush()
-                }
-            }
-            withContext(Dispatchers.Main) { installApk(activity, updateFile) }
-        } catch (e: Exception) {
-            Log.e("AppUpdateManager", "Lỗi tải: ${e.message}")
-            withContext(Dispatchers.Main) { onError("Lỗi: ${e.localizedMessage}") }
+    fun getCachedApkFile(context: Context, versionCode: Int? = null): File {
+        return if (versionCode != null) {
+            File(context.cacheDir, "update_v$versionCode.apk")
+        } else {
+            File(context.cacheDir, "update.apk")
         }
     }
 
-    private fun installApk(activity: Activity, apkFile: File) {
+    fun hasInstallPermission(activity: Activity): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            activity.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+    }
+
+    fun installApk(activity: Activity, apkFile: File = getCachedApkFile(activity)): Boolean {
         try {
+            if (!apkFile.exists() || apkFile.length() == 0L) {
+                return false
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!activity.packageManager.canRequestPackageInstalls()) {
                     val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${activity.packageName}")
                     }
                     activity.startActivity(intent)
-                    return
+                    return false
                 }
             }
             val contentUri = FileProvider.getUriForFile(activity, "${activity.packageName}.provider", apkFile)
@@ -119,8 +97,64 @@ class AppUpdateManager(private val context: Context) {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             activity.startActivity(installIntent)
+            return true
         } catch (e: Exception) {
             Log.e("AppUpdateManager", "Không thể cài APK: ${e.message}")
+            return false
+        }
+    }
+
+    suspend fun downloadAndInstallApk(
+        activity: Activity,
+        apkUrl: String,
+        versionCode: Int? = null,
+        onProgress: (Float) -> Unit,
+        onSuccess: (installed: Boolean) -> Unit = {},
+        onError: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder().url(apkUrl).build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    withContext(Dispatchers.Main) { onError("Tải thất bại: HTTP ${resp.code}") }
+                    return@withContext
+                }
+                val body = resp.body ?: run {
+                    withContext(Dispatchers.Main) { onError("Không có dữ liệu file cập nhật") }
+                    return@withContext
+                }
+                val totalBytes = body.contentLength()
+                val updateFile = getCachedApkFile(activity, versionCode)
+                if (updateFile.exists()) updateFile.delete()
+
+                body.byteStream().use { input ->
+                    FileOutputStream(updateFile).use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
+                        var downloaded: Long = 0
+                        var lastReportTime = 0L
+
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            downloaded += bytesRead
+                            val now = System.currentTimeMillis()
+                            if (totalBytes > 0 && (now - lastReportTime > 100 || downloaded == totalBytes)) {
+                                lastReportTime = now
+                                val progress = downloaded.toFloat() / totalBytes.toFloat()
+                                withContext(Dispatchers.Main) { onProgress(progress) }
+                            }
+                        }
+                        output.flush()
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    val launched = installApk(activity, updateFile)
+                    onSuccess(launched)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AppUpdateManager", "Lỗi tải bản cập nhật: ${e.message}")
+            withContext(Dispatchers.Main) { onError("Lỗi tải bản cập nhật: ${e.localizedMessage ?: "Không xác định"}") }
         }
     }
 }

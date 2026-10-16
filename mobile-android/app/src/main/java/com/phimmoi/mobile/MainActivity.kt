@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
                 var showUpdateDialog by remember { mutableStateOf(false) }
                 var updateProgress by remember { mutableStateOf<Float?>(null) }
                 var updateError by remember { mutableStateOf<String?>(null) }
+                var isDownloaded by remember { mutableStateOf(false) }
 
                 LaunchedEffect(Unit) {
                     delay(1500L)
@@ -107,6 +108,8 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = true) {
                     if (showUpdateDialog && updateProgress == null) {
                         showUpdateDialog = false
+                        isDownloaded = false
+                        updateProgress = null
                     } else if (screenStack.size > 1) {
                         screenStack.removeAt(screenStack.lastIndex)
                     } else {
@@ -325,6 +328,8 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = {
                             if (updateProgress == null) {
                                 showUpdateDialog = false
+                                isDownloaded = false
+                                updateProgress = null
                             }
                         },
                         title = {
@@ -338,7 +343,11 @@ class MainActivity : ComponentActivity() {
                         text = {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
-                                    text = "Đã có bản cập nhật mới v${info.versionName} - Bạn có muốn cập nhật ngay không?",
+                                    text = if (isDownloaded) {
+                                        "Đã tải xong bản cập nhật v${info.versionName}. Bấm 'Cài đặt ngay' để tiến hành cập nhật ứng dụng."
+                                    } else {
+                                        "Đã có bản cập nhật mới v${info.versionName} - Bạn có muốn cập nhật ngay không?"
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.White
                                 )
@@ -394,31 +403,73 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         val act = context as? Activity ?: return@Button
-                                        coroutineScope.launch {
-                                            updateProgress = 0f
-                                            updateError = null
-                                            appUpdateManager.downloadAndInstallApk(
+                                        if (isDownloaded) {
+                                            val launched = appUpdateManager.installApk(
                                                 activity = act,
-                                                apkUrl = info.apkUrl,
-                                                onProgress = { p -> updateProgress = p },
-                                                onError = { err ->
-                                                    updateError = err
-                                                    updateProgress = null
-                                                }
+                                                apkFile = appUpdateManager.getCachedApkFile(act, info.versionCode)
                                             )
+                                            if (launched) {
+                                                showUpdateDialog = false
+                                                isDownloaded = false
+                                                updateProgress = null
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Vui lòng cho phép cài đặt ứng dụng từ nguồn này rồi bấm 'Cài đặt ngay'",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        } else {
+                                            coroutineScope.launch {
+                                                updateProgress = 0f
+                                                updateError = null
+                                                appUpdateManager.downloadAndInstallApk(
+                                                    activity = act,
+                                                    apkUrl = info.apkUrl,
+                                                    versionCode = info.versionCode,
+                                                    onProgress = { p -> updateProgress = p },
+                                                    onSuccess = { launched ->
+                                                        updateProgress = null
+                                                        if (launched) {
+                                                            showUpdateDialog = false
+                                                            isDownloaded = false
+                                                        } else {
+                                                            isDownloaded = true
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Vui lòng cho phép cài đặt ứng dụng từ nguồn này rồi bấm 'Cài đặt ngay'",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
+                                                    },
+                                                    onError = { err ->
+                                                        updateError = err
+                                                        updateProgress = null
+                                                        isDownloaded = false
+                                                    }
+                                                )
+                                            }
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text("Cập nhật ngay", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (isDownloaded) "Cài đặt ngay" else "Cập nhật ngay",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         },
                         dismissButton = {
                             if (updateProgress == null) {
                                 TextButton(
-                                    onClick = { showUpdateDialog = false }
+                                    onClick = {
+                                        showUpdateDialog = false
+                                        isDownloaded = false
+                                        updateProgress = null
+                                    }
                                 ) {
                                     Text("Để sau", color = TextMuted)
                                 }
