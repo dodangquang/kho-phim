@@ -897,6 +897,62 @@ button {
   color: #ff6b6b;
 }
 
+/* Player Source Mode Toggle Button */
+.player-mode-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.player-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.player-mode-btn.embed-active {
+  background: rgba(229, 9, 20, 0.25);
+  border-color: var(--accent-red);
+  color: #ff9b9b;
+}
+
+/* Player Floating Notification Toast */
+.player-toast {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 18, 18, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+  display: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: playerToastFadeIn 0.3s ease;
+}
+
+@keyframes playerToastFadeIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 /* Bottom Navigation Bar */
 .bottom-nav {
   position: fixed;

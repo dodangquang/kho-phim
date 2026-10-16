@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Kho Phim">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#121212">
+  <meta name="referrer" content="no-referrer">
 
   <!-- Icons & PWA Manifest -->
   <link rel="icon" type="image/png" href="icon.png">
@@ -182,12 +183,16 @@
         <div id="player-movie-title" class="player-movie-title">Tên Phim</div>
         <div id="player-ep-title" class="player-ep-title">Tập 1</div>
       </div>
+      <button id="player-switch-mode-btn" class="player-mode-btn" onclick="togglePlayerSource()" title="Đổi chế độ phát">
+        Nguồn: HLS
+      </button>
       <button class="icon-btn" onclick="playNextEpisode()" title="Tập tiếp theo">
         <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
     </div>
 
     <div class="video-container">
+      <div id="player-toast" class="player-toast"></div>
       <video
         id="video-player"
         playsinline

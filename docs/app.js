@@ -18,6 +18,9 @@
   let currentPlayingEpisode = null;
   let currentPlayingEpisodesList = [];
   let hlsInstance = null;
+  let currentPlayerMode = 'hls';
+  let hlsRecoveryAttempts = 0;
+  let streamWatchdogTimer = null;
   let searchDebounceTimer = null;
   let historySaveTimer = null;
 
@@ -48,6 +51,8 @@
   const iframePlayer = document.getElementById('iframe-player');
   const playerErrorBanner = document.getElementById('player-error-banner');
   const playerErrorText = document.getElementById('player-error-text');
+  const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
+  const playerToast = document.getElementById('player-toast');
 
   // Categories Definition
   const CATEGORIES = [
@@ -65,14 +70,69 @@
     { id: 'tinh-cam', title: '🌸 Tình Cảm', path: 'v1/api/the-loai/tinh-cam' }
   ];
 
-  // Helper: Resolve image URLs
-  function resolveImageUrl(url) {
-    if (!url) return 'icon.png';
-    const trimmed = url.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  // Helper: Format & Clean Image URLs
+  function formatImageUrl(url) {
+    if (!url) return '';
+    let trimmed = url.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('http://')) {
+      trimmed = 'https://' + trimmed.slice(7);
+    }
+    if (trimmed.startsWith('https://')) return trimmed;
     if (trimmed.startsWith('//')) return 'https:' + trimmed;
+
+    // Handle domain prefixes without protocol (e.g. danviet.vn/..., i.ex-cdn.com/...)
+    if (trimmed.includes('.vn/') || trimmed.includes('.com/') || trimmed.includes('.net/') || trimmed.includes('.org/')) {
+      return 'https://' + trimmed.replace(/^\/+/, '');
+    }
+
     const clean = trimmed.replace(/^\/+/, '');
     return `${IMG_BASE}/${clean}`;
+  }
+
+  function resolveImageUrl(url) {
+    const formatted = formatImageUrl(url);
+    return formatted || 'icon.png';
+  }
+
+  function getMovieImageUrls(movie) {
+    if (!movie) return { primary: 'icon.png', fallback: 'icon.png', banner: 'icon.png' };
+    const rawPoster = (movie.poster_url || '').trim();
+    const rawThumb = (movie.thumb_url || '').trim();
+    const resolvedPoster = formatImageUrl(rawPoster);
+    const resolvedThumb = formatImageUrl(rawThumb);
+
+    // Identify if images are on CDN and not known hotlink-blocked domains
+    const isPosterCdn = resolvedPoster.includes('phimimg.com') && !resolvedPoster.includes('danviet') && !resolvedPoster.includes('kenh14');
+    const isThumbCdn = resolvedThumb.includes('phimimg.com') && !resolvedThumb.includes('danviet') && !resolvedThumb.includes('kenh14');
+
+    let poster = '';
+    let fallbackPoster = '';
+
+    if (isThumbCdn && !isPosterCdn) {
+      poster = resolvedThumb;
+      fallbackPoster = (resolvedPoster && resolvedPoster !== resolvedThumb) ? resolvedPoster : 'icon.png';
+    } else if (isPosterCdn) {
+      poster = resolvedPoster;
+      fallbackPoster = (resolvedThumb && resolvedThumb !== resolvedPoster) ? resolvedThumb : 'icon.png';
+    } else if (resolvedThumb) {
+      poster = resolvedThumb;
+      fallbackPoster = resolvedPoster || 'icon.png';
+    } else if (resolvedPoster) {
+      poster = resolvedPoster;
+      fallbackPoster = 'icon.png';
+    } else {
+      poster = 'icon.png';
+      fallbackPoster = 'icon.png';
+    }
+
+    let banner = isThumbCdn ? resolvedThumb : (resolvedThumb || resolvedPoster || 'icon.png');
+
+    return {
+      primary: poster,
+      fallback: fallbackPoster,
+      banner: banner
+    };
   }
 
   // Local Storage History Helper
@@ -216,13 +276,19 @@
     card.className = 'movie-card';
     card.onclick = () => openMovieDetail(movie.slug);
 
-    const poster = resolveImageUrl(movie.poster_url || movie.thumb_url);
+    const { primary, fallback } = getMovieImageUrls(movie);
     const badge = movie.quality || movie.year || '';
     const epBadge = movie.episode_current || movie.time || '';
 
     card.innerHTML = `
       <div class="movie-poster-wrap">
-        <img src="${poster}" alt="${movie.name}" loading="lazy" onerror="this.src='icon.png'">
+        <img
+          src="${primary}"
+          alt="${movie.name}"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          onerror="if(this.dataset.failedOnce!=='1'){this.dataset.failedOnce='1';this.src='${fallback}';}else{this.src='icon.png';}"
+        >
         ${badge ? `<span class="movie-badge-top-left">${badge}</span>` : ''}
         ${epBadge ? `<span class="movie-badge-top-right">${epBadge}</span>` : ''}
       </div>
@@ -309,7 +375,8 @@
 
   // Setup Hero Banner
   function setupHeroBanner(movie) {
-    const backdropUrl = resolveImageUrl(movie.thumb_url || movie.poster_url);
+    const { banner, primary } = getMovieImageUrls(movie);
+    const backdropUrl = banner || primary;
     heroBanner.style.backgroundImage = `url('${backdropUrl}')`;
 
     const badge = movie.quality || 'FHD';
@@ -407,8 +474,9 @@
 
   // Render Movie Detail Content
   function renderDetailContent(movie, episodes) {
-    const backdropUrl = resolveImageUrl(movie.thumb_url || movie.poster_url);
-    const posterUrl = resolveImageUrl(movie.poster_url || movie.thumb_url);
+    const { banner, primary } = getMovieImageUrls(movie);
+    const backdropUrl = banner || primary;
+    const posterUrl = primary;
 
     // Categories string
     const genres = (movie.category || []).map(c => c.name).join(', ') || 'Đang cập nhật';
@@ -589,7 +657,73 @@
     }
   }
 
-  // Video Playback Engine (Native iOS HLS + hls.js + Web Embed fallback)
+  // Player Source & Toast Helpers
+  function showPlayerToast(text, duration = 3500) {
+    if (!playerToast) return;
+    playerToast.textContent = text;
+    playerToast.style.display = 'block';
+    if (playerToast._timer) clearTimeout(playerToast._timer);
+    playerToast._timer = setTimeout(() => {
+      playerToast.style.display = 'none';
+    }, duration);
+  }
+
+  function updatePlayerModeButton() {
+    const btn = document.getElementById('player-switch-mode-btn');
+    if (!btn) return;
+    if (currentPlayerMode === 'embed') {
+      btn.textContent = 'Nguồn: Dự phòng';
+      btn.classList.add('embed-active');
+      btn.title = 'Đang phát qua Web Embed. Nhấn để đổi sang luồng Trực tiếp (HLS)';
+    } else {
+      btn.textContent = 'Nguồn: HLS';
+      btn.classList.remove('embed-active');
+      btn.title = 'Đang phát qua HLS trực tiếp. Nhấn để đổi sang Web Embed';
+    }
+  }
+
+  window.togglePlayerSource = function () {
+    if (!currentPlayingEpisode) return;
+    let embedUrl = (currentPlayingEpisode.link_embed || '').trim();
+    if (embedUrl.startsWith('http://')) embedUrl = 'https://' + embedUrl.slice(7);
+
+    if (currentPlayerMode === 'hls') {
+      if (embedUrl) {
+        fallbackToIframe(embedUrl, false);
+        showPlayerToast('Đã chuyển sang Trình phát Dự phòng (Web Embed)');
+      } else {
+        showPlayerToast('Tập này không có nguồn dự phòng.');
+      }
+    } else {
+      switchToHlsDirect();
+    }
+  };
+
+  function switchToHlsDirect() {
+    if (!currentPlayingEpisode) return;
+    let streamUrl = (currentPlayingEpisode.link_m3u8 || '').trim();
+    let embedUrl = (currentPlayingEpisode.link_embed || '').trim();
+    if (streamUrl.startsWith('http://')) streamUrl = 'https://' + streamUrl.slice(7);
+    if (embedUrl.startsWith('http://')) embedUrl = 'https://' + embedUrl.slice(7);
+
+    if (!streamUrl) {
+      showPlayerToast('Tập này không có luồng HLS trực tiếp.');
+      return;
+    }
+
+    iframePlayer.src = 'about:blank';
+    iframePlayer.style.display = 'none';
+    videoPlayer.style.display = 'block';
+    playerErrorBanner.style.display = 'none';
+
+    currentPlayerMode = 'hls';
+    updatePlayerModeButton();
+    showPlayerToast('Đang chuyển sang Trình phát Trực tiếp (HLS)...');
+
+    startHlsStream(streamUrl, embedUrl, Math.floor(videoPlayer.currentTime || 0));
+  }
+
+  // Video Playback Engine (Native iOS HLS + hls.js + Auto Web Embed fallback)
   function startVideoPlayback(movie, episode, allServerEpisodes, serverName, resumePosition = 0) {
     currentPlayingMovie = movie;
     currentPlayingEpisode = episode;
@@ -601,17 +735,30 @@
       } catch (_) {}
     }
 
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
     playerErrorBanner.style.display = 'none';
     iframePlayer.style.display = 'none';
+    iframePlayer.src = 'about:blank';
     videoPlayer.style.display = 'block';
 
     document.getElementById('player-movie-title').textContent = movie.name;
     document.getElementById('player-ep-title').textContent = `${episode.name} • ${serverName}`;
 
+    currentPlayerMode = 'hls';
+    updatePlayerModeButton();
+
     playerOverlay.classList.add('open');
 
-    const streamUrl = episode.link_m3u8 || '';
-    const embedUrl = episode.link_embed || '';
+    let streamUrl = (episode.link_m3u8 || '').trim();
+    let embedUrl = (episode.link_embed || '').trim();
+
+    // Prevent mixed content on HTTPS GitHub Pages
+    if (streamUrl.startsWith('http://')) streamUrl = 'https://' + streamUrl.slice(7);
+    if (embedUrl.startsWith('http://')) embedUrl = 'https://' + embedUrl.slice(7);
 
     // Check resume position from history if not passed
     if (resumePosition <= 0) {
@@ -621,7 +768,22 @@
       }
     }
 
-    // Helper to safely apply resume position
+    startHlsStream(streamUrl, embedUrl, resumePosition);
+
+    // User gesture fullscreen
+    requestPlayerFullscreen();
+
+    // Start auto-save history timer
+    if (historySaveTimer) clearInterval(historySaveTimer);
+    historySaveTimer = setInterval(trackAndSaveHistory, 3000);
+  }
+
+  function startHlsStream(streamUrl, embedUrl, resumePosition = 0) {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
     const applyResumePosition = () => {
       if (resumePosition > 0) {
         try {
@@ -630,9 +792,8 @@
       }
     };
 
-    // Attempt video playback
     if (streamUrl && streamUrl.includes('.m3u8')) {
-      // 1. Native HLS for Safari iOS
+      // 1. Native HLS for Safari iOS / Mac Safari
       if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
         videoPlayer.src = streamUrl;
         videoPlayer.load();
@@ -658,14 +819,23 @@
             });
         }
       }
-      // 2. hls.js for other browsers (Chrome, Edge, Firefox, Android)
+      // 2. hls.js for Chrome, Edge, Firefox, Android
       else if (window.Hls && Hls.isSupported()) {
         if (hlsInstance) {
-          hlsInstance.destroy();
+          try { hlsInstance.destroy(); } catch (_) {}
+          hlsInstance = null;
         }
+        hlsRecoveryAttempts = 0;
         hlsInstance = new Hls({
           enableWorker: true,
-          lowLatencyMode: true
+          lowLatencyMode: false,
+          backBufferLength: 60,
+          maxBufferLength: 30,
+          manifestLoadingTimeOut: 15000,
+          manifestLoadingMaxRetry: 3,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 4,
+          nudgeMaxRetry: 5
         });
         hlsInstance.loadSource(streamUrl);
         hlsInstance.attachMedia(videoPlayer);
@@ -683,12 +853,29 @@
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.warn('Hls network error, attempting reload...');
-                hlsInstance.startLoad();
+                if (hlsRecoveryAttempts < 2) {
+                  hlsRecoveryAttempts++;
+                  console.warn('Hls network error, reloading...', hlsRecoveryAttempts);
+                  hlsInstance.startLoad();
+                } else {
+                  console.warn('Hls unrecoverable network error, auto-fallback to embed');
+                  handlePlaybackError(streamUrl, embedUrl);
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.warn('Hls media error, recovering...');
-                hlsInstance.recoverMediaError();
+                if (hlsRecoveryAttempts === 0) {
+                  hlsRecoveryAttempts++;
+                  console.warn('Hls media error, recovering...');
+                  hlsInstance.recoverMediaError();
+                } else if (hlsRecoveryAttempts === 1) {
+                  hlsRecoveryAttempts++;
+                  console.warn('Hls media error, swapping audio codec...');
+                  try { hlsInstance.swapAudioCodec(); } catch (_) {}
+                  hlsInstance.recoverMediaError();
+                } else {
+                  console.warn('Hls unrecoverable media error, auto-fallback to embed');
+                  handlePlaybackError(streamUrl, embedUrl);
+                }
                 break;
               default:
                 console.error('Fatal unrecoverable HLS error:', data);
@@ -701,23 +888,40 @@
       // 3. Fallback to direct src
       else {
         videoPlayer.src = streamUrl;
-        videoPlayer.play().catch(e => handlePlaybackError(streamUrl, embedUrl));
+        videoPlayer.play().catch(e => {
+          if (e.name !== 'NotAllowedError') {
+            handlePlaybackError(streamUrl, embedUrl);
+          }
+        });
       }
+
+      // Stream watchdog: if after 12s nothing plays and video is stalled/error
+      streamWatchdogTimer = setTimeout(() => {
+        if (currentPlayerMode === 'hls' && videoPlayer.paused && videoPlayer.currentTime === 0) {
+          console.warn('Stream watchdog timed out, auto-falling back to embed.');
+          handlePlaybackError(streamUrl, embedUrl);
+        }
+      }, 12000);
     } else if (embedUrl) {
-      fallbackToIframe(embedUrl);
+      fallbackToIframe(embedUrl, false);
     } else {
       handlePlaybackError(streamUrl, embedUrl);
     }
-
-    // User gesture fullscreen
-    requestPlayerFullscreen();
-
-    // Start auto-save history timer
-    if (historySaveTimer) clearInterval(historySaveTimer);
-    historySaveTimer = setInterval(trackAndSaveHistory, 3000);
   }
 
   function handlePlaybackError(streamUrl, embedUrl) {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
+    // Auto-fallback to Web Embed if available
+    if (embedUrl && currentPlayerMode === 'hls') {
+      console.warn('Direct stream failed, automatically switching to Web Embed.');
+      fallbackToIframe(embedUrl, true);
+      return;
+    }
+
     playerErrorText.textContent = 'Luồng phát trực tiếp gặp lỗi hoặc máy chủ quá tải.';
     playerErrorBanner.style.display = 'block';
 
@@ -725,28 +929,55 @@
     if (embedUrl) {
       embedBtn.style.display = 'inline-flex';
       embedBtn.onclick = () => {
-        fallbackToIframe(embedUrl);
+        fallbackToIframe(embedUrl, false);
       };
     } else {
       embedBtn.style.display = 'none';
     }
   }
 
-  function fallbackToIframe(embedUrl) {
+  function fallbackToIframe(embedUrl, isAuto = false) {
+    if (!embedUrl) {
+      handlePlaybackError('', '');
+      return;
+    }
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+    if (hlsInstance) {
+      try { hlsInstance.destroy(); } catch (_) {}
+      hlsInstance = null;
+    }
     playerErrorBanner.style.display = 'none';
-    videoPlayer.pause();
+    try {
+      videoPlayer.pause();
+      videoPlayer.removeAttribute('src');
+      videoPlayer.load();
+    } catch (_) {}
     videoPlayer.style.display = 'none';
     iframePlayer.style.display = 'block';
-    iframePlayer.src = embedUrl;
+
+    if (iframePlayer.src !== embedUrl) {
+      iframePlayer.src = embedUrl;
+    }
+
+    currentPlayerMode = 'embed';
+    updatePlayerModeButton();
+
+    if (isAuto) {
+      showPlayerToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)');
+    }
   }
 
   function trackAndSaveHistory() {
     if (!currentPlayingMovie || !currentPlayingEpisode) return;
     if (videoPlayer.currentTime > 2 && videoPlayer.duration > 0) {
+      const { primary } = getMovieImageUrls(currentPlayingMovie);
       saveWatchHistoryItem({
         movieSlug: currentPlayingMovie.slug,
         movieTitle: currentPlayingMovie.name,
-        posterUrl: resolveImageUrl(currentPlayingMovie.poster_url || currentPlayingMovie.thumb_url),
+        posterUrl: primary,
         episodeSlug: currentPlayingEpisode.slug,
         episodeName: currentPlayingEpisode.name,
         serverName: currentDetailEpisodes[currentServerIndex]?.server_name || 'Server VIP',
@@ -783,10 +1014,16 @@
       historySaveTimer = null;
     }
 
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+    currentPlayerMode = 'hls';
+
     videoPlayer.pause();
     videoPlayer.src = '';
     if (hlsInstance) {
-      hlsInstance.destroy();
+      try { hlsInstance.destroy(); } catch (_) {}
       hlsInstance = null;
     }
     iframePlayer.src = 'about:blank';
@@ -825,8 +1062,16 @@
     }
   });
 
+  videoPlayer.addEventListener('playing', () => {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+  });
+
   videoPlayer.addEventListener('error', (e) => {
     if (videoPlayer.src && videoPlayer.src !== 'about:blank') {
+      console.warn('HTML5 video error, auto-falling back to embed:', videoPlayer.error);
       handlePlaybackError(videoPlayer.src, currentPlayingEpisode?.link_embed);
     }
   });
@@ -974,6 +1219,14 @@
       switchTab(target);
     });
   });
+
+  // Expose test helpers for verification
+  window.__testHelpers = {
+    formatImageUrl,
+    resolveImageUrl,
+    getMovieImageUrls,
+    startVideoPlayback
+  };
 
   // App Init
   renderCategoryPills();

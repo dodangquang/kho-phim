@@ -12,6 +12,9 @@ class PhimRepository {
         if trimmed.starts(with: "//") {
             return "https:" + trimmed
         }
+        if trimmed.contains(".vn/") || trimmed.contains(".com/") || trimmed.contains(".net/") || trimmed.contains(".org/") {
+            return "https://" + trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
         return "https://phimimg.com/" + trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
@@ -33,8 +36,8 @@ class PhimRepository {
             let poster = formatImageUrl(posterRaw)
             let thumb = formatImageUrl(thumbRaw)
 
-            let isPosterCdn = poster.contains("phimimg.com")
-            let isThumbCdn = thumb.contains("phimimg.com")
+            let isPosterCdn = poster.contains("phimimg.com") && !poster.contains("danviet") && !poster.contains("kenh14")
+            let isThumbCdn = thumb.contains("phimimg.com") && !thumb.contains("danviet") && !thumb.contains("kenh14")
 
             let finalPoster = (!isPosterCdn && isThumbCdn) ? thumb : (!poster.isEmpty ? poster : thumb)
             let finalBanner = isThumbCdn ? thumb : (!thumb.isEmpty ? thumb : poster)
@@ -149,6 +152,10 @@ class PhimRepository {
                     let overview = content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                     let poster = formatImageUrl((movieObj["poster_url"] as? String) ?? "")
                     let thumb = formatImageUrl((movieObj["thumb_url"] as? String) ?? "")
+                    let isPosterCdn = poster.contains("phimimg.com") && !poster.contains("danviet") && !poster.contains("kenh14")
+                    let isThumbCdn = thumb.contains("phimimg.com") && !thumb.contains("danviet") && !thumb.contains("kenh14")
+                    let finalPoster = (!isPosterCdn && isThumbCdn) ? thumb : (!poster.isEmpty ? poster : thumb)
+                    let finalBanner = isThumbCdn ? thumb : (!thumb.isEmpty ? thumb : poster)
                     let year = (movieObj["year"] as? String) ?? ""
                     let quality = (movieObj["quality"] as? String) ?? ""
 
@@ -183,8 +190,8 @@ class PhimRepository {
                     return MovieDetail(
                         title: title,
                         slug: clean,
-                        posterUrl: !poster.isEmpty ? poster : thumb,
-                        backdropUrl: !thumb.isEmpty ? thumb : poster,
+                        posterUrl: finalPoster,
+                        backdropUrl: finalBanner,
                         overview: overview,
                         year: year,
                         quality: quality,
