@@ -181,8 +181,13 @@ struct HomeView: View {
                     }
                 }
             }
-            .navigationDestination(item: $selectedMovie) { movie in
-                DetailView(movie: movie)
+            .navigationDestination(isPresented: Binding(
+                get: { selectedMovie != nil },
+                set: { if !$0 { selectedMovie = nil } }
+            )) {
+                if let movie = selectedMovie {
+                    DetailView(movie: movie)
+                }
             }
             .task {
                 await loadData()

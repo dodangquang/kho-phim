@@ -27,7 +27,7 @@ struct SearchView: View {
                             .foregroundColor(.white)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-                            .onChange(of: query) { _, newValue in
+                            .onChange(of: query) { newValue in
                                 searchTask?.cancel()
                                 searchTask = Task {
                                     try? await Task.sleep(nanoseconds: 400_000_000)
@@ -105,8 +105,13 @@ struct SearchView: View {
                     }
                 }
             }
-            .navigationDestination(item: $selectedMovie) { movie in
-                DetailView(movie: movie)
+            .navigationDestination(isPresented: Binding(
+                get: { selectedMovie != nil },
+                set: { if !$0 { selectedMovie = nil } }
+            )) {
+                if let movie = selectedMovie {
+                    DetailView(movie: movie)
+                }
             }
         }
     }
@@ -239,8 +244,13 @@ struct HistoryView: View {
             } message: {
                 Text("Bạn có chắc chắn muốn xóa toàn bộ lịch sử xem phim?")
             }
-            .navigationDestination(item: $selectedMovie) { movie in
-                DetailView(movie: movie)
+            .navigationDestination(isPresented: Binding(
+                get: { selectedMovie != nil },
+                set: { if !$0 { selectedMovie = nil } }
+            )) {
+                if let movie = selectedMovie {
+                    DetailView(movie: movie)
+                }
             }
         }
     }
