@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Kho Phim</string>
+    <string name="tab_home">Trang Chủ</string>
+    <string name="tab_single">Phim Lẻ</string>
+    <string name="tab_series">Phim Bộ</string>
+    <string name="tab_theater">Chiếu Rạp</string>
+    <string name="tab_search">Tìm Kiếm</string>
+    <string name="tab_settings">Cài Đặt</string>
+    <string name="watch_now">Xem Phim</string>
+    <string name="resume_watch">Tiếp tục xem</string>
+    <string name="episodes">Danh Sách Tập</string>
+    <string name="servers">Máy Chủ Phát</string>
+    <string name="search_hint">Nhập tên phim cần tìm...</string>
+</resources>
