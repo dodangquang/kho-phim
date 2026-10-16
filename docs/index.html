@@ -12,9 +12,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#121212">
 
-  <!-- Icons -->
+  <!-- Icons & PWA Manifest -->
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
 
   <!-- Open Graph -->
   <meta property="og:title" content="Kho Phim - Xem Phim Online Trực Tuyến Nhanh Nhất">
@@ -196,7 +197,7 @@
         preload="auto"
       ></video>
 
-      <iframe id="iframe-player" allowfullscreen></iframe>
+      <iframe id="iframe-player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
       <div id="player-error-banner" class="player-error-banner">
         <p id="player-error-text">Không thể phát luồng video.</p>

@@ -340,6 +340,11 @@
 
   // Open Movie Detail Modal
   window.openMovieDetail = async function (slug, autoPlay = false) {
+    if (!window.location.hash.startsWith('#detail-') && !window.location.hash.startsWith('#player-')) {
+      try {
+        history.pushState({ modal: 'detail', slug }, '', '#detail-' + slug);
+      } catch (_) {}
+    }
     detailModal.classList.add('open');
     detailModal.innerHTML = `
       <div class="detail-modal">
@@ -393,8 +398,11 @@
     }
   };
 
-  window.closeMovieDetail = function () {
+  window.closeMovieDetail = function (fromPopState = false) {
     detailModal.classList.remove('open');
+    if (!fromPopState && window.location.hash.startsWith('#detail-')) {
+      history.back();
+    }
   };
 
   // Render Movie Detail Content
@@ -525,7 +533,15 @@
   window.playFirstOrResumeEpisode = function (movie = currentDetailMovie, episodes = currentDetailEpisodes) {
     if (!episodes || episodes.length === 0) return;
     const historyItem = getWatchHistory().find(x => x.movieSlug === movie.slug);
-    const server = episodes[currentServerIndex] || episodes[0];
+    let serverIdx = currentServerIndex;
+    if (historyItem && historyItem.serverName) {
+      const matchSrv = episodes.findIndex(s => s.server_name === historyItem.serverName);
+      if (matchSrv !== -1) {
+        serverIdx = matchSrv;
+        currentServerIndex = matchSrv;
+      }
+    }
+    const server = episodes[serverIdx] || episodes[0];
     const serverData = server.server_data || [];
 
     if (serverData.length === 0) return;
@@ -544,11 +560,46 @@
     startVideoPlayback(movie, targetEp, serverData, server.server_name, startPosition);
   };
 
+  // Fullscreen & orientation handler
+  function requestPlayerFullscreen() {
+    try {
+      if (videoPlayer.webkitEnterFullscreen) {
+        if (videoPlayer.readyState >= 1) {
+          videoPlayer.webkitEnterFullscreen();
+        } else {
+          const onMeta = () => {
+            try { videoPlayer.webkitEnterFullscreen(); } catch (_) {}
+            videoPlayer.removeEventListener('loadedmetadata', onMeta);
+          };
+          videoPlayer.addEventListener('loadedmetadata', onMeta);
+        }
+      } else if (playerOverlay.requestFullscreen) {
+        playerOverlay.requestFullscreen().catch(() => {});
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      } else if (videoPlayer.requestFullscreen) {
+        videoPlayer.requestFullscreen().catch(() => {});
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('Auto fullscreen request suppressed:', e);
+    }
+  }
+
   // Video Playback Engine (Native iOS HLS + hls.js + Web Embed fallback)
   function startVideoPlayback(movie, episode, allServerEpisodes, serverName, resumePosition = 0) {
     currentPlayingMovie = movie;
     currentPlayingEpisode = episode;
     currentPlayingEpisodesList = allServerEpisodes;
+
+    if (!window.location.hash.startsWith('#player-')) {
+      try {
+        history.pushState({ modal: 'player', slug: movie.slug }, '', '#player-' + movie.slug);
+      } catch (_) {}
+    }
 
     playerErrorBanner.style.display = 'none';
     iframePlayer.style.display = 'none';
@@ -570,6 +621,15 @@
       }
     }
 
+    // Helper to safely apply resume position
+    const applyResumePosition = () => {
+      if (resumePosition > 0) {
+        try {
+          videoPlayer.currentTime = resumePosition;
+        } catch (_) {}
+      }
+    };
+
     // Attempt video playback
     if (streamUrl && streamUrl.includes('.m3u8')) {
       // 1. Native HLS for Safari iOS
@@ -577,15 +637,25 @@
         videoPlayer.src = streamUrl;
         videoPlayer.load();
 
-        if (resumePosition > 0) {
-          videoPlayer.currentTime = resumePosition;
+        if (videoPlayer.readyState >= 1) {
+          applyResumePosition();
+        } else {
+          const onMeta = () => {
+            applyResumePosition();
+            videoPlayer.removeEventListener('loadedmetadata', onMeta);
+          };
+          videoPlayer.addEventListener('loadedmetadata', onMeta);
         }
 
         const playPromise = videoPlayer.play();
         if (playPromise !== undefined) {
-          playPromise.catch(e => {
-            console.warn('Native iOS Autoplay prevented:', e);
-          });
+          playPromise
+            .then(() => {
+              requestPlayerFullscreen();
+            })
+            .catch(e => {
+              console.warn('Native iOS Autoplay prevented:', e);
+            });
         }
       }
       // 2. hls.js for other browsers (Chrome, Edge, Firefox, Android)
@@ -601,16 +671,30 @@
         hlsInstance.attachMedia(videoPlayer);
 
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (resumePosition > 0) {
-            videoPlayer.currentTime = resumePosition;
-          }
-          videoPlayer.play().catch(e => console.warn('Hls.js autoplay prevented:', e));
+          applyResumePosition();
+          videoPlayer.play()
+            .then(() => {
+              requestPlayerFullscreen();
+            })
+            .catch(e => console.warn('Hls.js autoplay prevented:', e));
         });
 
         hlsInstance.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            console.error('Fatal HLS error:', data);
-            handlePlaybackError(streamUrl, embedUrl);
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.warn('Hls network error, attempting reload...');
+                hlsInstance.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn('Hls media error, recovering...');
+                hlsInstance.recoverMediaError();
+                break;
+              default:
+                console.error('Fatal unrecoverable HLS error:', data);
+                handlePlaybackError(streamUrl, embedUrl);
+                break;
+            }
           }
         });
       }
@@ -620,21 +704,13 @@
         videoPlayer.play().catch(e => handlePlaybackError(streamUrl, embedUrl));
       }
     } else if (embedUrl) {
-      // Fallback directly to iframe embed if no m3u8 stream
       fallbackToIframe(embedUrl);
     } else {
       handlePlaybackError(streamUrl, embedUrl);
     }
 
-    // Try auto-fullscreen on mobile if supported
-    try {
-      if (videoPlayer.webkitEnterFullscreen) {
-        // iOS Safari full screen method
-        // Will activate on user gesture or playback start
-      } else if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(() => {});
-      }
-    } catch (_) {}
+    // User gesture fullscreen
+    requestPlayerFullscreen();
 
     // Start auto-save history timer
     if (historySaveTimer) clearInterval(historySaveTimer);
@@ -699,7 +775,7 @@
   };
 
   // Close Player
-  window.closeVideoPlayer = function () {
+  window.closeVideoPlayer = function (fromPopState = false) {
     trackAndSaveHistory();
 
     if (historySaveTimer) {
@@ -718,6 +794,14 @@
     videoPlayer.style.display = 'block';
 
     playerOverlay.classList.remove('open');
+
+    if (!fromPopState && window.location.hash.startsWith('#player-')) {
+      history.back();
+    }
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
 
     // Try unlock orientation
     try {
@@ -744,6 +828,26 @@
   videoPlayer.addEventListener('error', (e) => {
     if (videoPlayer.src && videoPlayer.src !== 'about:blank') {
       handlePlaybackError(videoPlayer.src, currentPlayingEpisode?.link_embed);
+    }
+  });
+
+  // Handle native iOS Safari "Done" button to cleanly exit player overlay
+  videoPlayer.addEventListener('webkitendfullscreen', () => {
+    closeVideoPlayer();
+  });
+
+  // Save history on pause and when user switches apps or minimizes Safari
+  videoPlayer.addEventListener('pause', trackAndSaveHistory);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) trackAndSaveHistory();
+  });
+
+  // Browser back button & iOS edge swipe navigation support
+  window.addEventListener('popstate', () => {
+    if (playerOverlay.classList.contains('open')) {
+      closeVideoPlayer(true);
+    } else if (detailModal.classList.contains('open')) {
+      closeMovieDetail(true);
     }
   });
 
