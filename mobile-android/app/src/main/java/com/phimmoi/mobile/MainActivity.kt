@@ -212,10 +212,10 @@ class MainActivity : ComponentActivity() {
                                 movie = detailScreen.movie,
                                 repository = repository,
                                 watchHistoryManager = watchHistoryManager,
-                                onPlayEpisode = { ep, allEps, startPos ->
+                                onPlayEpisode = { playMovie, ep, allEps, startPos ->
                                     screenStack.add(
                                         Screen.Player(
-                                            movie = detailScreen.movie,
+                                            movie = playMovie,
                                             initialEpisode = ep,
                                             allEpisodes = allEps,
                                             initialPositionMs = startPos

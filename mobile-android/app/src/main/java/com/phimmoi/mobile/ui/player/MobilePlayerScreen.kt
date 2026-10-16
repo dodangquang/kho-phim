@@ -1,6 +1,8 @@
 package com.phimmoi.mobile.ui.player
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.view.View
@@ -35,7 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -51,6 +56,12 @@ import com.phimmoi.mobile.ui.theme.TextWhite
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 fun MobilePlayerScreen(
@@ -65,7 +76,7 @@ fun MobilePlayerScreen(
     onBackPress: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
+    val activity = remember(context) { context.findActivity() }
 
     // 1. AUTO-ROTATE TO LANDSCAPE WHEN ENTERING, RESTORE PORTRAIT WHEN EXITING
     DisposableEffect(Unit) {
@@ -125,8 +136,14 @@ fun MobilePlayerScreen(
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
-        ExoPlayer.Builder(context)
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setUsage(C.USAGE_MEDIA)
+            .build()
+
+        ExoPlayer.Builder(context.applicationContext)
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
             .build().apply {
                 playWhenReady = true
             }
@@ -184,11 +201,24 @@ fun MobilePlayerScreen(
 
     LaunchedEffect(currentEp) {
         errorMessage = null
-        if (currentEp.streamUrl.isNotBlank()) {
-            val mediaItem = MediaItem.fromUri(currentEp.streamUrl)
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-            exoPlayer.play()
+        val rawUrl = currentEp.streamUrl.trim()
+        if (rawUrl.isNotBlank()) {
+            try {
+                val sanitized = rawUrl.replace(" ", "%20")
+                val mediaItem = MediaItem.Builder()
+                    .setUri(sanitized)
+                    .apply {
+                        if (sanitized.contains("m3u8", ignoreCase = true)) {
+                            setMimeType(MimeTypes.APPLICATION_M3U8)
+                        }
+                    }
+                    .build()
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.play()
+            } catch (e: Exception) {
+                errorMessage = "Không thể tải luồng phát: ${e.localizedMessage ?: "Lỗi"}"
+            }
         } else {
             errorMessage = "Đang lấy link phát trực tiếp..."
         }
@@ -251,10 +281,18 @@ fun MobilePlayerScreen(
                     useController = false
                 }
             },
+            update = { playerView ->
+                if (playerView.player != exoPlayer) {
+                    playerView.player = exoPlayer
+                }
+            },
+            onRelease = { playerView ->
+                playerView.player = null
+            },
             modifier = Modifier.fillMaxSize()
         )
 
-        if (isBuffering) {
+        if (isBuffering && errorMessage == null) {
             CircularProgressIndicator(
                 color = NetflixRed,
                 strokeWidth = 3.dp,
@@ -263,13 +301,53 @@ fun MobilePlayerScreen(
         }
 
         errorMessage?.let { err ->
-            Box(
+            Column(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
-                    .padding(16.dp)
+                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = err, color = Color.Red, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = {
+                            errorMessage = null
+                            val rawUrl = currentEp.streamUrl.trim()
+                            if (rawUrl.isNotBlank()) {
+                                try {
+                                    val sanitized = rawUrl.replace(" ", "%20")
+                                    val mediaItem = MediaItem.Builder()
+                                        .setUri(sanitized)
+                                        .apply {
+                                            if (sanitized.contains("m3u8", ignoreCase = true)) {
+                                                setMimeType(MimeTypes.APPLICATION_M3U8)
+                                            }
+                                        }
+                                        .build()
+                                    exoPlayer.setMediaItem(mediaItem)
+                                    exoPlayer.prepare()
+                                    exoPlayer.play()
+                                } catch (e: Exception) {
+                                    errorMessage = "Lỗi phát: ${e.localizedMessage}"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Thử lại", color = Color.White, fontSize = 12.sp)
+                    }
+                    if (allEpisodes.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = { showEpisodeSheet = true },
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("Đổi tập", color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+                }
             }
         }
 
@@ -347,7 +425,8 @@ fun MobilePlayerScreen(
                 ) {
                     IconButton(
                         onClick = {
-                            val target = (exoPlayer.currentPosition - 10_000).coerceAtLeast(0)
+                            val current = exoPlayer.currentPosition
+                            val target = (current - 10_000L).coerceAtLeast(0L)
                             exoPlayer.seekTo(target)
                             currentPos = target
                         },
@@ -381,7 +460,10 @@ fun MobilePlayerScreen(
 
                     IconButton(
                         onClick = {
-                            val target = (exoPlayer.currentPosition + 10_000).coerceAtMost(exoPlayer.duration)
+                            val current = exoPlayer.currentPosition
+                            val dur = exoPlayer.duration
+                            val maxLimit = if (dur > 0L) dur else Long.MAX_VALUE
+                            val target = (current + 10_000L).coerceIn(0L, maxLimit)
                             exoPlayer.seekTo(target)
                             currentPos = target
                         },
@@ -452,9 +534,11 @@ fun MobilePlayerScreen(
                         },
                         onValueChangeFinished = {
                             isSeeking = false
-                            val target = (seekSliderPos * totalDuration).toLong()
-                            exoPlayer.seekTo(target)
-                            currentPos = target
+                            if (totalDuration > 0L) {
+                                val target = (seekSliderPos * totalDuration).toLong().coerceIn(0L, totalDuration)
+                                exoPlayer.seekTo(target)
+                                currentPos = target
+                            }
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = NetflixRed,

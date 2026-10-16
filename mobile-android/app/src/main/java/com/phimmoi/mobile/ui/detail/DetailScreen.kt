@@ -39,22 +39,23 @@ fun DetailScreen(
     movie: MovieItem,
     repository: PhimMoiRepository,
     watchHistoryManager: WatchHistoryManager,
-    onPlayEpisode: (EpisodeSource, List<EpisodeSource>, Long) -> Unit,
+    onPlayEpisode: (MovieItem, EpisodeSource, List<EpisodeSource>, Long) -> Unit,
     onBackPress: () -> Unit
 ) {
     val context = LocalContext.current
+    var currentMovie by remember(movie) { mutableStateOf(movie) }
     var movieDetail by remember { mutableStateOf<MovieDetail?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedServer by remember { mutableStateOf("") }
 
-    val lastProgress = remember(movie.slug) {
-        watchHistoryManager.getProgress(movie.slug)
+    val lastProgress = remember(currentMovie.slug) {
+        watchHistoryManager.getProgress(currentMovie.slug)
     }
 
-    LaunchedEffect(movie.slug) {
+    LaunchedEffect(currentMovie.slug) {
         isLoading = true
         try {
-            val detail = repository.getMovieDetail(movie.slug)
+            val detail = repository.getMovieDetail(currentMovie.slug)
             movieDetail = detail
             if (detail.episodes.isNotEmpty()) {
                 val servers = detail.episodes.map { it.serverName }.distinct()
@@ -69,13 +70,13 @@ fun DetailScreen(
     }
 
     val detail = movieDetail
-    val backdrop = detail?.backdropUrl?.takeIf { it.isNotBlank() } ?: movie.bannerUrl?.takeIf { it.isNotBlank() } ?: movie.posterUrl
+    val backdrop = detail?.backdropUrl?.takeIf { it.isNotBlank() } ?: currentMovie.bannerUrl?.takeIf { it.isNotBlank() } ?: currentMovie.posterUrl
     val episodes = detail?.episodes ?: emptyList()
     val servers = episodes.map { it.serverName }.distinct()
     val filteredEpisodes = episodes.filter { it.serverName == selectedServer }
 
     fun launchPlayer(ep: EpisodeSource, startPos: Long = 0L) {
-        onPlayEpisode(ep, episodes, startPos)
+        onPlayEpisode(currentMovie, ep, episodes, startPos)
     }
 
     Box(
@@ -351,9 +352,8 @@ fun DetailScreen(
                                 MobileMovieCard(
                                     movie = related,
                                     onClick = {
-                                        // switch to related movie
                                         movieDetail = null
-                                        isLoading = true
+                                        currentMovie = related
                                     }
                                 )
                             }
