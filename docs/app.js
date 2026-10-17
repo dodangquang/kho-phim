@@ -1508,7 +1508,13 @@
     getMovieImageUrls,
     startVideoPlayback,
     fallbackToIframe,
-    handlePlaybackError
+    handlePlaybackError,
+    getWatchHistory,
+    saveWatchHistoryItem,
+    removeWatchHistoryItem,
+    clearAllWatchHistory,
+    renderHistoryScreen,
+    trackAndSaveHistory
   };
 
   // App Init
