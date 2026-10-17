@@ -215,7 +215,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
             val romance = romanceReq.await()
             val hero = moiCapNhat.firstOrNull() ?: thuyetMinh.firstOrNull() ?: longTieng.firstOrNull() ?: vietNam.firstOrNull() ?: newest.firstOrNull()
             val sections = mutableListOf<MovieSection>()
-            if (moiCapNhat.isNotEmpty()) sections.add(MovieSection("⚡ Mới Cập Nhật Tập Mới", "danh-sach/phim-moi-cap-nhat", moiCapNhat))
+            if (moiCapNhat.isNotEmpty()) sections.add(MovieSection("⚡ Phim Mới Cập Nhật", "danh-sach/phim-moi-cap-nhat", moiCapNhat))
             if (thuyetMinh.isNotEmpty()) sections.add(MovieSection("🎙️ Phim Thuyết Minh", "danh-sach/phim-thuyet-minh", thuyetMinh))
             if (longTieng.isNotEmpty()) sections.add(MovieSection("🎧 Phim Lồng Tiếng", "danh-sach/phim-long-tieng", longTieng))
             if (vietNam.isNotEmpty()) sections.add(MovieSection("🇻🇳 Phim Việt Nam", "quoc-gia/viet-nam", vietNam))

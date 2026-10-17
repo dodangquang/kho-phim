@@ -72,7 +72,7 @@
   // Categories Definition
   const CATEGORIES = [
     { id: 'all', title: 'Tất cả' },
-    { id: 'moi-cap-nhat', title: '⚡ Mới Cập Nhật Tập Mới', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
+    { id: 'moi-cap-nhat', title: '⚡ Phim Mới Cập Nhật', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
     { id: 'phim-thuyet-minh', title: '🎙️ Thuyết Minh', path: 'v1/api/danh-sach/phim-thuyet-minh' },
     { id: 'phim-long-tieng', title: '🎧 Lồng Tiếng', path: 'v1/api/danh-sach/phim-long-tieng' },
     { id: 'viet-nam', title: `${VN_FLAG_HTML}Việt Nam`, path: 'v1/api/quoc-gia/viet-nam' },

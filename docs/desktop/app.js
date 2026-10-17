@@ -27,10 +27,10 @@
   const VN_FLAG_SVG = '<svg viewBox="0 0 30 20" width="20" height="13" style="display:inline-block; vertical-align:middle; border-radius:2px; margin-right:6px; box-shadow:0 1px 3px rgba(0,0,0,0.5);"><rect width="30" height="20" fill="#da251d"/><polygon points="15,4 16.35,8.15 20.71,8.15 17.18,10.71 18.53,14.85 15,12.29 11.47,14.85 12.82,10.71 9.29,8.15 13.65,8.15" fill="#ffff00"/></svg>';
 
   const HOME_SECTIONS = [
+    { title: '⚡ Phim Mới Cập Nhật', path: 'danh-sach/phim-moi-cap-nhat' },
     { title: '🎙️ Phim Thuyết Minh', path: 'danh-sach/phim-thuyet-minh' },
     { title: '🎧 Phim Lồng Tiếng', path: 'danh-sach/phim-long-tieng' },
     { title: `${VN_FLAG_SVG} Phim Việt Nam`, path: 'quoc-gia/viet-nam' },
-    { title: '⚡ Mới Cập Nhật Tập Mới', path: 'danh-sach/phim-moi-cap-nhat' },
     { title: '🍿 Chiếu Rạp Đặc Sắc', path: 'danh-sach/phim-chieu-rap' },
     { title: '📺 Phim Bộ Hot', path: 'danh-sach/phim-bo' },
     { title: '⚔️ Phim Hành Động', path: 'the-loai/hanh-dong' },
@@ -332,7 +332,10 @@
     renderContinueWatchingRow();
 
     // 1. Fetch first category for hero billboard
-    const heroList = await fetchCategoryMovies('danh-sach/phim-thuyet-minh', 1);
+    let heroList = await fetchCategoryMovies(HOME_SECTIONS[0].path, 1);
+    if (heroList.length === 0) {
+      heroList = await fetchCategoryMovies('danh-sach/phim-thuyet-minh', 1);
+    }
     if (heroList.length > 0) {
       heroMovieData = heroList[0];
       renderBillboard(heroMovieData);

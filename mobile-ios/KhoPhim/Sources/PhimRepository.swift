@@ -131,7 +131,7 @@ class PhimRepository {
         let hero = moiCapNhat.first ?? thuyetMinh.first ?? longTieng.first ?? vietNam.first ?? newest.first
         var sections: [MovieSection] = []
 
-        if !moiCapNhat.isEmpty { sections.append(MovieSection(title: "⚡ Mới Cập Nhật Tập Mới", slug: "danh-sach/phim-moi-cap-nhat", movies: moiCapNhat)) }
+        if !moiCapNhat.isEmpty { sections.append(MovieSection(title: "⚡ Phim Mới Cập Nhật", slug: "danh-sach/phim-moi-cap-nhat", movies: moiCapNhat)) }
         if !thuyetMinh.isEmpty { sections.append(MovieSection(title: "🎙️ Phim Thuyết Minh", slug: "danh-sach/phim-thuyet-minh", movies: thuyetMinh)) }
         if !longTieng.isEmpty { sections.append(MovieSection(title: "🎧 Phim Lồng Tiếng", slug: "danh-sach/phim-long-tieng", movies: longTieng)) }
         if !vietNam.isEmpty { sections.append(MovieSection(title: "🇻🇳 Phim Việt Nam", slug: "quoc-gia/viet-nam", movies: vietNam)) }
