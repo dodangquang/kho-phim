@@ -48,7 +48,7 @@
   const detailModal = document.getElementById('detail-modal');
   const playerOverlay = document.getElementById('player-overlay');
   const videoPlayer = document.getElementById('video-player');
-  const iframePlayer = document.getElementById('iframe-player');
+  let iframePlayer = document.getElementById('iframe-player');
   const playerErrorBanner = document.getElementById('player-error-banner');
   const playerErrorText = document.getElementById('player-error-text');
   const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
@@ -248,6 +248,8 @@
         if (timeA && timeB && timeA !== timeB) {
           return timeB.localeCompare(timeA);
         }
+        if (timeA && !timeB) return -1;
+        if (!timeA && timeB) return 1;
         return (b.year || 0) - (a.year || 0);
       });
       const totalPages = (data.data && data.data.params && data.data.params.pagination)
@@ -261,29 +263,37 @@
   }
 
   // Browse View (Grid of a specific category)
+  let isBrowseLoading = false;
   async function loadCategoryBrowse(cat, page = 1) {
+    if (isBrowseLoading && page > 1) return;
     categoryPage = page;
     browseTitle.textContent = cat.title;
+
+    const currentScrollY = window.scrollY || document.documentElement.scrollTop;
 
     if (page === 1) {
       switchTab('browse');
       browseGrid.innerHTML = '<div class="spinner"></div>';
     } else {
+      isBrowseLoading = true;
       if (browseLoadMoreBtn) {
         browseLoadMoreBtn.textContent = 'Đang tải thêm...';
-        browseLoadMoreBtn.disabled = true;
+        browseLoadMoreBtn.style.pointerEvents = 'none';
+        browseLoadMoreBtn.style.opacity = '0.7';
       }
     }
 
     const { items, totalPages } = await fetchCategory(cat, page);
     categoryTotalPages = totalPages;
+    isBrowseLoading = false;
 
     if (page === 1) {
       browseGrid.innerHTML = '';
     } else {
       if (browseLoadMoreBtn) {
         browseLoadMoreBtn.textContent = 'Tải thêm phim';
-        browseLoadMoreBtn.disabled = false;
+        browseLoadMoreBtn.style.pointerEvents = 'auto';
+        browseLoadMoreBtn.style.opacity = '1';
       }
     }
 
@@ -298,10 +308,16 @@
       browseGrid.appendChild(card);
     });
 
+    if (page > 1) {
+      // Prevent any jump or jerk back to top
+      window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+    }
+
     browseLoadMoreBtn.style.display = categoryPage < categoryTotalPages ? 'block' : 'none';
   }
 
   if (browseLoadMoreBtn) {
+    browseLoadMoreBtn.type = 'button';
     browseLoadMoreBtn.onclick = (e) => {
       if (e) {
         e.preventDefault();
@@ -311,6 +327,7 @@
       if (cat && categoryPage < categoryTotalPages) {
         loadCategoryBrowse(cat, categoryPage + 1);
       }
+      return false;
     };
   }
 
@@ -511,8 +528,14 @@
 
   window.closeMovieDetail = function (fromPopState = false) {
     detailModal.classList.remove('open');
-    if (!fromPopState && window.location.hash.startsWith('#detail-')) {
-      history.back();
+    if (!fromPopState && window.history.length > 1 && window.location.hash.startsWith('#detail-')) {
+      try { history.back(); } catch (_) {}
+    }
+    if (window.location.hash.startsWith('#detail-') || window.location.hash.startsWith('#player-')) {
+      try {
+        const cleanUrl = `${window.location.pathname}${window.location.search}`;
+        history.replaceState(null, '', cleanUrl);
+      } catch (_) {}
     }
   };
 
@@ -1085,41 +1108,60 @@
     }
     currentPlayerMode = 'hls';
 
+    // 1. Immediately mute, reset and pause HTML5 video
     try {
       videoPlayer.pause();
+      videoPlayer.muted = true;
+      videoPlayer.currentTime = 0;
       videoPlayer.removeAttribute('src');
+      videoPlayer.src = '';
       videoPlayer.load();
     } catch (_) {}
 
+    // 2. Fully stop and destroy HLS streaming instance
     if (hlsInstance) {
       try {
         hlsInstance.stopLoad();
+        hlsInstance.detachMedia();
         hlsInstance.destroy();
       } catch (_) {}
       hlsInstance = null;
     }
 
+    // 3. Completely terminate iframe audio & child process by recreating the element
     try {
-      iframePlayer.src = 'about:blank';
-      iframePlayer.removeAttribute('src');
-      iframePlayer.style.display = 'none';
+      if (iframePlayer) {
+        iframePlayer.src = 'about:blank';
+        iframePlayer.removeAttribute('src');
+        iframePlayer.style.display = 'none';
+        const parent = iframePlayer.parentNode;
+        if (parent) {
+          const freshIframe = document.createElement('iframe');
+          freshIframe.id = 'iframe-player';
+          freshIframe.setAttribute('referrerpolicy', 'no-referrer');
+          freshIframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+          freshIframe.setAttribute('allowfullscreen', 'true');
+          freshIframe.style.display = 'none';
+          parent.replaceChild(freshIframe, iframePlayer);
+          iframePlayer = freshIframe;
+        }
+      }
     } catch (_) {}
     videoPlayer.style.display = 'block';
 
     playerOverlay.classList.remove('open');
 
-    // Cleanly clear hash and prevent audio staying in background
+    // 4. Immediately clear player hash from URL bar
     if (window.location.hash.startsWith('#player-')) {
-      if (!fromPopState) {
-        history.back();
+      if (!fromPopState && window.history.length > 1) {
+        try { history.back(); } catch (_) {}
       }
-      setTimeout(() => {
-        if (window.location.hash.startsWith('#player-')) {
-          try {
-            history.replaceState(null, '', window.location.pathname + window.location.search);
-          } catch (_) {}
-        }
-      }, 50);
+      try {
+        const cleanUrl = (detailModal.classList.contains('open') && currentDetailMovie)
+          ? `${window.location.pathname}${window.location.search}#detail-${currentDetailMovie.slug}`
+          : `${window.location.pathname}${window.location.search}`;
+        history.replaceState(null, '', cleanUrl);
+      } catch (_) {}
     }
 
     if (document.fullscreenElement && document.exitFullscreen) {
@@ -1315,6 +1357,7 @@
 
   // Expose test helpers for verification
   window.__testHelpers = {
+    CATEGORIES,
     formatImageUrl,
     resolveImageUrl,
     getMovieImageUrls,
@@ -1326,5 +1369,18 @@
   // App Init
   renderCategoryPills();
   loadHomeScreen();
+
+  // Handle direct URL hash on initial load
+  if (window.location.hash.startsWith('#player-')) {
+    const slug = window.location.hash.replace('#player-', '').trim();
+    if (slug) {
+      setTimeout(() => openMovieDetail(slug, true), 350);
+    }
+  } else if (window.location.hash.startsWith('#detail-')) {
+    const slug = window.location.hash.replace('#detail-', '').trim();
+    if (slug) {
+      setTimeout(() => openMovieDetail(slug, false), 350);
+    }
+  }
 
 })();

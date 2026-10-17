@@ -55,6 +55,9 @@ fun CategoryBrowseScreen(
                     val uniqueNew = more.filter { !existingSlugs.contains(it.slug) }
                     movies = movies + uniqueNew
                     page = nextPage
+                    if (more.size < 24) {
+                        hasMore = false
+                    }
                 } else {
                     hasMore = false
                 }

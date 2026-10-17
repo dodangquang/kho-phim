@@ -75,6 +75,12 @@ class PhimRepository {
             if !timeA.isEmpty && !timeB.isEmpty && timeA != timeB {
                 return timeA > timeB
             }
+            if !timeA.isEmpty && timeB.isEmpty {
+                return true
+            }
+            if timeA.isEmpty && !timeB.isEmpty {
+                return false
+            }
             return (a.badge ?? "") > (b.badge ?? "")
         }
 

@@ -211,7 +211,7 @@ fun HomeScreen(
                         )
                         if (onCategoryMoreClick != null) {
                             Text(
-                                text = "Xem thêm ›",
+                                text = "Tải thêm ›",
                                 color = NetflixRed,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -570,7 +570,7 @@ fun CategoryMoreCard(
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Xem thêm",
+                text = "Tải thêm",
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -578,7 +578,7 @@ fun CategoryMoreCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Tất cả phim",
+                text = "Xem tất cả",
                 color = TextMuted,
                 fontSize = 10.sp,
                 textAlign = TextAlign.Center
