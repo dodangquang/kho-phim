@@ -2087,6 +2087,15 @@
   let backPressResetTimer = null;
 
   window.addEventListener('keydown', (e) => {
+    // Auto-fullscreen on TV when remote key is pressed (hides browser search bar)
+    if (tvModeActive && !document.fullscreenElement && !document.webkitFullscreenElement) {
+      const docEl = document.documentElement;
+      const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+      if (req) {
+        req.call(docEl).catch(() => {});
+      }
+    }
+
     // 1. BACK Key Handling (Samsung 10009, webOS 461, Escape 27, Backspace 8)
     if (isKeyMatch(e, KEY_GROUPS.BACK)) {
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
@@ -2226,6 +2235,25 @@
       switchTab(target);
     });
   });
+
+  // Fullscreen Toggle for Smart TV & Desktop
+  window.toggleFullScreen = function () {
+    const docEl = document.documentElement;
+    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    if (!isFull) {
+      const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      if (req) {
+        req.call(docEl).then(() => {
+          showTvToast('Đã bật toàn màn hình (Ẩn thanh tìm kiếm)');
+        }).catch(() => {});
+      }
+    } else {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+      if (exit) {
+        exit.call(document).catch(() => {});
+      }
+    }
+  };
 
   // Expose test helpers for verification
   window.__testHelpers = {

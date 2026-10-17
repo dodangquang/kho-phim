@@ -1287,9 +1287,11 @@ button {
 }
 
 /* TV Mode Layout & Typography */
-body.tv-mode {
-  user-select: none;
-  -webkit-user-select: none;
+body.tv-mode,
+body.tv-mode * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: none !important;
 }
 
 /* TV Toast Notification */
