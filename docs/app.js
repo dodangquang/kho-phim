@@ -35,6 +35,7 @@
 
   const navTabs = document.querySelectorAll('.nav-tab');
   const heroBanner = document.getElementById('hero-banner');
+  const continueWatchingSection = document.getElementById('continue-watching-section');
   const homeSectionsContainer = document.getElementById('home-sections');
   const browseTitle = document.getElementById('browse-title');
   const browseGrid = document.getElementById('browse-grid');
@@ -192,6 +193,7 @@
       if (list.length > 60) list = list.slice(0, 60);
       localStorage.setItem('khophim_history', JSON.stringify(list));
       localStorage.setItem('khophim_watch_history', JSON.stringify(list));
+      renderContinueWatchingHome();
     } catch (e) {
       console.warn('Failed to save watch history:', e);
     }
@@ -204,6 +206,7 @@
       localStorage.setItem('khophim_watch_history', JSON.stringify(list));
     } catch (_) {}
     renderHistoryScreen();
+    renderContinueWatchingHome();
   }
 
   function clearAllWatchHistory() {
@@ -221,6 +224,7 @@
         localStorage.removeItem('phimmoi_history');
       } catch (_) {}
       renderHistoryScreen();
+      renderContinueWatchingHome();
     }
   }
 
@@ -253,6 +257,8 @@
 
     if (tabName === 'history') {
       renderHistoryScreen();
+    } else if (tabName === 'home') {
+      renderContinueWatchingHome();
     } else if (tabName === 'search') {
       searchInput.focus();
     }
@@ -408,8 +414,67 @@
     return card;
   }
 
+  // Render Continue Watching Shelf on Home Screen (Landscape card matching mobile app)
+  function renderContinueWatchingHome() {
+    if (!continueWatchingSection) return;
+    const history = getWatchHistory();
+    if (!history || history.length === 0) {
+      continueWatchingSection.style.display = 'none';
+      continueWatchingSection.innerHTML = '';
+      return;
+    }
+
+    continueWatchingSection.style.display = 'block';
+    continueWatchingSection.innerHTML = `
+      <div class="section-header">
+        <div class="section-title">🕒 Tiếp tục xem</div>
+        <button class="section-more" onclick="window.switchTabDirect('history')">
+          Tất cả lịch sử ›
+        </button>
+      </div>
+      <div class="continue-row"></div>
+    `;
+
+    const row = continueWatchingSection.querySelector('.continue-row');
+    history.slice(0, 15).forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'continue-card';
+
+      const progressPct = (item.duration > 0)
+        ? Math.min(100, Math.round((item.currentTime / item.duration) * 100))
+        : (item.currentTime > 0 ? 15 : 0);
+
+      const formattedCurrent = formatTime(item.currentTime);
+      const formattedTotal = item.duration > 0 ? formatTime(item.duration) : '';
+      const timeLabel = item.duration > 0
+        ? `${formattedCurrent} / ${formattedTotal}`
+        : (item.currentTime > 0 ? `Đã xem ${formattedCurrent}` : 'Vừa xem');
+
+      card.innerHTML = `
+        <div class="continue-thumb-wrap">
+          <img class="continue-thumb-img" src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';" loading="lazy">
+          <div class="continue-play-overlay">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="continue-ep-badge">${item.episodeName || 'Tập 1'}</div>
+          <div class="continue-progress-wrap">
+            <div class="continue-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
+          </div>
+        </div>
+        <div class="continue-info">
+          <div class="continue-title" title="${item.movieTitle || 'Phim'}">${item.movieTitle || 'Phim'}</div>
+          <div class="continue-sub">${item.episodeName || 'Tập 1'} • ${timeLabel}</div>
+        </div>
+      `;
+
+      card.onclick = () => openMovieDetail(item.movieSlug, true);
+      row.appendChild(card);
+    });
+  }
+
   // Load Home Screen
   async function loadHomeScreen() {
+    renderContinueWatchingHome();
     homeSectionsContainer.innerHTML = '<div class="spinner"></div>';
 
     // Fetch top sections in parallel
@@ -448,42 +513,8 @@
         setupHeroBanner(heroItem);
       }
 
-      // Check if user has watch history and render Continue Watching row at top of Home
-      const historyListItems = getWatchHistory();
-      if (historyListItems && historyListItems.length > 0) {
-        const continueSection = document.createElement('div');
-        continueSection.className = 'movie-section continue-watching-section';
-        continueSection.innerHTML = `
-          <div class="section-header">
-            <div class="section-title">🕒 Tiếp tục xem</div>
-            <button class="section-more" onclick="window.switchTabDirect('history')">
-              Tất cả lịch sử ›
-            </button>
-          </div>
-          <div class="movie-row"></div>
-        `;
-        const row = continueSection.querySelector('.movie-row');
-        historyListItems.slice(0, 10).forEach(item => {
-          const card = document.createElement('div');
-          card.className = 'movie-card continue-card';
-          const progressPct = (item.duration > 0)
-            ? Math.min(100, Math.round((item.currentTime / item.duration) * 100))
-            : (item.currentTime > 0 ? 15 : 0);
-          card.innerHTML = `
-            <div class="movie-poster-wrap">
-              <img src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';" loading="lazy">
-              <span class="movie-badge-top-left" style="background:var(--accent-red);">${item.episodeName || 'Đang xem'}</span>
-              <div class="history-progress-wrap" style="position:absolute; bottom:0; left:0; right:0; margin:0; border-radius:0; height:4px; z-index:2;">
-                <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
-              </div>
-            </div>
-            <div class="movie-title">${item.movieTitle || 'Phim'}</div>
-          `;
-          card.onclick = () => openMovieDetail(item.movieSlug, true);
-          row.appendChild(card);
-        });
-        homeSectionsContainer.appendChild(continueSection);
-      }
+      // Re-verify Continue Watching shelf on Home
+      renderContinueWatchingHome();
 
       // Render rows
       results.forEach(({ cat, items }) => {
@@ -1290,6 +1321,9 @@
       renderDetailContent(currentDetailMovie, currentDetailEpisodes);
     }
 
+    // Refresh continue watching on home
+    renderContinueWatchingHome();
+
     // Refresh history screen if active tab and ensure modal doesn't block history
     if (currentTab === 'history') {
       if (detailModal && detailModal.classList.contains('open')) {
@@ -1514,11 +1548,13 @@
     removeWatchHistoryItem,
     clearAllWatchHistory,
     renderHistoryScreen,
-    trackAndSaveHistory
+    trackAndSaveHistory,
+    renderContinueWatchingHome
   };
 
   // App Init
   renderCategoryPills();
+  renderContinueWatchingHome();
   loadHomeScreen();
 
   // Handle direct URL hash on initial load
