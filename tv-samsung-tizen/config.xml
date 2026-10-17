@@ -8,5 +8,8 @@
     <name>Kho Phim</name>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <access origin="*" subdomains="true"/>
+    <tizen:allow-navigation href="https://*"/>
+    <tizen:allow-navigation href="http://*"/>
     <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto"/>
 </widget>
