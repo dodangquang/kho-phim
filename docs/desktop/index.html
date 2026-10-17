@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kho Phim - Phiên Bản PC / Laptop</title>
+
+  <!-- Metadata -->
+  <meta name="theme-color" content="#0F0F0F">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" type="image/png" href="icon.png">
+
+  <!-- Anti-Cache Meta -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=1.0.1">
+
+  <!-- HLS.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body class="desktop-mode">
+
+  <div id="tv-app">
+
+    <!-- Netflix-Style Left Expandable Sidebar -->
+    <nav id="tv-sidebar" class="tv-sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">
+          <img src="icon.png" alt="Kho Phim" class="sidebar-logo-icon">
+          <span class="sidebar-logo-text">KHO PHIM</span>
+        </div>
+
+        <div class="sidebar-menu">
+          <div class="sidebar-item" data-tab="search" tabindex="0" title="Tìm Kiếm">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <span class="sidebar-label">Tìm Kiếm</span>
+          </div>
+
+          <div class="sidebar-item active" data-tab="home" tabindex="0" title="Trang Chủ">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="sidebar-label">Trang Chủ</span>
+          </div>
+
+          <div class="sidebar-item" data-tab="single" tabindex="0" title="Phim Lẻ">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+            <span class="sidebar-label">Phim Lẻ</span>
+          </div>
+
+          <div class="sidebar-item" data-tab="series" tabindex="0" title="Phim Bộ">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+            <span class="sidebar-label">Phim Bộ</span>
+          </div>
+
+          <div class="sidebar-item" data-tab="theater" tabindex="0" title="Chiếu Rạp">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>
+            <span class="sidebar-label">Chiếu Rạp</span>
+          </div>
+
+          <div class="sidebar-item" data-tab="history" tabindex="0" title="Đã Xem">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            <span class="sidebar-label">Đã Xem</span>
+          </div>
+
+          <div class="sidebar-item" data-tab="settings" tabindex="0" title="Cài Đặt">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            <span class="sidebar-label">Cài Đặt</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="tv-main-content" class="tv-main-content">
+
+      <!-- View: Home -->
+      <section id="view-home" class="tv-view active">
+        <!-- Billboard Hero Banner -->
+        <div id="tv-hero-banner" class="tv-hero-banner"></div>
+
+        <!-- Continue Watching Row -->
+        <div id="tv-continue-section" class="tv-shelf-section" style="display:none;">
+          <h2 class="shelf-title">🕒 Tiếp tục xem</h2>
+          <div id="tv-continue-row" class="tv-shelf-row"></div>
+        </div>
+
+        <!-- Category Shelves Container -->
+        <div id="tv-shelves-container"></div>
+      </section>
+
+      <!-- View: Category (Phim Lẻ / Phim Bộ / Chiếu Rạp) -->
+      <section id="view-category" class="tv-view">
+        <div class="category-header">
+          <h1 id="tv-category-title" class="view-title">Phim Lẻ</h1>
+        </div>
+        <div id="tv-category-grid" class="tv-movie-grid"></div>
+        <div class="load-more-wrap">
+          <button id="tv-load-more-btn" class="tv-btn tv-btn-secondary" tabindex="0">Tải thêm phim</button>
+        </div>
+      </section>
+
+      <!-- View: Search -->
+      <section id="view-search" class="tv-view">
+        <div class="search-header">
+          <h1 class="view-title">Tìm Kiếm Phim</h1>
+          <div class="search-input-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input id="tv-search-input" type="text" inputmode="search" placeholder="Nhập tên phim, diễn viên, đạo diễn..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
+            <button id="tv-search-clear-btn" class="tv-btn-clear" style="display:none;" title="Xóa từ khóa">✕</button>
+          </div>
+        </div>
+        <div id="tv-search-status" class="tv-status-msg">Nhập từ khóa tìm kiếm để khám phá kho phim.</div>
+        <div id="tv-search-grid" class="tv-movie-grid"></div>
+      </section>
+
+      <!-- View: History -->
+      <section id="view-history" class="tv-view">
+        <div class="history-header">
+          <h1 class="view-title">Lịch Sử Đã Xem</h1>
+          <button id="tv-clear-history-btn" class="tv-btn tv-btn-secondary" tabindex="0">Xóa tất cả</button>
+        </div>
+        <div id="tv-history-status" class="tv-status-msg" style="display:none;">Bạn chưa xem phim nào gần đây.</div>
+        <div id="tv-history-grid" class="tv-history-grid"></div>
+      </section>
+
+      <!-- View: Settings -->
+      <section id="view-settings" class="tv-view">
+        <div class="settings-wrap">
+          <h1 class="view-title">Cài Đặt Ứng Dụng</h1>
+          
+          <div class="settings-card">
+            <h3>Máy chủ kết nối (Domain Server)</h3>
+            <p>Chọn máy chủ phim đang hoạt động ổn định nhất:</p>
+            <div id="tv-domain-list" class="domain-pills"></div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Thông tin phiên bản</h3>
+            <p>Phiên bản Desktop: <strong>v1.0.1 (PC & Laptop Edition)</strong></p>
+            <p>Giao diện: Netflix Dark UI chuẩn PC, điều khiển chuột mượt mà, gõ phím và tìm kiếm tự nhiên.</p>
+            <div style="margin-top: 16px;">
+              <button id="tv-clear-cache-btn" class="tv-btn tv-btn-secondary" tabindex="0">Xóa bộ nhớ đệm (Clear Cache)</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- TV Movie Detail Fullscreen Modal -->
+    <div id="tv-detail-modal" class="tv-detail-modal">
+      <div id="tv-detail-backdrop" class="tv-detail-backdrop"></div>
+      <div class="tv-detail-gradient"></div>
+      <button id="tv-detail-close-btn" class="detail-close-btn" tabindex="0" title="Đóng (ESC)">✕</button>
+
+      <div class="tv-detail-content">
+        <h1 id="tv-detail-title" class="detail-title">Tên Phim</h1>
+        
+        <div class="detail-meta-row">
+          <span id="tv-detail-year" class="detail-badge">2026</span>
+          <span id="tv-detail-quality" class="detail-badge detail-badge-red">Full HD</span>
+          <span id="tv-detail-category" class="detail-meta-text">Hành Động, Viễn Tưởng</span>
+        </div>
+
+        <p id="tv-detail-overview" class="detail-overview">Tóm tắt nội dung phim...</p>
+
+        <div class="detail-actions">
+          <button id="tv-detail-play-btn" class="tv-btn tv-btn-primary" tabindex="0">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="tv-detail-play-text">Xem Phim</span>
+          </button>
+          <button id="tv-detail-back-btn" class="tv-btn tv-btn-secondary" tabindex="0">Quay Lại (ESC)</button>
+        </div>
+
+        <!-- Servers & Episodes Section -->
+        <div id="tv-episodes-section" class="tv-episodes-section">
+          <div id="tv-server-tabs" class="tv-server-tabs"></div>
+          <div id="tv-episode-grid" class="tv-episode-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TV Fullscreen Video Player Overlay -->
+    <div id="tv-player-overlay" class="tv-player-overlay">
+      <video id="tv-video-player" playsinline preload="auto"></video>
+      <iframe id="tv-iframe-player" referrerpolicy="no-referrer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+      <!-- Player HUD -->
+      <div id="tv-player-hud" class="tv-player-hud">
+        <div class="player-top-bar">
+          <div class="player-title-box">
+            <span id="tv-player-movie-title" class="player-movie-title">Tên Phim</span>
+            <span id="tv-player-ep-name" class="player-ep-name">Tập 1</span>
+          </div>
+          <div class="player-source-box">
+            <button id="tv-player-source-toggle-btn" class="player-source-badge" tabindex="0" title="Bấm để đổi nguồn phát">⚡ Nguồn: Trực tiếp (HLS)</button>
+            <button id="tv-player-btn-fullscreen" class="player-source-badge" tabindex="0" style="margin-left: 10px;" title="Phóng to toàn màn hình (F)">⛶ Toàn màn hình</button>
+            <button id="tv-player-btn-close" class="player-source-badge" tabindex="0" style="margin-left: 10px; background: rgba(229, 9, 20, 0.85); border-color: #E50914;" title="Đóng trình phát (ESC)">✕ Đóng</button>
+          </div>
+        </div>
+
+        <div class="player-bottom-bar">
+          <div class="player-progress-bar-wrap" id="tv-player-progress-wrap" title="Bấm để tua đến vị trí">
+            <div id="tv-player-progress-fill" class="player-progress-fill"></div>
+          </div>
+          <div class="player-time-row">
+            <span id="tv-player-current-time">00:00</span>
+            <span id="tv-player-duration">00:00</span>
+          </div>
+          <div class="player-help-hint">Chuột: Click tua / Play / Pause | Phím: Space (Tạm dừng/Phát) • Trái/Phải (Tua 10s) • F (Toàn màn hình) • M (Bật/tắt âm) • ESC (Thoát)</div>
+        </div>
+      </div>
+
+      <!-- Player Error / Fallback Banner -->
+      <div id="tv-player-error" class="tv-player-error-modal" style="display:none;">
+        <div class="player-error-content">
+          <div class="player-error-icon">⚠️</div>
+          <h2 class="player-error-title">Không thể phát luồng này</h2>
+          <p id="tv-player-error-desc" class="player-error-desc">Nguồn phát trực tiếp có thể bị lỗi hoặc chặn kết nối.</p>
+          <div class="player-error-buttons">
+            <button id="tv-player-btn-embed" class="tv-btn tv-btn-primary" tabindex="0">Thử Trình Phát Dự Phòng (Web Embed)</button>
+            <button id="tv-player-btn-back" class="tv-btn tv-btn-secondary" tabindex="0">Quay lại chọn tập/server khác</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="tv-toast" class="tv-toast"></div>
+
+  </div>
+
+  <!-- Desktop Script -->
+  <script src="app.js?v=1.0.1"></script>
+</body>
+</html>
