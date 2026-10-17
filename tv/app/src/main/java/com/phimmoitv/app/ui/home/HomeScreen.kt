@@ -104,7 +104,9 @@ fun HomeScreen(
     val categoryHeroMovies = remember { mutableStateMapOf<TvNavTab, MovieItem?>() }
 
     var categoryTargetFocusSlug by remember { mutableStateOf<String?>(null) }
+    var categoryTargetFocusTrigger by remember { mutableStateOf(0L) }
     var shelfTargetFocusSlug by remember { mutableStateOf<String?>(null) }
+    var shelfTargetFocusTrigger by remember { mutableStateOf(0L) }
     var lastClickedMovieSlug by remember { mutableStateOf<String?>(null) }
     val lastFocusedTabSlug = remember { mutableStateMapOf<TvNavTab, String?>() }
 
@@ -167,23 +169,51 @@ fun HomeScreen(
 
     val navigateDownToContent: () -> Unit = {
         if (currentTab == TvNavTab.HOME) {
-            if (historyList.isNotEmpty()) {
-                val slug = historyList.first().movieSlug
+            val hasHistory = historyList.isNotEmpty()
+            val targetRowIndex = if (hasHistory) 1 else (if (sections.isNotEmpty()) 1 else 0)
+            scope.launch {
+                currentListState.animateScrollToItem(targetRowIndex)
+            }
+
+            if (hasHistory) {
+                val lastSlug = lastFocusedTabSlug[currentTab]
+                val slug = if (lastSlug != null && historyList.any { it.movieSlug == lastSlug }) {
+                    lastSlug
+                } else {
+                    historyList.first().movieSlug
+                }
                 shelfTargetFocusSlug = slug
+                shelfTargetFocusTrigger++
                 lastFocusedTabSlug[currentTab] = slug
             } else {
-                val candidate = sections.firstOrNull { it.movies.isNotEmpty() }?.movies?.firstOrNull()?.slug
-                if (candidate != null) {
-                    shelfTargetFocusSlug = candidate
-                    lastFocusedTabSlug[currentTab] = candidate
+                val firstSection = sections.firstOrNull { it.movies.isNotEmpty() }
+                val lastSlug = lastFocusedTabSlug[currentTab]
+                val slug = if (lastSlug != null && firstSection?.movies?.any { it.slug == lastSlug } == true) {
+                    lastSlug
+                } else {
+                    firstSection?.movies?.firstOrNull()?.slug
+                }
+                if (slug != null) {
+                    shelfTargetFocusSlug = slug
+                    shelfTargetFocusTrigger++
+                    lastFocusedTabSlug[currentTab] = slug
                 }
             }
         } else {
+            scope.launch {
+                currentListState.animateScrollToItem(1)
+            }
             val currentMovies = categoryMoviesMap[currentTab] ?: emptyList()
-            val candidate = currentMovies.firstOrNull()?.slug
-            if (candidate != null) {
-                categoryTargetFocusSlug = candidate
-                lastFocusedTabSlug[currentTab] = candidate
+            val lastSlug = lastFocusedTabSlug[currentTab]
+            val slug = if (lastSlug != null && currentMovies.any { it.slug == lastSlug }) {
+                lastSlug
+            } else {
+                currentMovies.firstOrNull()?.slug
+            }
+            if (slug != null) {
+                categoryTargetFocusSlug = slug
+                categoryTargetFocusTrigger++
+                lastFocusedTabSlug[currentTab] = slug
             }
         }
     }
@@ -197,8 +227,10 @@ fun HomeScreen(
                 if (candidate != null) {
                     if (currentTab == TvNavTab.HOME) {
                         shelfTargetFocusSlug = candidate
+                        shelfTargetFocusTrigger++
                     } else {
                         categoryTargetFocusSlug = candidate
+                        categoryTargetFocusTrigger++
                     }
                 } else if (currentListState.firstVisibleItemIndex == 0) {
                     playFocusRequester.requestFocus()
@@ -216,7 +248,9 @@ fun HomeScreen(
         if (isActive && lastClickedMovieSlug != null) {
             delay(150)
             categoryTargetFocusSlug = lastClickedMovieSlug
+            categoryTargetFocusTrigger++
             shelfTargetFocusSlug = lastClickedMovieSlug
+            shelfTargetFocusTrigger++
             lastFocusedTabSlug[currentTab] = lastClickedMovieSlug
             lastClickedMovieSlug = null
         }
@@ -267,8 +301,10 @@ fun HomeScreen(
             if (candidate != null) {
                 if (currentTab == TvNavTab.HOME) {
                     shelfTargetFocusSlug = candidate
+                    shelfTargetFocusTrigger++
                 } else {
                     categoryTargetFocusSlug = candidate
+                    categoryTargetFocusTrigger++
                 }
             }
         }
@@ -322,6 +358,7 @@ fun HomeScreen(
                     ContinueWatchingRow(
                         historyList = historyList,
                         targetFocusSlug = shelfTargetFocusSlug,
+                        targetFocusTrigger = shelfTargetFocusTrigger,
                         onTargetFocusConsumed = { shelfTargetFocusSlug = null },
                         onNavigateUp = navigateUpToBillboard,
                         onNavigateLeft = onNavigateLeft,
@@ -329,7 +366,11 @@ fun HomeScreen(
                             {
                                 val targetSlug = sections.firstOrNull { it.movies.isNotEmpty() }?.movies?.firstOrNull()?.slug
                                 if (targetSlug != null) {
+                                    scope.launch {
+                                        currentListState.animateScrollToItem(2)
+                                    }
                                     shelfTargetFocusSlug = targetSlug
+                                    shelfTargetFocusTrigger++
                                     lastFocusedTabSlug[currentTab] = targetSlug
                                 }
                             }
@@ -366,6 +407,7 @@ fun HomeScreen(
                         section = section,
                         isRowLoading = isRowLoading,
                         targetFocusSlug = shelfTargetFocusSlug,
+                        targetFocusTrigger = shelfTargetFocusTrigger,
                         onTargetFocusConsumed = { shelfTargetFocusSlug = null },
                         onNavigateUp = if (isFirstRow) navigateUpToBillboard else null,
                         onNavigateDown = if (isLastRow) { { /* Cạnh dưới cùng của trang Home: đứng ở cuối luôn, không nhảy lên billboard */ } } else null,
@@ -443,12 +485,14 @@ fun HomeScreen(
                             val isTarget = categoryTargetFocusSlug == movie.slug
                             val cardFocusRequester = remember { FocusRequester() }
 
-                            LaunchedEffect(isTarget) {
+                            LaunchedEffect(isTarget, categoryTargetFocusTrigger) {
                                 if (isTarget) {
-                                    delay(120)
-                                    try {
-                                        cardFocusRequester.requestFocus()
-                                    } catch (_: Exception) {}
+                                    repeat(5) {
+                                        delay(60)
+                                        try {
+                                            cardFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    }
                                     categoryTargetFocusSlug = null
                                 }
                             }
@@ -905,6 +949,7 @@ private fun NetflixMovieRow(
     section: MovieSection,
     isRowLoading: Boolean,
     targetFocusSlug: String? = null,
+    targetFocusTrigger: Long = 0L,
     onTargetFocusConsumed: () -> Unit = {},
     onNavigateUp: (() -> Unit)? = null,
     onNavigateDown: (() -> Unit)? = null,
@@ -913,7 +958,17 @@ private fun NetflixMovieRow(
     onMovieClick: (MovieItem) -> Unit,
     onMovieFocused: (MovieItem) -> Unit
 ) {
+    val rowListState = rememberLazyListState()
     val loadMoreFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(targetFocusSlug, targetFocusTrigger) {
+        if (!targetFocusSlug.isNullOrEmpty()) {
+            val targetIdx = section.movies.indexOfFirst { it.slug == targetFocusSlug }
+            if (targetIdx >= 0) {
+                rowListState.scrollToItem(targetIdx)
+            }
+        }
+    }
 
     Column(modifier = Modifier.padding(top = 18.dp)) {
         Row(
@@ -939,6 +994,7 @@ private fun NetflixMovieRow(
         }
 
         LazyRow(
+            state = rowListState,
             contentPadding = PaddingValues(horizontal = 28.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -946,12 +1002,14 @@ private fun NetflixMovieRow(
                 val isTarget = targetFocusSlug == movie.slug
                 val cardFocusRequester = remember { FocusRequester() }
 
-                LaunchedEffect(isTarget) {
+                LaunchedEffect(isTarget, targetFocusTrigger) {
                     if (isTarget) {
-                        delay(120)
-                        try {
-                            cardFocusRequester.requestFocus()
-                        } catch (_: Exception) {}
+                        repeat(5) {
+                            delay(60)
+                            try {
+                                cardFocusRequester.requestFocus()
+                            } catch (_: Exception) {}
+                        }
                         onTargetFocusConsumed()
                     }
                 }
@@ -989,6 +1047,7 @@ private fun NetflixMovieRow(
 private fun ContinueWatchingRow(
     historyList: List<WatchProgress>,
     targetFocusSlug: String? = null,
+    targetFocusTrigger: Long = 0L,
     onTargetFocusConsumed: (() -> Unit)? = null,
     onNavigateUp: (() -> Unit)? = null,
     onNavigateDown: (() -> Unit)? = null,
@@ -996,6 +1055,17 @@ private fun ContinueWatchingRow(
     onItemFocused: ((WatchProgress) -> Unit)? = null,
     onItemClick: (WatchProgress) -> Unit
 ) {
+    val rowListState = rememberLazyListState()
+
+    LaunchedEffect(targetFocusSlug, targetFocusTrigger) {
+        if (!targetFocusSlug.isNullOrEmpty()) {
+            val targetIdx = historyList.indexOfFirst { it.movieSlug == targetFocusSlug }
+            if (targetIdx >= 0) {
+                rowListState.scrollToItem(targetIdx)
+            }
+        }
+    }
+
     Column(modifier = Modifier.padding(top = 18.dp)) {
         Row(
             modifier = Modifier
@@ -1011,7 +1081,7 @@ private fun ContinueWatchingRow(
                 letterSpacing = 0.5.sp
             )
             Text(
-                text = " ›",
+                text = " >",
                 color = NetflixRed,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -1020,6 +1090,7 @@ private fun ContinueWatchingRow(
         }
 
         LazyRow(
+            state = rowListState,
             contentPadding = PaddingValues(horizontal = 28.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -1027,12 +1098,14 @@ private fun ContinueWatchingRow(
                 val isTarget = targetFocusSlug == item.movieSlug
                 val cardFocusRequester = remember { FocusRequester() }
 
-                LaunchedEffect(isTarget) {
+                LaunchedEffect(isTarget, targetFocusTrigger) {
                     if (isTarget) {
-                        delay(120)
-                        try {
-                            cardFocusRequester.requestFocus()
-                        } catch (_: Exception) {}
+                        repeat(5) {
+                            delay(60)
+                            try {
+                                cardFocusRequester.requestFocus()
+                            } catch (_: Exception) {}
+                        }
                         onTargetFocusConsumed?.invoke()
                     }
                 }
