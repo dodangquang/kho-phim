@@ -915,6 +915,25 @@
     videoPlayer.style.display = 'block';
 
     const resumeSeconds = resumePositionMs > 0 ? resumePositionMs / 1000 : 0;
+    const savedVol = localStorage.getItem('khophim_desktop_vol');
+    if (savedVol !== null) {
+      const v = parseFloat(savedVol);
+      if (!isNaN(v)) {
+        videoPlayer.volume = Math.max(0, Math.min(1, v));
+        videoPlayer.muted = (v === 0);
+      }
+    }
+    videoPlayer.playbackRate = 1.0;
+    const btnSpeedEl = document.getElementById('tv-btn-speed');
+    if (btnSpeedEl) btnSpeedEl.textContent = '1.0x';
+    const speedMenuEl = document.getElementById('tv-speed-menu');
+    if (speedMenuEl) {
+      speedMenuEl.querySelectorAll('.speed-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.speed === '1.0');
+      });
+    }
+    try { updateVolumeUI(); } catch (_) {}
+    try { updatePlayPauseUI(true); } catch (_) {}
 
     if (window.Hls && Hls.isSupported()) {
       if (hlsInstance) {
@@ -1123,6 +1142,90 @@
     }
   }
 
+  // ==========================================================================
+  // DESKTOP VIDEO PLAYER CONTROLS & EVENT HANDLERS
+  // ==========================================================================
+  const btnPlayPause = document.getElementById('tv-btn-play-pause');
+  const iconPlay = document.getElementById('tv-icon-play');
+  const iconPause = document.getElementById('tv-icon-pause');
+  const btnRewind = document.getElementById('tv-btn-rewind');
+  const btnForward = document.getElementById('tv-btn-forward');
+  const btnVolume = document.getElementById('tv-btn-volume');
+  const iconVolHigh = document.getElementById('tv-icon-volume-high');
+  const iconVolMuted = document.getElementById('tv-icon-volume-muted');
+  const volumeSlider = document.getElementById('tv-player-volume-slider');
+  const btnSpeed = document.getElementById('tv-btn-speed');
+  const speedMenu = document.getElementById('tv-speed-menu');
+  const clickLayer = document.getElementById('tv-player-click-layer');
+  const centerIcon = document.getElementById('tv-player-center-icon');
+  const centerPlaySvg = document.getElementById('tv-center-play-svg');
+  const centerPauseSvg = document.getElementById('tv-center-pause-svg');
+  const btnFullscreen = document.getElementById('tv-player-btn-fullscreen');
+  const iconFullscreenEnter = document.getElementById('tv-icon-fullscreen-enter');
+  const iconFullscreenExit = document.getElementById('tv-icon-fullscreen-exit');
+
+  // Load saved volume
+  const savedVol = localStorage.getItem('khophim_desktop_vol');
+  if (savedVol !== null) {
+    const v = parseFloat(savedVol);
+    if (!isNaN(v) && v >= 0 && v <= 1) {
+      videoPlayer.volume = v;
+      videoPlayer.muted = (v === 0);
+    }
+  }
+
+  function updateVolumeUI() {
+    const isMuted = videoPlayer.muted || videoPlayer.volume === 0;
+    if (iconVolHigh && iconVolMuted) {
+      iconVolHigh.style.display = isMuted ? 'none' : 'block';
+      iconVolMuted.style.display = isMuted ? 'block' : 'none';
+    }
+    if (volumeSlider) {
+      volumeSlider.value = isMuted ? 0 : videoPlayer.volume;
+    }
+  }
+
+  function showCenterAnimation(isPlaying) {
+    if (!centerIcon || !centerPlaySvg || !centerPauseSvg) return;
+    centerPlaySvg.style.display = isPlaying ? 'block' : 'none';
+    centerPauseSvg.style.display = isPlaying ? 'none' : 'block';
+    centerIcon.classList.remove('animate');
+    void centerIcon.offsetWidth; // trigger reflow
+    centerIcon.classList.add('animate');
+    setTimeout(() => {
+      centerIcon.classList.remove('animate');
+    }, 450);
+  }
+
+  function updatePlayPauseUI(isPlaying) {
+    if (iconPlay && iconPause) {
+      iconPlay.style.display = isPlaying ? 'none' : 'block';
+      iconPause.style.display = isPlaying ? 'block' : 'none';
+    }
+    if (btnPlayPause) {
+      btnPlayPause.title = isPlaying ? 'Tạm dừng (Space)' : 'Phát (Space)';
+    }
+  }
+
+  function togglePlayPause() {
+    if (!videoPlayer) return;
+    if (videoPlayer.paused) {
+      videoPlayer.play().then(() => {
+        updatePlayPauseUI(true);
+        showCenterAnimation(true);
+        showToast('▶️ Đang phát');
+      }).catch(e => {
+        console.warn('Play error:', e);
+      });
+    } else {
+      videoPlayer.pause();
+      updatePlayPauseUI(false);
+      showCenterAnimation(false);
+      showToast('⏸️ Tạm dừng');
+    }
+    showPlayerHud(3000);
+  }
+
   // Update HUD progress bar during playback
   videoPlayer.ontimeupdate = () => {
     if (videoPlayer.duration && !isNaN(videoPlayer.duration) && videoPlayer.duration > 0) {
@@ -1136,10 +1239,15 @@
     }
   };
 
+  videoPlayer.addEventListener('play', () => updatePlayPauseUI(true));
+  videoPlayer.addEventListener('pause', () => updatePlayPauseUI(false));
+  videoPlayer.addEventListener('volumechange', () => updateVolumeUI());
+
   // Interactive progress bar click to seek
   const progressWrap = document.getElementById('tv-player-progress-wrap');
   if (progressWrap) {
     progressWrap.onclick = (e) => {
+      e.stopPropagation();
       const rect = progressWrap.getBoundingClientRect();
       const pos = (e.clientX - rect.left) / rect.width;
       if (videoPlayer.duration && !isNaN(videoPlayer.duration)) {
@@ -1149,24 +1257,171 @@
     };
   }
 
+  // Center click layer to toggle play/pause & double click for fullscreen
+  if (clickLayer) {
+    let clickTimer = null;
+    clickLayer.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        toggleFullscreen();
+      } else {
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          togglePlayPause();
+        }, 220);
+      }
+    });
+
+    clickLayer.addEventListener('mousemove', () => {
+      showPlayerHud(3000);
+    });
+  }
+
+  // Direct click on videoPlayer (if click layer somehow doesn't intercept)
+  videoPlayer.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlayPause();
+  });
+
+  // Play / Pause Button in Toolbar
+  if (btnPlayPause) {
+    btnPlayPause.onclick = (e) => {
+      e.stopPropagation();
+      togglePlayPause();
+    };
+  }
+
+  // Rewind 10s Button
+  if (btnRewind) {
+    btnRewind.onclick = (e) => {
+      e.stopPropagation();
+      if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
+        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+        showToast('⏪ -10 giây');
+        showPlayerHud(2500);
+      }
+    };
+  }
+
+  // Forward 10s Button
+  if (btnForward) {
+    btnForward.onclick = (e) => {
+      e.stopPropagation();
+      if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
+        videoPlayer.currentTime = Math.min(videoPlayer.duration || 99999, videoPlayer.currentTime + 10);
+        showToast('⏩ +10 giây');
+        showPlayerHud(2500);
+      }
+    };
+  }
+
+  // Volume Button Click (Toggle Mute)
+  if (btnVolume) {
+    btnVolume.onclick = (e) => {
+      e.stopPropagation();
+      if (videoPlayer.muted || videoPlayer.volume === 0) {
+        videoPlayer.muted = false;
+        if (videoPlayer.volume === 0) videoPlayer.volume = 1;
+        showToast(`🔊 Âm lượng: ${Math.round(videoPlayer.volume * 100)}%`);
+      } else {
+        videoPlayer.muted = true;
+        showToast('🔇 Đã tắt tiếng');
+      }
+      localStorage.setItem('khophim_desktop_vol', videoPlayer.volume);
+      updateVolumeUI();
+      showPlayerHud(2500);
+    };
+  }
+
+  // Volume Slider Input
+  if (volumeSlider) {
+    volumeSlider.oninput = (e) => {
+      e.stopPropagation();
+      const val = parseFloat(volumeSlider.value);
+      videoPlayer.volume = val;
+      videoPlayer.muted = (val === 0);
+      localStorage.setItem('khophim_desktop_vol', val);
+      updateVolumeUI();
+      showPlayerHud(3000);
+    };
+  }
+
+  // Mouse Wheel Volume Adjustment
+  playerOverlay.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (!videoPlayer) return;
+    let vol = videoPlayer.volume;
+    if (e.deltaY < 0) {
+      vol = Math.min(1, Math.round((vol + 0.05) * 100) / 100);
+      videoPlayer.muted = false;
+      videoPlayer.volume = vol;
+      showToast(`🔊 Âm lượng: ${Math.round(vol * 100)}%`);
+    } else {
+      vol = Math.max(0, Math.round((vol - 0.05) * 100) / 100);
+      videoPlayer.volume = vol;
+      videoPlayer.muted = (vol === 0);
+      showToast(vol === 0 ? '🔇 Đã tắt tiếng' : `🔊 Âm lượng: ${Math.round(vol * 100)}%`);
+    }
+    localStorage.setItem('khophim_desktop_vol', vol);
+    updateVolumeUI();
+    showPlayerHud(2500);
+  }, { passive: false });
+
+  // Playback Speed Selector (Cài đặt nhanh chậm)
+  if (btnSpeed && speedMenu) {
+    btnSpeed.onclick = (e) => {
+      e.stopPropagation();
+      speedMenu.classList.toggle('open');
+      showPlayerHud(4000);
+    };
+
+    speedMenu.querySelectorAll('.speed-item').forEach(item => {
+      item.onclick = (e) => {
+        e.stopPropagation();
+        const spd = parseFloat(item.dataset.speed);
+        if (!isNaN(spd) && videoPlayer) {
+          videoPlayer.playbackRate = spd;
+          btnSpeed.textContent = `${spd}x`;
+          speedMenu.querySelectorAll('.speed-item').forEach(el => el.classList.remove('active'));
+          item.classList.add('active');
+          speedMenu.classList.remove('open');
+          showToast(`⚡ Tốc độ phát: ${spd}x`);
+          showPlayerHud(2500);
+        }
+      };
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.player-speed-container')) {
+        speedMenu.classList.remove('open');
+      }
+    });
+  }
+
+  // Fullscreen Button in Toolbar
+  if (btnFullscreen) {
+    btnFullscreen.onclick = (e) => {
+      e.stopPropagation();
+      toggleFullscreen();
+    };
+  }
+
+  function updateFullscreenUI() {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (iconFullscreenEnter && iconFullscreenExit) {
+      iconFullscreenEnter.style.display = isFs ? 'none' : 'block';
+      iconFullscreenExit.style.display = isFs ? 'block' : 'none';
+    }
+  }
+
+  document.addEventListener('fullscreenchange', updateFullscreenUI);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+
   // Player overlay mouse interactions
   playerOverlay.addEventListener('mousemove', () => {
     showPlayerHud(3000);
-  });
-
-  videoPlayer.addEventListener('click', () => {
-    if (videoPlayer.paused) {
-      videoPlayer.play().catch(() => {});
-      showToast('▶️ Đang phát');
-    } else {
-      videoPlayer.pause();
-      showToast('⏸️ Tạm dừng');
-    }
-    showPlayerHud(3000);
-  });
-
-  videoPlayer.addEventListener('dblclick', () => {
-    toggleFullscreen();
   });
 
   // ==========================================================================
@@ -1204,15 +1459,36 @@
       // Space: Play / Pause
       if (e.key === ' ' || e.keyCode === 32) {
         e.preventDefault();
+        togglePlayPause();
+        return;
+      }
+
+      // Up Arrow: Volume +5%
+      if (e.key === 'ArrowUp' || e.keyCode === 38) {
+        e.preventDefault();
         if (videoPlayer) {
-          if (videoPlayer.paused) {
-            videoPlayer.play().catch(() => {});
-            showToast('▶️ Đang phát');
-          } else {
-            videoPlayer.pause();
-            showToast('⏸️ Tạm dừng');
-          }
-          showPlayerHud(3000);
+          const vol = Math.min(1, Math.round((videoPlayer.volume + 0.05) * 100) / 100);
+          videoPlayer.muted = false;
+          videoPlayer.volume = vol;
+          localStorage.setItem('khophim_desktop_vol', vol);
+          updateVolumeUI();
+          showToast(`🔊 Âm lượng: ${Math.round(vol * 100)}%`);
+          showPlayerHud(2500);
+        }
+        return;
+      }
+
+      // Down Arrow: Volume -5%
+      if (e.key === 'ArrowDown' || e.keyCode === 40) {
+        e.preventDefault();
+        if (videoPlayer) {
+          const vol = Math.max(0, Math.round((videoPlayer.volume - 0.05) * 100) / 100);
+          videoPlayer.volume = vol;
+          videoPlayer.muted = (vol === 0);
+          localStorage.setItem('khophim_desktop_vol', vol);
+          updateVolumeUI();
+          showToast(vol === 0 ? '🔇 Đã tắt tiếng' : `🔊 Âm lượng: ${Math.round(vol * 100)}%`);
+          showPlayerHud(2500);
         }
         return;
       }
@@ -1251,6 +1527,7 @@
         e.preventDefault();
         if (videoPlayer) {
           videoPlayer.muted = !videoPlayer.muted;
+          updateVolumeUI();
           showToast(videoPlayer.muted ? '🔇 Đã tắt tiếng' : '🔊 Đã bật tiếng');
           showPlayerHud(2500);
         }
