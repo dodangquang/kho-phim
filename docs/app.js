@@ -1441,8 +1441,12 @@
     }, 350);
   });
 
-  // Explicitly allow spacebar, backspace, and all keyboard input without bubbling issues
+  // Explicitly allow spacebar, backspace, and all keyboard input on mobile/iPhone
   searchInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+  });
+
+  searchInput.addEventListener('beforeinput', (e) => {
     e.stopPropagation();
   });
 

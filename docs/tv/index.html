@@ -16,7 +16,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.3">
+  <link rel="stylesheet" href="style.css?v=1.0.4">
 
   <!-- HLS.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -107,7 +107,7 @@
           <h1 class="view-title">Tìm Kiếm Phim</h1>
           <div class="search-input-wrap">
             <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <input id="tv-search-input" type="text" placeholder="Nhập tên phim cần tìm..." autocomplete="off">
+            <input id="tv-search-input" type="text" inputmode="search" placeholder="Nhập tên phim cần tìm..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
             <button id="tv-search-clear-btn" class="tv-btn-clear" style="display:none;">✕</button>
           </div>
         </div>
@@ -138,7 +138,7 @@
 
           <div class="settings-card">
             <h3>Thông tin phiên bản</h3>
-            <p>Phiên bản Smart TV: <strong>v1.0.3 (TV Edition)</strong></p>
+            <p>Phiên bản Smart TV: <strong>v1.0.4 (TV Edition)</strong></p>
             <p>Hệ thống: Tối ưu 100% cho Smart TV Samsung (Tizen) & LG (webOS).</p>
             <div style="margin-top: 16px;">
               <button id="tv-clear-cache-btn" class="tv-btn tv-btn-secondary" tabindex="0">Xóa bộ nhớ đệm (Clear Cache)</button>
@@ -230,6 +230,6 @@
   </div>
 
   <!-- TV Script -->
-  <script src="app.js?v=1.0.3"></script>
+  <script src="app.js?v=1.0.4"></script>
 </body>
 </html>

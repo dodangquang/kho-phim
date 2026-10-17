@@ -531,6 +531,19 @@
       }, 400);
     };
 
+    input.addEventListener('keydown', (e) => {
+      // Allow spaces, backspace, and cursor movements without bubbling or blocking
+      e.stopPropagation();
+      if (e.keyCode === 8 || e.key === 'Backspace' || e.keyCode === 32 || e.key === ' ' || e.keyCode === 37 || e.key === 'ArrowLeft' || e.keyCode === 39 || e.key === 'ArrowRight') {
+        return;
+      }
+      if (e.keyCode === 13 || e.key === 'Enter') {
+        input.blur();
+        const firstCard = grid.querySelector('.tv-movie-card');
+        if (firstCard) setFocus(firstCard);
+      }
+    });
+
     clearBtn.onclick = () => {
       input.value = '';
       clearBtn.style.display = 'none';
@@ -1519,8 +1532,8 @@
     LEFT: [37, 4, 29459, 'ArrowLeft', 'Left'],
     RIGHT: [39, 5, 29458, 'ArrowRight', 'Right'],
     ENTER: [13, 29443, 'Enter', 'Select', 'Accept', 'OK', 'ok'],
-    BACK: [27, 8, 461, 10009, 'Escape', 'Backspace', 'Back', 'Return'],
-    PLAY_PAUSE: [179, 10252, 32, 'MediaPlayPause', 'MediaPlay', 'MediaPause']
+    BACK: [27, 461, 10009, 'Escape', 'Back', 'Return'],
+    PLAY_PAUSE: [179, 10252, 'MediaPlayPause', 'MediaPlay', 'MediaPause']
   };
 
   function matchKey(e, list) {
@@ -1530,8 +1543,53 @@
   }
 
   window.addEventListener('keydown', e => {
-    // 1. Back Key Handling
-    if (matchKey(e, REMOTE_KEYS.BACK)) {
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
+    if (isTyping) {
+      // While typing in search input, NEVER intercept text editing keys:
+      if (e.keyCode === 8 || e.key === 'Backspace') {
+        return; // Allow native character deletion
+      }
+      if (e.keyCode === 32 || e.key === ' ' || e.key === 'Spacebar') {
+        return; // Allow native space insertion
+      }
+      if (e.keyCode === 37 || e.key === 'ArrowLeft' || e.keyCode === 39 || e.key === 'ArrowRight') {
+        return; // Allow cursor movement within text
+      }
+      if (e.keyCode === 13 || e.key === 'Enter') {
+        activeEl.blur();
+        const firstCard = document.querySelector('#tv-search-grid .tv-movie-card');
+        if (firstCard) setFocus(firstCard);
+        e.preventDefault();
+        return;
+      }
+      if (e.keyCode === 10009 || e.keyCode === 461 || e.key === 'Escape' || e.keyCode === 27) {
+        activeEl.blur();
+        e.preventDefault();
+        return;
+      }
+      if (e.keyCode === 38 || e.key === 'ArrowUp') {
+        activeEl.blur();
+        const sidebarSearch = document.querySelector('.sidebar-item[data-tab="search"]');
+        if (sidebarSearch) setFocus(sidebarSearch);
+        e.preventDefault();
+        return;
+      }
+      if (e.keyCode === 40 || e.key === 'ArrowDown') {
+        activeEl.blur();
+        const firstCard = document.querySelector('#tv-search-grid .tv-movie-card');
+        const clearBtn = document.getElementById('tv-search-clear-btn');
+        if (firstCard) setFocus(firstCard);
+        else if (clearBtn && clearBtn.style.display !== 'none') setFocus(clearBtn);
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+
+    // 1. Back Key Handling (Remote BACK button or PC Backspace outside input)
+    if (matchKey(e, REMOTE_KEYS.BACK) || e.keyCode === 8 || e.key === 'Backspace') {
       e.preventDefault();
       if (playerOverlay.classList.contains('open')) {
         closeVideoPlayer();
@@ -1550,7 +1608,7 @@
     }
 
     // 2. Play/Pause Key
-    if (matchKey(e, REMOTE_KEYS.PLAY_PAUSE)) {
+    if (matchKey(e, REMOTE_KEYS.PLAY_PAUSE) || (playerOverlay.classList.contains('open') && (e.keyCode === 32 || e.key === ' '))) {
       e.preventDefault();
       if (playerOverlay.classList.contains('open') && videoPlayer) {
         if (videoPlayer.paused) {

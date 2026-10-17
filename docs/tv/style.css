@@ -713,6 +713,9 @@ html, body {
   outline: none;
   font-size: 17px;
   color: #FFFFFF;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  cursor: text !important;
 }
 
 .tv-btn-clear {
