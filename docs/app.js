@@ -566,6 +566,13 @@
         section.appendChild(row);
         homeSectionsContainer.appendChild(section);
       });
+
+      if (tvModeActive && !currentTvFocusedEl) {
+        setTimeout(() => {
+          const heroPlay = document.getElementById('hero-play-btn');
+          if (heroPlay) setTvFocus(heroPlay);
+        }, 150);
+      }
     } catch (e) {
       console.error('Home load error:', e);
       homeSectionsContainer.innerHTML = '<div class="history-empty">Không thể tải dữ liệu trang chủ. Hãy thử lại sau.</div>';
@@ -1252,7 +1259,7 @@
       posterUrl: primary,
       episodeSlug: currentPlayingEpisode.slug,
       episodeName: currentPlayingEpisode.name,
-      serverName: currentDetailEpisodes[currentServerIndex]?.server_name || 'Server VIP',
+      serverName: (currentDetailEpisodes[currentServerIndex] && currentDetailEpisodes[currentServerIndex].server_name) || 'Server VIP',
       currentTime: finalCurrentTime,
       duration: finalDuration,
       timestamp: Date.now()
@@ -1269,7 +1276,7 @@
         currentPlayingMovie,
         nextEp,
         currentPlayingEpisodesList,
-        currentDetailEpisodes[currentServerIndex]?.server_name || 'Server VIP'
+        (currentDetailEpisodes[currentServerIndex] && currentDetailEpisodes[currentServerIndex].server_name) || 'Server VIP'
       );
     } else {
       alert('Đã hết tập tiếp theo trong danh sách!');
@@ -1407,7 +1414,7 @@
     const currentSrc = videoPlayer.getAttribute('src');
     if (!currentSrc || currentSrc === 'about:blank' || !videoPlayer.error) return;
     console.warn('HTML5 video error, auto-falling back to embed:', videoPlayer.error);
-    handlePlaybackError(videoPlayer.src, currentPlayingEpisode?.link_embed);
+    handlePlaybackError(videoPlayer.src, currentPlayingEpisode ? currentPlayingEpisode.link_embed : '');
   });
 
   // Handle native iOS Safari "Done" button to cleanly exit player overlay
@@ -1626,23 +1633,32 @@
     }
   }
 
-  // Key codes for Samsung, LG, standard keyboards, Android TV
+  // Comprehensive Key definitions for Samsung, LG, Android TV, PC
   const KEY_GROUPS = {
-    UP: [38, 'ArrowUp', 'Up'],
-    DOWN: [40, 'ArrowDown', 'Down'],
-    LEFT: [37, 'ArrowLeft', 'Left'],
-    RIGHT: [39, 'ArrowRight', 'Right'],
-    ENTER: [13, 'Enter', 'Select', 'Accept'],
-    BACK: [27, 8, 461, 10009, 'Escape', 'Backspace', 'Back', 'Return', 'GoBack'],
+    UP: [38, 29460, 'ArrowUp', 'Up', 'UIKeyInputUpArrow', 'arrowup', 'up'],
+    DOWN: [40, 29461, 'ArrowDown', 'Down', 'UIKeyInputDownArrow', 'arrowdown', 'down'],
+    LEFT: [37, 4, 29459, 'ArrowLeft', 'Left', 'UIKeyInputLeftArrow', 'arrowleft', 'left'],
+    RIGHT: [39, 5, 29458, 'ArrowRight', 'Right', 'UIKeyInputRightArrow', 'arrowright', 'right'],
+    ENTER: [13, 29443, 'Enter', 'Select', 'Accept', 'OK', 'enter', 'ok'],
+    BACK: [27, 8, 461, 10009, 'Escape', 'Backspace', 'Back', 'Return', 'GoBack', 'escape', 'back', 'return'],
     PLAY_PAUSE: [179, 10252, 32, 'MediaPlayPause', 'MediaPlay', 'MediaPause', ' '],
     FAST_FORWARD: [417, 'MediaFastForward'],
     REWIND: [412, 'MediaRewind']
   };
 
   function isKeyMatch(e, group) {
-    if (group.includes(e.keyCode)) return true;
-    if (group.includes(e.key)) return true;
-    if (group.includes(e.code)) return true;
+    if (!e) return false;
+    const code = e.keyCode || e.which;
+    const key = (e.key || '').toLowerCase();
+    const rawCode = (e.code || '').toLowerCase();
+    for (let i = 0; i < group.length; i++) {
+      const item = group[i];
+      if (typeof item === 'number' && code === item) return true;
+      if (typeof item === 'string') {
+        const lower = item.toLowerCase();
+        if (key === lower || rawCode === lower) return true;
+      }
+    }
     return false;
   }
 
@@ -1656,14 +1672,28 @@
     tvModeActive = true;
     document.body.classList.add('tv-mode');
 
-    // Smoothly bring the focused item into view
-    try {
-      element.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
-      });
-    } catch (_) {}
+    // 1. Vertical view alignment for TV
+    const rect = element.getBoundingClientRect();
+    const headerHeight = 70;
+    if (rect.top < headerHeight + 20) {
+      const scrollDiff = rect.top - headerHeight - 40;
+      window.scrollBy({ top: scrollDiff, behavior: 'smooth' });
+    } else if (rect.bottom > window.innerHeight - 80) {
+      const scrollDiff = rect.bottom - window.innerHeight + 100;
+      window.scrollBy({ top: scrollDiff, behavior: 'smooth' });
+    }
+
+    // 2. Horizontal centering inside horizontal rows
+    const row = element.closest('.movie-row') || element.closest('.continue-row') || element.closest('.category-filter-bar') || element.closest('.server-tab-row');
+    if (row) {
+      const itemLeft = element.offsetLeft;
+      const targetScrollLeft = Math.max(0, itemLeft - (row.clientWidth / 2) + (element.clientWidth / 2));
+      try {
+        row.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+      } catch (_) {
+        row.scrollLeft = targetScrollLeft;
+      }
+    }
 
     if (element.tagName === 'INPUT') {
       try { element.focus(); } catch (_) {}
@@ -1688,62 +1718,77 @@
     return true;
   }
 
-  // Find all focusable candidates in the current active UI layer
-  function getActiveFocusableElements() {
-    // Layer 1: Player Overlay is open
-    if (playerOverlay && playerOverlay.classList.contains('open')) {
-      const candidates = Array.from(playerOverlay.querySelectorAll(
-        '.icon-btn, .player-mode-btn, #player-try-embed-btn, video'
-      ));
-      return candidates.filter(isElementVisible);
+  // Get logical horizontal bands (rows) on the Home Screen
+  function getHomeBands() {
+    const bands = [];
+
+    // Band 0: Header (Logo, History, Search)
+    const headerItems = Array.from(document.querySelectorAll('.app-header .logo-area, .app-header .icon-btn')).filter(isElementVisible);
+    if (headerItems.length > 0) bands.push({ name: 'header', items: headerItems });
+
+    // Band 1: Category Filter Pills
+    const pills = Array.from(document.querySelectorAll('#category-filter-bar .pill-chip')).filter(isElementVisible);
+    if (pills.length > 0) bands.push({ name: 'categories', items: pills });
+
+    // Band 2: Billboard (Hero Banner)
+    const heroButtons = Array.from(document.querySelectorAll('#hero-banner .btn-primary, #hero-banner .btn-secondary')).filter(isElementVisible);
+    if (heroButtons.length > 0) bands.push({ name: 'billboard', items: heroButtons });
+
+    // Band 3: Continue Watching Row
+    const continueSection = document.getElementById('continue-watching-section');
+    if (continueSection && continueSection.style.display !== 'none') {
+      const continueCards = Array.from(continueSection.querySelectorAll('.continue-card')).filter(isElementVisible);
+      if (continueCards.length > 0) bands.push({ name: 'continue', items: continueCards });
     }
 
-    // Layer 2: Detail Modal is open
-    if (detailModal && detailModal.classList.contains('open')) {
-      const candidates = Array.from(detailModal.querySelectorAll(
-        '.detail-close-btn, .btn-primary, .btn-secondary, .episode-btn, .movie-card, button, a'
-      ));
-      return candidates.filter(isElementVisible);
+    // Band 4+: Each Movie Section Row
+    const sections = Array.from(document.querySelectorAll('#home-sections .movie-section')).filter(isElementVisible);
+    sections.forEach((sec, idx) => {
+      const cards = Array.from(sec.querySelectorAll('.movie-card')).filter(isElementVisible);
+      if (cards.length > 0) {
+        bands.push({ name: `section-${idx}`, items: cards });
+      }
+    });
+
+    // Band Bottom: Bottom Nav Tabs
+    const tabs = Array.from(document.querySelectorAll('.bottom-nav .nav-tab')).filter(isElementVisible);
+    if (tabs.length > 0) bands.push({ name: 'tabs', items: tabs });
+
+    return bands;
+  }
+
+  function getClosestItemByX(items, targetX) {
+    if (!items || items.length === 0) return null;
+    let closest = items[0];
+    let minDiff = Infinity;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const r = it.getBoundingClientRect();
+      const centerX = r.left + r.width / 2;
+      const diff = Math.abs(centerX - targetX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = it;
+      }
     }
-
-    // Layer 3: Main App views
-    const selector = [
-      '.nav-tab',
-      '.pill-chip',
-      '#hero-banner .btn-primary',
-      '#hero-banner .btn-secondary',
-      '.movie-card',
-      '.continue-card',
-      '.section-more',
-      '.header-actions .icon-btn',
-      '.logo-area',
-      '#search-input',
-      '#search-clear-btn',
-      '#browse-load-more',
-      '#history-clear-btn',
-      '.history-card',
-      '.download-card .download-btn',
-      '.download-card a.btn-secondary'
-    ].join(',');
-
-    const candidates = Array.from(document.querySelectorAll(selector));
-    return candidates.filter(isElementVisible);
+    return closest;
   }
 
   function findDefaultInitialFocus() {
-    const candidates = getActiveFocusableElements();
-    if (candidates.length === 0) return null;
-
     // In player: back button or mode button
     if (playerOverlay && playerOverlay.classList.contains('open')) {
-      return candidates[0] || null;
+      const playerBtns = Array.from(playerOverlay.querySelectorAll('.icon-btn, .player-mode-btn')).filter(isElementVisible);
+      return playerBtns[0] || null;
     }
 
-    // In detail: play button or close button
+    // In detail modal: play button or close button
     if (detailModal && detailModal.classList.contains('open')) {
       const playBtn = detailModal.querySelector('.btn-primary');
       if (playBtn && isElementVisible(playBtn)) return playBtn;
-      return candidates[0] || null;
+      const closeBtn = detailModal.querySelector('.detail-close-btn');
+      if (closeBtn && isElementVisible(closeBtn)) return closeBtn;
+      const anyBtn = detailModal.querySelector('button');
+      if (anyBtn && isElementVisible(anyBtn)) return anyBtn;
     }
 
     // In Home screen
@@ -1769,91 +1814,270 @@
       if (searchInput && isElementVisible(searchInput)) return searchInput;
     }
 
-    return candidates[0] || null;
+    const anyInteractive = document.querySelector('.movie-card, .btn-primary, .pill-chip, .nav-tab');
+    return anyInteractive || null;
   }
 
-  // 2D Geometric Spatial Direction Algorithm
-  function findNextSpatialCandidate(direction) {
-    const candidates = getActiveFocusableElements();
-    if (candidates.length === 0) return null;
+  // Hierarchical Smart TV Directional Navigator
+  function navigateDirection(direction) {
+    // Layer 1: Player Overlay
+    if (playerOverlay && playerOverlay.classList.contains('open')) {
+      const playerBtns = Array.from(playerOverlay.querySelectorAll('.icon-btn, .player-mode-btn')).filter(isElementVisible);
+      if (playerBtns.length === 0) return;
+      const currentIdx = playerBtns.indexOf(currentTvFocusedEl);
+      if (direction === 'LEFT' && currentIdx > 0) {
+        setTvFocus(playerBtns[currentIdx - 1]);
+      } else if (direction === 'RIGHT' && currentIdx < playerBtns.length - 1) {
+        setTvFocus(playerBtns[currentIdx + 1]);
+      } else if (direction === 'UP' || direction === 'DOWN') {
+        if (currentIdx === -1) setTvFocus(playerBtns[0]);
+      }
+      return;
+    }
+
+    // Layer 2: Detail Modal
+    if (detailModal && detailModal.classList.contains('open')) {
+      navigateDetailModal(direction);
+      return;
+    }
+
+    // Layer 3: Home View (Hierarchical Band Navigation)
+    if (currentTab === 'home') {
+      navigateHomeBands(direction);
+      return;
+    }
+
+    // Layer 4: Other Views (Browse Grid, Search Grid, etc.)
+    navigateGeneralGrid(direction);
+  }
+
+  function navigateHomeBands(direction) {
+    const bands = getHomeBands();
+    if (bands.length === 0) return;
 
     if (!currentTvFocusedEl || !isElementVisible(currentTvFocusedEl)) {
-      return findDefaultInitialFocus();
+      const initial = findDefaultInitialFocus();
+      if (initial) setTvFocus(initial);
+      return;
+    }
+
+    // Find current band and item index
+    let currentBandIdx = -1;
+    let currentItemIdx = -1;
+    for (let b = 0; b < bands.length; b++) {
+      const idx = bands[b].items.indexOf(currentTvFocusedEl);
+      if (idx !== -1) {
+        currentBandIdx = b;
+        currentItemIdx = idx;
+        break;
+      }
+    }
+
+    // If current element is not in bands, default to initial focus
+    if (currentBandIdx === -1) {
+      const initial = findDefaultInitialFocus();
+      if (initial) setTvFocus(initial);
+      return;
+    }
+
+    const currentBand = bands[currentBandIdx];
+    const currentRect = currentTvFocusedEl.getBoundingClientRect();
+    const currentCenterX = currentRect.left + currentRect.width / 2;
+
+    switch (direction) {
+      case 'UP':
+        if (currentBandIdx > 0) {
+          const targetBand = bands[currentBandIdx - 1];
+          const closestItem = getClosestItemByX(targetBand.items, currentCenterX);
+          if (closestItem) setTvFocus(closestItem);
+        } else {
+          // Already at top header -> scroll to absolute top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        break;
+
+      case 'DOWN':
+        if (currentBandIdx < bands.length - 1) {
+          const targetBand = bands[currentBandIdx + 1];
+          const closestItem = getClosestItemByX(targetBand.items, currentCenterX);
+          if (closestItem) setTvFocus(closestItem);
+        }
+        break;
+
+      case 'LEFT':
+        if (currentItemIdx > 0) {
+          setTvFocus(currentBand.items[currentItemIdx - 1]);
+        }
+        break;
+
+      case 'RIGHT':
+        if (currentItemIdx < currentBand.items.length - 1) {
+          setTvFocus(currentBand.items[currentItemIdx + 1]);
+        }
+        break;
+    }
+  }
+
+  function navigateDetailModal(direction) {
+    const closeBtn = detailModal.querySelector('.detail-close-btn');
+    const playBtn = detailModal.querySelector('.btn-primary');
+    const serverBtns = Array.from(detailModal.querySelectorAll('.server-btn')).filter(isElementVisible);
+    const episodeBtns = Array.from(detailModal.querySelectorAll('.episode-btn')).filter(isElementVisible);
+
+    const isCurrent = (el) => currentTvFocusedEl === el;
+
+    if (!currentTvFocusedEl || !isElementVisible(currentTvFocusedEl)) {
+      if (playBtn) setTvFocus(playBtn);
+      else if (closeBtn) setTvFocus(closeBtn);
+      return;
+    }
+
+    switch (direction) {
+      case 'UP':
+        if (episodeBtns.some(isCurrent)) {
+          const epIdx = episodeBtns.indexOf(currentTvFocusedEl);
+          const cols = 5;
+          if (epIdx >= cols) {
+            setTvFocus(episodeBtns[epIdx - cols]);
+          } else if (serverBtns.length > 0) {
+            setTvFocus(serverBtns[0]);
+          } else if (playBtn) {
+            setTvFocus(playBtn);
+          } else if (closeBtn) {
+            setTvFocus(closeBtn);
+          }
+        } else if (serverBtns.some(isCurrent)) {
+          if (playBtn) setTvFocus(playBtn);
+          else if (closeBtn) setTvFocus(closeBtn);
+        } else if (isCurrent(playBtn)) {
+          if (closeBtn) setTvFocus(closeBtn);
+        }
+        break;
+
+      case 'DOWN':
+        if (isCurrent(closeBtn)) {
+          if (playBtn) setTvFocus(playBtn);
+          else if (serverBtns.length > 0) setTvFocus(serverBtns[0]);
+          else if (episodeBtns.length > 0) setTvFocus(episodeBtns[0]);
+        } else if (isCurrent(playBtn)) {
+          if (serverBtns.length > 0) setTvFocus(serverBtns[0]);
+          else if (episodeBtns.length > 0) setTvFocus(episodeBtns[0]);
+        } else if (serverBtns.some(isCurrent)) {
+          if (episodeBtns.length > 0) setTvFocus(episodeBtns[0]);
+        } else if (episodeBtns.some(isCurrent)) {
+          const epIdx = episodeBtns.indexOf(currentTvFocusedEl);
+          const cols = 5;
+          if (epIdx + cols < episodeBtns.length) {
+            setTvFocus(episodeBtns[epIdx + cols]);
+          }
+        }
+        break;
+
+      case 'LEFT':
+        if (serverBtns.some(isCurrent)) {
+          const idx = serverBtns.indexOf(currentTvFocusedEl);
+          if (idx > 0) setTvFocus(serverBtns[idx - 1]);
+        } else if (episodeBtns.some(isCurrent)) {
+          const idx = episodeBtns.indexOf(currentTvFocusedEl);
+          if (idx > 0) setTvFocus(episodeBtns[idx - 1]);
+        }
+        break;
+
+      case 'RIGHT':
+        if (serverBtns.some(isCurrent)) {
+          const idx = serverBtns.indexOf(currentTvFocusedEl);
+          if (idx < serverBtns.length - 1) setTvFocus(serverBtns[idx + 1]);
+        } else if (episodeBtns.some(isCurrent)) {
+          const idx = episodeBtns.indexOf(currentTvFocusedEl);
+          if (idx < episodeBtns.length - 1) setTvFocus(episodeBtns[idx + 1]);
+        }
+        break;
+    }
+  }
+
+  function navigateGeneralGrid(direction) {
+    const candidates = Array.from(document.querySelectorAll(
+      '.nav-tab, .pill-chip, .movie-card, #search-input, #browse-load-more, button, a'
+    )).filter(isElementVisible);
+
+    if (candidates.length === 0) return;
+    if (!currentTvFocusedEl || !isElementVisible(currentTvFocusedEl)) {
+      setTvFocus(candidates[0]);
+      return;
     }
 
     const currentRect = currentTvFocusedEl.getBoundingClientRect();
-    const currentCenter = {
-      x: currentRect.left + currentRect.width / 2,
-      y: currentRect.top + currentRect.height / 2
-    };
+    const currentCenterX = currentRect.left + currentRect.width / 2;
+    const currentCenterY = currentRect.top + currentRect.height / 2;
 
-    let bestCandidate = null;
+    let best = null;
     let minScore = Infinity;
 
-    for (const cand of candidates) {
+    for (let i = 0; i < candidates.length; i++) {
+      const cand = candidates[i];
       if (cand === currentTvFocusedEl) continue;
 
       const r = cand.getBoundingClientRect();
-      const center = {
-        x: r.left + r.width / 2,
-        y: r.top + r.height / 2
-      };
+      const centerX = r.left + r.width / 2;
+      const centerY = r.top + r.height / 2;
 
       let dx = 0;
       let dy = 0;
 
       switch (direction) {
-        case 'RIGHT':
-          if (r.left >= currentRect.left + 5 || center.x > currentCenter.x + 8) {
-            dx = Math.max(0, r.left - currentRect.right);
-            dy = Math.abs(center.y - currentCenter.y);
-            const score = dx + 3.2 * dy;
+        case 'UP':
+          if (r.bottom <= currentRect.bottom - 4 || centerY < currentCenterY - 6) {
+            dy = Math.max(0, currentRect.top - r.bottom);
+            dx = Math.abs(centerX - currentCenterX);
+            const score = dy + 2.0 * dx;
             if (score < minScore) {
               minScore = score;
-              bestCandidate = cand;
-            }
-          }
-          break;
-
-        case 'LEFT':
-          if (r.right <= currentRect.right - 5 || center.x < currentCenter.x - 8) {
-            dx = Math.max(0, currentRect.left - r.right);
-            dy = Math.abs(center.y - currentCenter.y);
-            const score = dx + 3.2 * dy;
-            if (score < minScore) {
-              minScore = score;
-              bestCandidate = cand;
+              best = cand;
             }
           }
           break;
 
         case 'DOWN':
-          if (r.top >= currentRect.top + 5 || center.y > currentCenter.y + 8) {
+          if (r.top >= currentRect.top + 4 || centerY > currentCenterY + 6) {
             dy = Math.max(0, r.top - currentRect.bottom);
-            dx = Math.abs(center.x - currentCenter.x);
-            const score = dy + 2.2 * dx;
+            dx = Math.abs(centerX - currentCenterX);
+            const score = dy + 2.0 * dx;
             if (score < minScore) {
               minScore = score;
-              bestCandidate = cand;
+              best = cand;
             }
           }
           break;
 
-        case 'UP':
-          if (r.bottom <= currentRect.bottom - 5 || center.y < currentCenter.y - 8) {
-            dy = Math.max(0, currentRect.top - r.bottom);
-            dx = Math.abs(center.x - currentCenter.x);
-            const score = dy + 2.2 * dx;
+        case 'LEFT':
+          if (r.right <= currentRect.right - 4 || centerX < currentCenterX - 6) {
+            dx = Math.max(0, currentRect.left - r.right);
+            dy = Math.abs(centerY - currentCenterY);
+            const score = dx + 3.0 * dy;
             if (score < minScore) {
               minScore = score;
-              bestCandidate = cand;
+              best = cand;
+            }
+          }
+          break;
+
+        case 'RIGHT':
+          if (r.left >= currentRect.left + 4 || centerX > currentCenterX + 6) {
+            dx = Math.max(0, r.left - currentRect.right);
+            dy = Math.abs(centerY - currentCenterY);
+            const score = dx + 3.0 * dy;
+            if (score < minScore) {
+              minScore = score;
+              best = cand;
             }
           }
           break;
       }
     }
 
-    return bestCandidate;
+    if (best) {
+      setTvFocus(best);
+    }
   }
 
   // Master Remote Control Event Handler
@@ -1910,9 +2134,8 @@
       return;
     }
 
-    // 2. In Player Overlay Video Controls
+    // 2. In Player Overlay Video Controls (Seek / Volume)
     if (playerOverlay && playerOverlay.classList.contains('open')) {
-      // Seek Backward 10s
       if (isKeyMatch(e, KEY_GROUPS.LEFT) || isKeyMatch(e, KEY_GROUPS.REWIND)) {
         e.preventDefault();
         if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
@@ -1922,7 +2145,6 @@
         return;
       }
 
-      // Seek Forward 10s
       if (isKeyMatch(e, KEY_GROUPS.RIGHT) || isKeyMatch(e, KEY_GROUPS.FAST_FORWARD)) {
         e.preventDefault();
         if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
@@ -1933,34 +2155,7 @@
         return;
       }
 
-      // Volume Up
-      if (isKeyMatch(e, KEY_GROUPS.UP)) {
-        e.preventDefault();
-        if (videoPlayer) {
-          videoPlayer.volume = Math.min(1, Number((videoPlayer.volume + 0.1).toFixed(1)));
-          showTvToast(`🔊 Âm lượng: ${Math.round(videoPlayer.volume * 100)}%`);
-        }
-        return;
-      }
-
-      // Volume Down
-      if (isKeyMatch(e, KEY_GROUPS.DOWN)) {
-        e.preventDefault();
-        if (videoPlayer) {
-          videoPlayer.volume = Math.max(0, Number((videoPlayer.volume - 0.1).toFixed(1)));
-          showTvToast(`🔉 Âm lượng: ${Math.round(videoPlayer.volume * 100)}%`);
-        }
-        return;
-      }
-
-      // Play / Pause Toggle
-      if (isKeyMatch(e, KEY_GROUPS.PLAY_PAUSE) || isKeyMatch(e, KEY_GROUPS.ENTER)) {
-        if (currentTvFocusedEl && currentTvFocusedEl !== videoPlayer && currentTvFocusedEl.closest('.player-header')) {
-          currentTvFocusedEl.click();
-          e.preventDefault();
-          return;
-        }
-
+      if (isKeyMatch(e, KEY_GROUPS.PLAY_PAUSE)) {
         e.preventDefault();
         if (videoPlayer) {
           if (videoPlayer.paused) {
@@ -1984,15 +2179,29 @@
 
     if (dir) {
       e.preventDefault();
-      const nextEl = findNextSpatialCandidate(dir);
-      if (nextEl) {
-        setTvFocus(nextEl);
-      }
+      navigateDirection(dir);
       return;
     }
 
     // 4. ENTER / OK Key Handling
     if (isKeyMatch(e, KEY_GROUPS.ENTER)) {
+      if (playerOverlay && playerOverlay.classList.contains('open')) {
+        // In player, Enter toggles play/pause unless a button is explicitly focused
+        if (currentTvFocusedEl && currentTvFocusedEl !== videoPlayer && currentTvFocusedEl.closest('.player-header')) {
+          currentTvFocusedEl.click();
+        } else if (videoPlayer) {
+          if (videoPlayer.paused) {
+            videoPlayer.play().catch(() => {});
+            showTvToast('▶️ Đang phát');
+          } else {
+            videoPlayer.pause();
+            showTvToast('⏸️ Tạm dừng');
+          }
+        }
+        e.preventDefault();
+        return;
+      }
+
       if (currentTvFocusedEl) {
         e.preventDefault();
         if (currentTvFocusedEl.tagName === 'INPUT') {
@@ -2004,21 +2213,6 @@
       return;
     }
   });
-
-  // Seamless coexistence with mouse / LG Magic Remote pointer
-  window.addEventListener('mousemove', (e) => {
-    if (Math.abs(e.movementX) > 2 || Math.abs(e.movementY) > 2) {
-      if (currentTvFocusedEl) {
-        clearTvFocus();
-      }
-    }
-  }, { passive: true });
-
-  window.addEventListener('touchstart', () => {
-    if (currentTvFocusedEl) {
-      clearTvFocus();
-    }
-  }, { passive: true });
 
   // Initialize Smart TV integrations
   initSmartTvDevice();
@@ -2049,8 +2243,8 @@
     renderContinueWatchingHome,
     setTvFocus,
     clearTvFocus,
-    findNextSpatialCandidate,
-    getActiveFocusableElements,
+    navigateDirection,
+    getHomeBands,
     findDefaultInitialFocus,
     isKeyMatch,
     KEY_GROUPS,
