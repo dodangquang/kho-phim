@@ -54,7 +54,7 @@
   const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
   const playerToast = document.getElementById('player-toast');
 
-  const VN_FLAG_HTML = '<span class="vn-flag-icon" aria-label="Việt Nam"></span>';
+  const VN_FLAG_HTML = '<span class="vn-flag-icon" aria-label="Việt Nam"><svg viewBox="0 0 30 20" width="18" height="12"><rect width="30" height="20" fill="#da251d"/><polygon points="15,4 16.35,8.15 20.71,8.15 17.18,10.71 18.53,14.85 15,12.29 11.47,14.85 12.82,10.71 9.29,8.15 13.65,8.15" fill="#ffff00"/></svg></span>';
 
   // Categories Definition
   const CATEGORIES = [
@@ -173,10 +173,25 @@
     if (!item || !item.movieSlug) return;
     try {
       let list = getWatchHistory();
+      const existing = list.find(x => x.movieSlug === item.movieSlug);
+      if (existing) {
+        if ((!item.duration || item.duration <= 0) && existing.duration > 0 && (!item.episodeSlug || item.episodeSlug === existing.episodeSlug)) {
+          item.duration = existing.duration;
+        }
+        if ((!item.currentTime || item.currentTime <= 0) && existing.currentTime > 0 && item.episodeSlug === existing.episodeSlug) {
+          item.currentTime = existing.currentTime;
+        }
+        if (!item.posterUrl || item.posterUrl === 'icon.png') {
+          if (existing.posterUrl && existing.posterUrl !== 'icon.png') {
+            item.posterUrl = existing.posterUrl;
+          }
+        }
+      }
       list = list.filter(x => x.movieSlug !== item.movieSlug);
       list.unshift(item);
       if (list.length > 60) list = list.slice(0, 60);
       localStorage.setItem('khophim_history', JSON.stringify(list));
+      localStorage.setItem('khophim_watch_history', JSON.stringify(list));
     } catch (e) {
       console.warn('Failed to save watch history:', e);
     }
@@ -186,20 +201,40 @@
     let list = getWatchHistory().filter(x => x.movieSlug !== slug);
     try {
       localStorage.setItem('khophim_history', JSON.stringify(list));
+      localStorage.setItem('khophim_watch_history', JSON.stringify(list));
     } catch (_) {}
     renderHistoryScreen();
   }
 
   function clearAllWatchHistory() {
-    if (confirm('Bạn có chắc chắn muốn xoá toàn bộ lịch sử xem không?')) {
+    let proceed = true;
+    try {
+      proceed = window.confirm('Bạn có chắc chắn muốn xoá toàn bộ lịch sử xem không?');
+    } catch (_) {
+      proceed = true;
+    }
+    if (proceed) {
       try {
         localStorage.removeItem('khophim_history');
+        localStorage.removeItem('khophim_watch_history');
         localStorage.removeItem('kho_phim_history');
         localStorage.removeItem('phimmoi_history');
       } catch (_) {}
       renderHistoryScreen();
     }
   }
+
+  window.switchTabDirect = function (tabName) {
+    switchTab(tabName);
+  };
+
+  window.clearHistoryDirect = function () {
+    clearAllWatchHistory();
+  };
+
+  window.removeHistoryItemDirect = function (slug) {
+    removeWatchHistoryItem(slug);
+  };
 
   // Tab Navigation
   function switchTab(tabName) {
@@ -1332,14 +1367,17 @@
   // History Screen Render
   function renderHistoryScreen() {
     const history = getWatchHistory();
+    const clearBtn = document.getElementById('history-clear-btn');
     if (!history || history.length === 0) {
       if (historyEmpty) historyEmpty.style.display = 'block';
       if (historyList) historyList.innerHTML = '';
+      if (clearBtn) clearBtn.style.display = 'none';
       return;
     }
 
     if (historyEmpty) historyEmpty.style.display = 'none';
     if (historyList) historyList.innerHTML = '';
+    if (clearBtn) clearBtn.style.display = 'block';
 
     history.forEach(item => {
       const card = document.createElement('div');
