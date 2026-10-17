@@ -1064,8 +1064,21 @@
       }
 
       // 2. Vertical scroll inside main content
-      if (rect.top < 80 || rect.bottom > window.innerHeight - 80) {
-        element.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      const heroBanner = element.closest('#tv-hero-banner');
+      if (heroBanner) {
+        // ALWAYS scroll main content to absolute top when billboard is focused
+        tvMainContent.scrollTop = 0;
+      } else {
+        const shelfSection = element.closest('.tv-shelf-section') || element.closest('#tv-continue-section');
+        const scrollTarget = shelfSection || element;
+        const sRect = scrollTarget.getBoundingClientRect();
+        const mainRect = tvMainContent.getBoundingClientRect();
+
+        if (sRect.top < mainRect.top + 30) {
+          tvMainContent.scrollTop += (sRect.top - mainRect.top - 20);
+        } else if (sRect.bottom > mainRect.bottom - 40) {
+          tvMainContent.scrollTop += (sRect.bottom - mainRect.bottom + 40);
+        }
       }
     }
   }
@@ -1127,12 +1140,28 @@
 
   function jumpFromSidebarToContent() {
     if (currentTab === 'home') {
-      if (tvMainContent.scrollTop < 220) {
+      if (tvMainContent.scrollTop < 350) {
         const heroBtn = document.getElementById('hero-play-btn');
         if (heroBtn && isVisible(heroBtn)) {
           setFocus(heroBtn);
           return;
         }
+      }
+      const allRows = Array.from(tvMainContent.querySelectorAll('.tv-shelf-row')).filter(isVisible);
+      let bestCard = null;
+      let minDiff = Infinity;
+      const targetY = tvMainContent.getBoundingClientRect().top + 160;
+      allRows.forEach(row => {
+        const r = row.getBoundingClientRect();
+        const diff = Math.abs(r.top - targetY);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestCard = row.querySelector('.tv-card, .tv-continue-card');
+        }
+      });
+      if (bestCard) {
+        setFocus(bestCard);
+        return;
       }
       const firstCard = tvMainContent.querySelector('#view-home .tv-card, #view-home .tv-continue-card');
       if (firstCard) setFocus(firstCard);
@@ -1333,6 +1362,10 @@
 
     // Sub-zone A: On Hero Billboard Buttons
     if (currentFocusedEl === heroPlay) {
+      if (direction === 'UP') {
+        tvMainContent.scrollTop = 0;
+        return;
+      }
       if (direction === 'LEFT') focusSidebar();
       else if (direction === 'RIGHT' && heroDetail) setFocus(heroDetail);
       else if (direction === 'DOWN') {
@@ -1346,6 +1379,10 @@
     }
 
     if (currentFocusedEl === heroDetail) {
+      if (direction === 'UP') {
+        tvMainContent.scrollTop = 0;
+        return;
+      }
       if (direction === 'LEFT' && heroPlay) setFocus(heroPlay);
       else if (direction === 'DOWN') {
         if (continueCards.length > 0) setFocus(continueCards[0]);
@@ -1359,7 +1396,15 @@
 
     // Sub-zone B: In horizontal shelf row or continue row
     const rowEl = currentFocusedEl.closest('.tv-shelf-row');
-    if (!rowEl) return;
+    if (!rowEl) {
+      if (direction === 'UP') {
+        if (heroPlay) setFocus(heroPlay);
+      } else if (direction === 'DOWN') {
+        const firstCard = shelvesContainer.querySelector('.tv-card');
+        if (firstCard) setFocus(firstCard);
+      }
+      return;
+    }
 
     // Horizontal inside the row
     if (direction === 'LEFT') {
@@ -1394,6 +1439,10 @@
         if (firstShelfRow) {
           const target = getClosestCardInRow(firstShelfRow, curCenterX);
           if (target) setFocus(target);
+          else {
+            const anyCard = firstShelfRow.querySelector('.tv-card');
+            if (anyCard) setFocus(anyCard);
+          }
         }
       }
       return;
@@ -1404,31 +1453,48 @@
     const currentSection = currentFocusedEl.closest('.tv-shelf-section');
     const shelfIdx = allShelves.indexOf(currentSection);
 
-    if (shelfIdx === -1) return;
+    if (shelfIdx === -1) {
+      if (direction === 'UP' && heroPlay) {
+        setFocus(heroPlay);
+      }
+      return;
+    }
 
     if (direction === 'UP') {
       if (shelfIdx === 0) {
         if (continueCards.length > 0) {
           const target = getClosestCardInRow(continueRow, curCenterX);
           if (target) setFocus(target);
+          else if (heroPlay) setFocus(heroPlay);
         } else if (heroPlay) {
           setFocus(heroPlay);
         }
       } else {
         const prevShelf = allShelves[shelfIdx - 1];
-        const prevRow = prevShelf.querySelector('.tv-shelf-row');
+        const prevRow = prevShelf ? prevShelf.querySelector('.tv-shelf-row') : null;
         if (prevRow) {
           const target = getClosestCardInRow(prevRow, curCenterX);
           if (target) setFocus(target);
+          else {
+            const anyCard = prevRow.querySelector('.tv-card, .tv-continue-card');
+            if (anyCard) setFocus(anyCard);
+            else if (heroPlay) setFocus(heroPlay);
+          }
+        } else if (heroPlay) {
+          setFocus(heroPlay);
         }
       }
     } else if (direction === 'DOWN') {
       if (shelfIdx < allShelves.length - 1) {
         const nextShelf = allShelves[shelfIdx + 1];
-        const nextRow = nextShelf.querySelector('.tv-shelf-row');
+        const nextRow = nextShelf ? nextShelf.querySelector('.tv-shelf-row') : null;
         if (nextRow) {
           const target = getClosestCardInRow(nextRow, curCenterX);
           if (target) setFocus(target);
+          else {
+            const anyCard = nextRow.querySelector('.tv-card, .tv-continue-card');
+            if (anyCard) setFocus(anyCard);
+          }
         }
       }
     }
