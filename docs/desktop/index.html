@@ -16,7 +16,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.1">
+  <link rel="stylesheet" href="style.css?v=1.0.2">
 
   <!-- HLS.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -83,7 +83,11 @@
         <!-- Continue Watching Row -->
         <div id="tv-continue-section" class="tv-shelf-section" style="display:none;">
           <h2 class="shelf-title">🕒 Tiếp tục xem</h2>
-          <div id="tv-continue-row" class="tv-shelf-row"></div>
+          <div class="shelf-row-wrap">
+            <button id="tv-continue-prev-btn" class="shelf-arrow-btn shelf-arrow-left" title="Cuộn sang trái">‹</button>
+            <div id="tv-continue-row" class="tv-shelf-row"></div>
+            <button id="tv-continue-next-btn" class="shelf-arrow-btn shelf-arrow-right" title="Cuộn sang phải">›</button>
+          </div>
         </div>
 
         <!-- Category Shelves Container -->
@@ -233,6 +237,6 @@
   </div>
 
   <!-- Desktop Script -->
-  <script src="app.js?v=1.0.1"></script>
+  <script src="app.js?v=1.0.2"></script>
 </body>
 </html>

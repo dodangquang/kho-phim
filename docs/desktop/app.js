@@ -133,17 +133,61 @@
   }
 
   // ==========================================================================
-  // MOUSE WHEEL HORIZONTAL SCROLLING FOR ROWS
+  // DRAG-TO-SCROLL ENGINE FOR HORIZONTAL ROWS (Mouse drag without wheel conflict)
   // ==========================================================================
-  function enableHorizontalWheelScroll(element) {
+  let activeDragEl = null;
+  let dragStartX = 0;
+  let dragScrollStart = 0;
+  let isActivelyDragging = false;
+  let totalDragDistance = 0;
+
+  function enableDragScroll(element) {
     if (!element) return;
-    element.addEventListener('wheel', (e) => {
-      if (e.deltaY !== 0) {
+
+    element.addEventListener('dragstart', (e) => e.preventDefault());
+
+    element.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Only primary (left) click
+      activeDragEl = element;
+      dragStartX = e.pageX;
+      dragScrollStart = element.scrollLeft;
+      isActivelyDragging = false;
+      totalDragDistance = 0;
+    });
+
+    // Capture phase: Suppress click if mouse moved more than 6px
+    element.addEventListener('click', (e) => {
+      if (isActivelyDragging || totalDragDistance > 6) {
         e.preventDefault();
-        element.scrollLeft += e.deltaY;
+        e.stopPropagation();
       }
-    }, { passive: false });
+    }, true);
   }
+
+  // Global window listeners for drag movement & release
+  window.addEventListener('mousemove', (e) => {
+    if (!activeDragEl) return;
+    const dx = e.pageX - dragStartX;
+    totalDragDistance = Math.abs(dx);
+    if (totalDragDistance > 6) {
+      if (!isActivelyDragging) {
+        isActivelyDragging = true;
+        activeDragEl.classList.add('is-dragging');
+      }
+      activeDragEl.scrollLeft = dragScrollStart - dx;
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!activeDragEl) return;
+    const el = activeDragEl;
+    el.classList.remove('is-dragging');
+    activeDragEl = null;
+    setTimeout(() => {
+      isActivelyDragging = false;
+      totalDragDistance = 0;
+    }, 80);
+  });
 
   // ==========================================================================
   // WATCH HISTORY
@@ -269,10 +313,30 @@
       titleEl.innerHTML = `<span>${sec.title}</span><span class="shelf-more-badge">›</span>`;
       sectionEl.appendChild(titleEl);
 
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'shelf-row-wrap';
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'shelf-arrow-btn shelf-arrow-left';
+      prevBtn.innerHTML = '‹';
+      prevBtn.title = 'Cuộn sang trái';
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'shelf-arrow-btn shelf-arrow-right';
+      nextBtn.innerHTML = '›';
+      nextBtn.title = 'Cuộn sang phải';
+
       const rowEl = document.createElement('div');
       rowEl.className = 'tv-shelf-row';
-      enableHorizontalWheelScroll(rowEl);
-      sectionEl.appendChild(rowEl);
+      enableDragScroll(rowEl);
+
+      prevBtn.onclick = () => rowEl.scrollBy({ left: -Math.max(350, rowEl.clientWidth * 0.75), behavior: 'smooth' });
+      nextBtn.onclick = () => rowEl.scrollBy({ left: Math.max(350, rowEl.clientWidth * 0.75), behavior: 'smooth' });
+
+      rowWrap.appendChild(prevBtn);
+      rowWrap.appendChild(rowEl);
+      rowWrap.appendChild(nextBtn);
+      sectionEl.appendChild(rowWrap);
       shelvesContainer.appendChild(sectionEl);
 
       // Async fetch movies for this shelf
@@ -406,7 +470,12 @@
 
     continueSection.style.display = 'block';
     continueRow.innerHTML = '';
-    enableHorizontalWheelScroll(continueRow);
+    enableDragScroll(continueRow);
+
+    const contPrev = document.getElementById('tv-continue-prev-btn');
+    const contNext = document.getElementById('tv-continue-next-btn');
+    if (contPrev) contPrev.onclick = () => continueRow.scrollBy({ left: -Math.max(350, continueRow.clientWidth * 0.75), behavior: 'smooth' });
+    if (contNext) contNext.onclick = () => continueRow.scrollBy({ left: Math.max(350, continueRow.clientWidth * 0.75), behavior: 'smooth' });
 
     history.slice(0, 15).forEach(item => {
       const card = document.createElement('div');
@@ -663,7 +732,7 @@
     const episodeGridEl = document.getElementById('tv-episode-grid');
     serverTabsEl.innerHTML = '';
     episodeGridEl.innerHTML = '';
-    enableHorizontalWheelScroll(serverTabsEl);
+    enableDragScroll(serverTabsEl);
 
     const episodesArr = data.episodes || [];
     if (episodesArr.length > 0) {

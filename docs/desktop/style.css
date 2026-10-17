@@ -386,6 +386,54 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   font-weight: 800;
 }
 
+.shelf-row-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.shelf-arrow-btn {
+  position: absolute;
+  top: 18px;
+  bottom: 26px;
+  width: 44px;
+  background: rgba(12, 12, 12, 0.75);
+  color: #FFFFFF;
+  border: none;
+  font-size: 36px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, background 0.15s ease, transform 0.15s ease;
+  backdrop-filter: blur(6px);
+}
+
+.shelf-row-wrap:hover .shelf-arrow-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.shelf-arrow-left {
+  left: 0;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.shelf-arrow-right {
+  right: 0;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.shelf-arrow-btn:hover {
+  background: var(--accent-red);
+  color: #fff;
+}
+
 .tv-shelf-row {
   display: flex;
   gap: 14px;
@@ -395,6 +443,27 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   position: relative;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tv-shelf-row.is-dragging {
+  cursor: grabbing !important;
+  scroll-behavior: auto !important;
+}
+
+.tv-shelf-row.is-dragging * {
+  cursor: grabbing !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.tv-shelf-row img,
+.tv-continue-thumb-wrap img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 .tv-shelf-row::-webkit-scrollbar {
@@ -1019,6 +1088,13 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   gap: 12px;
   margin-bottom: 16px;
   overflow-x: auto;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tv-server-tabs.is-dragging {
+  cursor: grabbing !important;
 }
 
 .tv-server-pill {
