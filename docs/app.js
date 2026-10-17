@@ -1131,8 +1131,9 @@
     const dur = (rawDur && isFinite(rawDur) && !isNaN(rawDur) && rawDur > 0) ? Math.floor(rawDur) : 0;
 
     const existing = getWatchHistory().find(x => x.movieSlug === currentPlayingMovie.slug);
-    const finalCurrentTime = (currentT > 0) ? currentT : (existing ? (existing.currentTime || 0) : 0);
-    const finalDuration = (dur > 0) ? dur : (existing ? (existing.duration || 0) : 0);
+    const isSameEp = existing && existing.episodeSlug === currentPlayingEpisode.slug;
+    const finalCurrentTime = (currentT > 0) ? currentT : (isSameEp ? (existing.currentTime || 0) : 0);
+    const finalDuration = (dur > 0) ? dur : (isSameEp ? (existing.duration || 0) : 0);
 
     const { primary } = getMovieImageUrls(currentPlayingMovie);
     saveWatchHistoryItem({
@@ -1250,6 +1251,14 @@
     // Refresh detail screen episode badges/progress
     if (currentDetailMovie) {
       renderDetailContent(currentDetailMovie, currentDetailEpisodes);
+    }
+
+    // Refresh history screen if active tab and ensure modal doesn't block history
+    if (currentTab === 'history') {
+      if (detailModal && detailModal.classList.contains('open')) {
+        detailModal.classList.remove('open');
+      }
+      renderHistoryScreen();
     }
   };
 
