@@ -54,13 +54,15 @@
   const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
   const playerToast = document.getElementById('player-toast');
 
+  const VN_FLAG_HTML = '<span class="vn-flag-icon" aria-label="Việt Nam"></span>';
+
   // Categories Definition
   const CATEGORIES = [
     { id: 'all', title: 'Tất cả' },
     { id: 'moi-cap-nhat', title: '⚡ Mới Cập Nhật Tập Mới', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
     { id: 'phim-thuyet-minh', title: '🎙️ Thuyết Minh', path: 'v1/api/danh-sach/phim-thuyet-minh' },
     { id: 'phim-long-tieng', title: '🎧 Lồng Tiếng', path: 'v1/api/danh-sach/phim-long-tieng' },
-    { id: 'viet-nam', title: '🇻🇳 Việt Nam', path: 'v1/api/quoc-gia/viet-nam' },
+    { id: 'viet-nam', title: `${VN_FLAG_HTML}Việt Nam`, path: 'v1/api/quoc-gia/viet-nam' },
     { id: 'phim-moi', title: '🔥 Phim Mới', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
     { id: 'phim-chieu-rap', title: '🍿 Chiếu Rạp', path: 'v1/api/danh-sach/phim-chieu-rap' },
     { id: 'phim-bo', title: '📺 Phim Bộ', path: 'v1/api/danh-sach/phim-bo' },
@@ -159,29 +161,42 @@
   // Local Storage History Helper
   function getWatchHistory() {
     try {
-      return JSON.parse(localStorage.getItem('khophim_history') || '[]');
+      const saved = localStorage.getItem('khophim_history') || localStorage.getItem('kho_phim_history') || localStorage.getItem('phimmoi_history');
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
+      console.warn('Failed to parse watch history:', e);
       return [];
     }
   }
 
   function saveWatchHistoryItem(item) {
-    let list = getWatchHistory();
-    list = list.filter(x => x.movieSlug !== item.movieSlug);
-    list.unshift(item);
-    if (list.length > 50) list = list.slice(0, 50);
-    localStorage.setItem('khophim_history', JSON.stringify(list));
+    if (!item || !item.movieSlug) return;
+    try {
+      let list = getWatchHistory();
+      list = list.filter(x => x.movieSlug !== item.movieSlug);
+      list.unshift(item);
+      if (list.length > 60) list = list.slice(0, 60);
+      localStorage.setItem('khophim_history', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save watch history:', e);
+    }
   }
 
   function removeWatchHistoryItem(slug) {
     let list = getWatchHistory().filter(x => x.movieSlug !== slug);
-    localStorage.setItem('khophim_history', JSON.stringify(list));
+    try {
+      localStorage.setItem('khophim_history', JSON.stringify(list));
+    } catch (_) {}
     renderHistoryScreen();
   }
 
   function clearAllWatchHistory() {
     if (confirm('Bạn có chắc chắn muốn xoá toàn bộ lịch sử xem không?')) {
-      localStorage.removeItem('khophim_history');
+      try {
+        localStorage.removeItem('khophim_history');
+        localStorage.removeItem('kho_phim_history');
+        localStorage.removeItem('phimmoi_history');
+      } catch (_) {}
       renderHistoryScreen();
     }
   }
@@ -215,7 +230,7 @@
     CATEGORIES.forEach(cat => {
       const pill = document.createElement('button');
       pill.className = `pill-chip ${cat.id === activeCategory ? 'active' : ''}`;
-      pill.textContent = cat.title;
+      pill.innerHTML = cat.title;
       pill.onclick = () => selectCategory(cat);
       bar.appendChild(pill);
     });
@@ -267,7 +282,7 @@
   async function loadCategoryBrowse(cat, page = 1) {
     if (isBrowseLoading && page > 1) return;
     categoryPage = page;
-    browseTitle.textContent = cat.title;
+    browseTitle.innerHTML = cat.title;
 
     const currentScrollY = window.scrollY || document.documentElement.scrollTop;
 
@@ -835,6 +850,20 @@
       }
     }
 
+    // Immediately record to history so user sees it in History tab even if video is paused/closed quickly or played in embed mode
+    const { primary: movieThumb } = getMovieImageUrls(movie);
+    saveWatchHistoryItem({
+      movieSlug: movie.slug,
+      movieTitle: movie.name,
+      posterUrl: movieThumb,
+      episodeSlug: episode.slug,
+      episodeName: episode.name,
+      serverName: serverName || 'Server VIP',
+      currentTime: resumePosition || 0,
+      duration: 0,
+      timestamp: Date.now()
+    });
+
     startHlsStream(streamUrl, embedUrl, resumePosition);
 
     // User gesture fullscreen
@@ -1056,24 +1085,31 @@
     if (isAuto) {
       showPlayerToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)');
     }
+    trackAndSaveHistory(true);
   }
 
-  function trackAndSaveHistory() {
+  function trackAndSaveHistory(force = false) {
     if (!currentPlayingMovie || !currentPlayingEpisode) return;
-    if (videoPlayer.currentTime > 2 && videoPlayer.duration > 0) {
-      const { primary } = getMovieImageUrls(currentPlayingMovie);
-      saveWatchHistoryItem({
-        movieSlug: currentPlayingMovie.slug,
-        movieTitle: currentPlayingMovie.name,
-        posterUrl: primary,
-        episodeSlug: currentPlayingEpisode.slug,
-        episodeName: currentPlayingEpisode.name,
-        serverName: currentDetailEpisodes[currentServerIndex]?.server_name || 'Server VIP',
-        currentTime: Math.floor(videoPlayer.currentTime),
-        duration: Math.floor(videoPlayer.duration),
-        timestamp: Date.now()
-      });
-    }
+    const currentT = Math.floor(videoPlayer.currentTime || 0);
+    const rawDur = videoPlayer.duration;
+    const dur = (rawDur && isFinite(rawDur) && !isNaN(rawDur) && rawDur > 0) ? Math.floor(rawDur) : 0;
+
+    const existing = getWatchHistory().find(x => x.movieSlug === currentPlayingMovie.slug);
+    const finalCurrentTime = (currentT > 0) ? currentT : (existing ? (existing.currentTime || 0) : 0);
+    const finalDuration = (dur > 0) ? dur : (existing ? (existing.duration || 0) : 0);
+
+    const { primary } = getMovieImageUrls(currentPlayingMovie);
+    saveWatchHistoryItem({
+      movieSlug: currentPlayingMovie.slug,
+      movieTitle: currentPlayingMovie.name,
+      posterUrl: primary,
+      episodeSlug: currentPlayingEpisode.slug,
+      episodeName: currentPlayingEpisode.name,
+      serverName: currentDetailEpisodes[currentServerIndex]?.server_name || 'Server VIP',
+      currentTime: finalCurrentTime,
+      duration: finalDuration,
+      timestamp: Date.now()
+    });
   }
 
   // Next Episode Playback
@@ -1211,6 +1247,15 @@
   });
 
   // Save history on pause and when user switches apps or minimizes Safari
+  let lastRecordedHistorySec = 0;
+  videoPlayer.addEventListener('timeupdate', () => {
+    const cur = Math.floor(videoPlayer.currentTime || 0);
+    if (Math.abs(cur - lastRecordedHistorySec) >= 3) {
+      lastRecordedHistorySec = cur;
+      trackAndSaveHistory();
+    }
+  });
+
   videoPlayer.addEventListener('pause', () => {
     if (streamWatchdogTimer) {
       clearTimeout(streamWatchdogTimer);
@@ -1286,42 +1331,54 @@
   // History Screen Render
   function renderHistoryScreen() {
     const history = getWatchHistory();
-    if (history.length === 0) {
-      historyEmpty.style.display = 'block';
-      historyList.innerHTML = '';
+    if (!history || history.length === 0) {
+      if (historyEmpty) historyEmpty.style.display = 'block';
+      if (historyList) historyList.innerHTML = '';
       return;
     }
 
-    historyEmpty.style.display = 'none';
-    historyList.innerHTML = '';
+    if (historyEmpty) historyEmpty.style.display = 'none';
+    if (historyList) historyList.innerHTML = '';
 
     history.forEach(item => {
       const card = document.createElement('div');
       card.className = 'history-item';
 
-      const progressPct = Math.min(100, Math.round((item.currentTime / (item.duration || 1)) * 100));
+      const progressPct = (item.duration > 0)
+        ? Math.min(100, Math.round((item.currentTime / item.duration) * 100))
+        : (item.currentTime > 0 ? 10 : 0);
       const formattedCurrent = formatTime(item.currentTime);
-      const formattedTotal = formatTime(item.duration);
+      const formattedTotal = item.duration > 0 ? formatTime(item.duration) : '--:--';
 
       card.innerHTML = `
-        <img class="history-thumb" src="${item.posterUrl}" alt="${item.movieTitle}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
+        <img class="history-thumb" src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
         <div class="history-info">
-          <div class="history-title">${item.movieTitle}</div>
-          <div class="history-sub">${item.episodeName} • ${item.serverName || 'VIP'}</div>
-          <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${formattedCurrent} / ${formattedTotal} (${progressPct}%)</div>
+          <div class="history-title">${item.movieTitle || 'Phim'}</div>
+          <div class="history-sub">${item.episodeName || 'Tập 1'} • ${item.serverName || 'VIP'}</div>
+          <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${formattedCurrent} / ${formattedTotal} ${progressPct > 0 ? `(${progressPct}%)` : ''}</div>
           <div class="history-progress-wrap">
-            <div class="history-progress-bar" style="width: ${progressPct}%;"></div>
+            <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
           </div>
         </div>
         <div class="history-actions">
-          <button class="btn-resume" onclick="openMovieDetail('${item.movieSlug}', true)">
+          <button class="btn-resume" type="button">
             Tiếp tục
           </button>
-          <button class="icon-btn" onclick="removeHistoryItemDirect('${item.movieSlug}')" title="Xoá">
+          <button class="icon-btn delete-btn" type="button" title="Xoá">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>
         </div>
       `;
+
+      card.onclick = (e) => {
+        if (e.target.closest('.delete-btn')) {
+          e.stopPropagation();
+          removeHistoryItemDirect(item.movieSlug);
+        } else {
+          openMovieDetail(item.movieSlug, true);
+        }
+      };
+
       historyList.appendChild(card);
     });
   }
