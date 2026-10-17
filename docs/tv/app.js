@@ -51,6 +51,8 @@
   let currentEpisode = null;
   let currentServerIndex = 0;
   let hlsInstance = null;
+  let currentPlayerMode = 'hls'; // 'hls' or 'embed'
+  let streamWatchdogTimer = null;
   let hudTimer = null;
   let lastNavTime = 0;
 
@@ -87,7 +89,42 @@
     return { poster, banner };
   }
 
-  function showToast(msg, duration = 2000) {
+  function sanitizeUrl(url) {
+    if (!url) return '';
+    let clean = String(url).trim();
+    if (clean.startsWith('//')) clean = 'https:' + clean;
+    if (clean.startsWith('http://')) clean = 'https://' + clean.slice(7);
+    return clean;
+  }
+
+  function extractM3u8FromEmbed(embedUrl) {
+    if (!embedUrl) return '';
+    if (embedUrl.includes('url=')) {
+      try {
+        const raw = embedUrl.split('url=')[1].split('&')[0];
+        const dec = decodeURIComponent(raw);
+        if (dec.includes('.m3u8') || dec.startsWith('http')) {
+          return sanitizeUrl(dec);
+        }
+      } catch (_) {}
+    }
+    return '';
+  }
+
+  function formatTime(seconds) {
+    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
+    const s = Math.floor(seconds);
+    const m = Math.floor(s / 60);
+    const remS = s % 60;
+    const h = Math.floor(m / 60);
+    const remM = m % 60;
+    if (h > 0) {
+      return `${h}:${remM < 10 ? '0' : ''}${remM}:${remS < 10 ? '0' : ''}${remS}`;
+    }
+    return `${m < 10 ? '0' : ''}${m}:${remS < 10 ? '0' : ''}${remS}`;
+  }
+
+  function showToast(msg, duration = 2200) {
     if (!tvToast) return;
     tvToast.textContent = msg;
     tvToast.style.display = 'block';
@@ -99,6 +136,20 @@
 
   function isVisible(el) {
     return el && el.isConnected && el.offsetParent !== null;
+  }
+
+  function getGridColumns(cards) {
+    if (!cards || cards.length < 2) return 1;
+    const firstTop = cards[0].offsetTop;
+    let count = 0;
+    for (let i = 0; i < cards.length; i++) {
+      if (Math.abs(cards[i].offsetTop - firstTop) < 20) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return Math.max(1, count);
   }
 
   // ==========================================================================
@@ -214,13 +265,15 @@
     shelvesContainer.innerHTML = '';
     for (let i = 0; i < HOME_SECTIONS.length; i++) {
       const sec = HOME_SECTIONS[i];
+      sec._page = 1;
+
       const sectionEl = document.createElement('div');
       sectionEl.className = 'tv-shelf-section';
       sectionEl.id = `shelf-${i}`;
 
       const titleEl = document.createElement('h2');
       titleEl.className = 'shelf-title';
-      titleEl.textContent = sec.title;
+      titleEl.innerHTML = `<span>${sec.title}</span><span class="shelf-more-badge">›</span>`;
       sectionEl.appendChild(titleEl);
 
       const rowEl = document.createElement('div');
@@ -234,7 +287,7 @@
           sectionEl.style.display = 'none';
           return;
         }
-        renderMovieCardsIntoRow(movies, rowEl);
+        renderMovieCardsIntoRow(movies, rowEl, sec);
       });
     }
 
@@ -280,12 +333,55 @@
     document.getElementById('hero-detail-btn').onclick = () => openMovieDetail(movie.slug, false);
   }
 
-  function renderMovieCardsIntoRow(movies, rowEl) {
+  function renderMovieCardsIntoRow(movies, rowEl, sec = null) {
     rowEl.innerHTML = '';
     movies.forEach(item => {
       const card = createMovieCard(item);
       rowEl.appendChild(card);
     });
+
+    // Add dedicated "Xem thêm" card at the end of every category shelf
+    if (sec) {
+      const moreCard = document.createElement('div');
+      moreCard.className = 'tv-card tv-card-more';
+      moreCard.setAttribute('tabindex', '0');
+      moreCard.setAttribute('data-sec', sec.path);
+      moreCard.innerHTML = `
+        <div class="tv-card-more-circle">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </div>
+        <div class="tv-card-more-title">Xem Thêm</div>
+        <div class="tv-card-more-sub">Tải thêm phim</div>
+      `;
+
+      moreCard.onclick = async () => {
+        sec._page = (sec._page || 1) + 1;
+        moreCard.classList.add('loading');
+        moreCard.querySelector('.tv-card-more-title').textContent = 'Đang tải...';
+        showToast('Đang tải thêm phim...');
+
+        const newMovies = await fetchCategoryMovies(sec.path, sec._page);
+        moreCard.classList.remove('loading');
+        moreCard.querySelector('.tv-card-more-title').textContent = 'Xem Thêm';
+
+        if (newMovies && newMovies.length > 0) {
+          let firstNewCard = null;
+          newMovies.forEach(item => {
+            const card = createMovieCard(item);
+            rowEl.insertBefore(card, moreCard);
+            if (!firstNewCard) firstNewCard = card;
+          });
+          showToast(`Đã tải thêm ${newMovies.length} phim mới`);
+          if (firstNewCard) {
+            setFocus(firstNewCard);
+          }
+        } else {
+          showToast('Đã đến cuối danh mục');
+        }
+      };
+
+      rowEl.appendChild(moreCard);
+    }
   }
 
   function createMovieCard(item) {
@@ -305,7 +401,13 @@
         <div class="tv-badge-left">${quality}</div>
         ${ep ? `<div class="tv-badge-right">${ep}</div>` : ''}
       </div>
-      <div class="tv-card-title">${title}</div>
+      <div class="tv-card-info">
+        <div class="tv-card-title">${title}</div>
+        <div class="tv-card-meta">
+          <span class="tv-card-match">98% Phù hợp</span>
+          <span class="tv-card-hd">HD</span>
+        </div>
+      </div>
     `;
 
     card.onclick = () => openMovieDetail(item.slug);
@@ -373,22 +475,24 @@
       return;
     }
 
+    let firstNewCard = null;
     movies.forEach(item => {
       const card = createMovieCard(item);
       grid.appendChild(card);
+      if (!firstNewCard) firstNewCard = card;
     });
 
-    document.getElementById('tv-load-more-btn').style.display = 'inline-block';
-    document.getElementById('tv-load-more-btn').onclick = () => {
+    const loadMoreBtn = document.getElementById('tv-load-more-btn');
+    loadMoreBtn.style.display = 'inline-block';
+    loadMoreBtn.onclick = () => {
       categoryPage++;
       loadCategoryView(tabName, false);
     };
 
-    if (reset) {
-      setTimeout(() => {
-        const first = grid.querySelector('.tv-card');
-        if (first) setFocus(first);
-      }, 200);
+    if (reset && firstNewCard) {
+      setTimeout(() => setFocus(firstNewCard), 180);
+    } else if (!reset && firstNewCard) {
+      setFocus(firstNewCard);
     }
   }
 
@@ -637,8 +741,8 @@
       const epData = {
         name: ep.name || `Tập ${idx + 1}`,
         slug: ep.slug || `tap-${idx + 1}`,
-        linkM3u8: ep.link_m3u8 || '',
-        linkEmbed: ep.link_embed || ''
+        linkM3u8: sanitizeUrl(ep.link_m3u8),
+        linkEmbed: sanitizeUrl(ep.link_embed)
       };
       currentEpisodeList.push(epData);
 
@@ -653,62 +757,212 @@
 
   function closeMovieDetail() {
     detailModal.classList.remove('open');
-    // Restore focus to a visible card on screen
     const firstCard = tvMainContent.querySelector('.tv-card.tv-focused, .tv-continue-card.tv-focused, .tv-card');
     if (firstCard) setFocus(firstCard);
   }
 
   // ==========================================================================
-  // FULLSCREEN VIDEO PLAYER
+  // FULLSCREEN VIDEO PLAYER WITH HLS & AUTO EMBED FALLBACK
   // ==========================================================================
   function startVideoPlayback(episode, resumePositionMs = 0) {
     currentEpisode = episode;
     showToast(`Đang mở: ${episode.name}`);
 
-    document.getElementById('tv-player-movie-title').textContent = currentMovieDetail ? currentMovieDetail.name : 'Kho Phim';
+    document.getElementById('tv-player-movie-title').textContent = currentMovieDetail ? (currentMovieDetail.name || currentMovieDetail.origin_name) : 'Kho Phim';
     document.getElementById('tv-player-ep-name').textContent = episode.name;
 
     playerOverlay.classList.add('open');
-    showPlayerHud(3000);
+    showPlayerHud(3500);
 
-    const streamUrl = episode.linkM3u8 || episode.linkEmbed;
-    if (streamUrl.endsWith('.m3u8') || streamUrl.includes('m3u8')) {
-      iframePlayer.style.display = 'none';
-      iframePlayer.src = 'about:blank';
-      videoPlayer.style.display = 'block';
+    let streamUrl = sanitizeUrl(episode.linkM3u8);
+    let embedUrl = sanitizeUrl(episode.linkEmbed);
 
-      if (Hls.isSupported()) {
-        if (hlsInstance) hlsInstance.destroy();
-        hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-        hlsInstance.loadSource(streamUrl);
-        hlsInstance.attachMedia(videoPlayer);
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (resumePositionMs > 0) {
-            videoPlayer.currentTime = resumePositionMs / 1000;
-          }
-          videoPlayer.play().catch(() => {});
-        });
-      } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-        videoPlayer.src = streamUrl;
-        videoPlayer.addEventListener('loadedmetadata', () => {
-          if (resumePositionMs > 0) {
-            videoPlayer.currentTime = resumePositionMs / 1000;
-          }
-          videoPlayer.play().catch(() => {});
-        }, { once: true });
-      }
-    } else {
-      // Fallback to web embed iframe
-      videoPlayer.style.display = 'none';
-      videoPlayer.pause();
-      iframePlayer.style.display = 'block';
-      iframePlayer.src = streamUrl;
+    if (!streamUrl && embedUrl) {
+      streamUrl = extractM3u8FromEmbed(embedUrl);
     }
 
-    setFocus(videoPlayer);
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
+    document.getElementById('tv-player-error').style.display = 'none';
+
+    // Start direct HLS if m3u8 is available, otherwise embed
+    if (streamUrl && streamUrl.includes('.m3u8')) {
+      startHlsPlayback(streamUrl, embedUrl, resumePositionMs);
+    } else if (embedUrl) {
+      startEmbedPlayback(embedUrl, false);
+    } else {
+      showPlaybackError('Không tìm thấy luồng phát hợp lệ cho tập này.');
+    }
+
+    // Connect source toggle button
+    const sourceToggleBtn = document.getElementById('tv-player-source-toggle-btn');
+    if (sourceToggleBtn) {
+      sourceToggleBtn.onclick = togglePlayerSource;
+    }
+  }
+
+  function startHlsPlayback(streamUrl, embedUrl, resumePositionMs = 0) {
+    currentPlayerMode = 'hls';
+    updateSourceBadge('⚡ Nguồn: Trực tiếp (HLS)');
+
+    iframePlayer.style.display = 'none';
+    iframePlayer.src = 'about:blank';
+    videoPlayer.style.display = 'block';
+
+    const resumeSeconds = resumePositionMs > 0 ? resumePositionMs / 1000 : 0;
+
+    if (window.Hls && Hls.isSupported()) {
+      if (hlsInstance) {
+        try { hlsInstance.destroy(); } catch (_) {}
+        hlsInstance = null;
+      }
+
+      hlsInstance = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 2,
+        fragLoadingTimeOut: 15000,
+        fragLoadingMaxRetry: 3
+      });
+
+      hlsInstance.loadSource(streamUrl);
+      hlsInstance.attachMedia(videoPlayer);
+
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (resumeSeconds > 0) {
+          try { videoPlayer.currentTime = resumeSeconds; } catch (_) {}
+        }
+        videoPlayer.play().catch(e => console.warn('HLS play error:', e));
+      });
+
+      hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.warn('HLS fatal error:', data.type, data.details);
+          if (embedUrl && currentPlayerMode === 'hls') {
+            console.log('Auto-fallback to web embed...');
+            startEmbedPlayback(embedUrl, true);
+          } else {
+            showPlaybackError('Máy chủ trực tiếp bị lỗi hoặc chặn kết nối trên TV.');
+          }
+        }
+      });
+    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+      videoPlayer.src = streamUrl;
+      videoPlayer.addEventListener('loadedmetadata', () => {
+        if (resumeSeconds > 0) {
+          try { videoPlayer.currentTime = resumeSeconds; } catch (_) {}
+        }
+        videoPlayer.play().catch(() => {});
+      }, { once: true });
+      videoPlayer.onerror = () => {
+        if (embedUrl && currentPlayerMode === 'hls') {
+          startEmbedPlayback(embedUrl, true);
+        }
+      };
+    } else if (embedUrl) {
+      startEmbedPlayback(embedUrl, true);
+      return;
+    }
+
+    // Stream Watchdog: If stalled at 0s for >8s, auto fallback to embed!
+    streamWatchdogTimer = setTimeout(() => {
+      if (currentPlayerMode === 'hls' && embedUrl && videoPlayer.currentTime === 0 && !videoPlayer.paused) {
+        console.warn('Stream stalled, switching to embed');
+        startEmbedPlayback(embedUrl, true);
+      }
+    }, 8000);
+  }
+
+  function startEmbedPlayback(embedUrl, isAuto = false) {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
+    currentPlayerMode = 'embed';
+    updateSourceBadge('🌐 Nguồn: Dự phòng (Embed)');
+
+    if (hlsInstance) {
+      try { hlsInstance.destroy(); } catch (_) {}
+      hlsInstance = null;
+    }
+    videoPlayer.pause();
+    videoPlayer.removeAttribute('src');
+    videoPlayer.load();
+    videoPlayer.style.display = 'none';
+
+    iframePlayer.style.display = 'block';
+    if (iframePlayer.src !== embedUrl) {
+      iframePlayer.src = embedUrl;
+    }
+
+    document.getElementById('tv-player-error').style.display = 'none';
+
+    if (isAuto) {
+      showToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)', 3000);
+    }
+  }
+
+  function togglePlayerSource() {
+    if (!currentEpisode) return;
+    let streamUrl = sanitizeUrl(currentEpisode.linkM3u8);
+    let embedUrl = sanitizeUrl(currentEpisode.linkEmbed);
+    if (!streamUrl && embedUrl) streamUrl = extractM3u8FromEmbed(embedUrl);
+
+    if (currentPlayerMode === 'hls') {
+      if (embedUrl) {
+        startEmbedPlayback(embedUrl, false);
+        showToast('Đã đổi sang Trình phát Dự phòng (Web Embed)');
+      } else {
+        showToast('Tập này không có nguồn dự phòng');
+      }
+    } else {
+      if (streamUrl) {
+        startHlsPlayback(streamUrl, embedUrl, Math.round((videoPlayer.currentTime || 0) * 1000));
+        showToast('Đang chuyển sang Trực tiếp (HLS)...');
+      } else {
+        showToast('Tập này không có luồng HLS trực tiếp');
+      }
+    }
+  }
+
+  function updateSourceBadge(text) {
+    const btn = document.getElementById('tv-player-source-toggle-btn');
+    if (btn) btn.textContent = text;
+  }
+
+  function showPlaybackError(msg) {
+    const errModal = document.getElementById('tv-player-error');
+    const errDesc = document.getElementById('tv-player-error-desc');
+    if (errDesc) errDesc.textContent = msg;
+    if (errModal) {
+      errModal.style.display = 'flex';
+      const tryEmbedBtn = document.getElementById('tv-player-btn-embed');
+      const backBtn = document.getElementById('tv-player-btn-back');
+      if (currentEpisode && currentEpisode.linkEmbed) {
+        tryEmbedBtn.style.display = 'inline-flex';
+        tryEmbedBtn.onclick = () => startEmbedPlayback(sanitizeUrl(currentEpisode.linkEmbed), false);
+        setFocus(tryEmbedBtn);
+      } else {
+        tryEmbedBtn.style.display = 'none';
+        backBtn.onclick = closeVideoPlayer;
+        setFocus(backBtn);
+      }
+    }
   }
 
   function closeVideoPlayer() {
+    if (streamWatchdogTimer) {
+      clearTimeout(streamWatchdogTimer);
+      streamWatchdogTimer = null;
+    }
+
     // 1. Save progress before closing
     if (videoPlayer && !isNaN(videoPlayer.currentTime) && currentMovieDetail && currentEpisode) {
       const { poster, banner } = resolveMovieImages(currentMovieDetail);
@@ -754,28 +1008,15 @@
     }
   }
 
-  // Update Progress Bar
+  // Update HUD progress bar during playback
   videoPlayer.ontimeupdate = () => {
-    if (!videoPlayer.duration) return;
-    const cur = videoPlayer.currentTime;
-    const dur = videoPlayer.duration;
-    const percent = Math.min(100, (cur / dur) * 100);
-
-    const fill = document.getElementById('tv-player-progress-fill');
-    if (fill) fill.style.width = `${percent}%`;
-
-    const curEl = document.getElementById('tv-player-current-time');
-    const durEl = document.getElementById('tv-player-duration');
-    if (curEl) curEl.textContent = formatTime(cur);
-    if (durEl) durEl.textContent = formatTime(dur);
+    if (videoPlayer.duration && !isNaN(videoPlayer.duration) && videoPlayer.duration > 0) {
+      const pct = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+      document.getElementById('tv-player-progress-fill').style.width = `${pct}%`;
+      document.getElementById('tv-player-current-time').textContent = formatTime(videoPlayer.currentTime);
+      document.getElementById('tv-player-duration').textContent = formatTime(videoPlayer.duration);
+    }
   };
-
-  function formatTime(sec) {
-    if (isNaN(sec) || !isFinite(sec)) return '00:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-  }
 
   // ==========================================================================
   // PURE 60FPS SPATIAL FOCUS & D-PAD NAVIGATION ENGINE
@@ -796,32 +1037,35 @@
       tvSidebar.classList.remove('expanded');
     }
 
-    // Snappy instant scroll into view (0ms latency)
-    const rect = element.getBoundingClientRect();
-    const mainRect = tvMainContent.getBoundingClientRect();
-
-    // 1. Vertical instant scroll inside main content
+    // Scroll handling:
     if (!isInSidebar && !element.closest('#tv-detail-modal') && !element.closest('#tv-player-overlay')) {
-      if (rect.top < 60) {
-        tvMainContent.scrollBy(0, rect.top - 80);
-      } else if (rect.bottom > window.innerHeight - 60) {
-        tvMainContent.scrollBy(0, rect.bottom - window.innerHeight + 80);
+      const rect = element.getBoundingClientRect();
+
+      // 1. Horizontal scroll inside shelf rows
+      const shelfRow = element.closest('.tv-shelf-row');
+      if (shelfRow) {
+        const shelfRect = shelfRow.getBoundingClientRect();
+        const elOffset = rect.left - shelfRect.left + shelfRow.scrollLeft;
+        const targetScroll = Math.max(0, elOffset - (shelfRow.clientWidth / 2) + (element.clientWidth / 2));
+        shelfRow.scrollLeft = targetScroll;
+      }
+
+      // 2. Vertical scroll inside main content
+      if (rect.top < 80 || rect.bottom > window.innerHeight - 80) {
+        element.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
       }
     }
+  }
 
-    // 2. Horizontal instant scroll inside shelves
-    const shelfRow = element.closest('.tv-shelf-row');
-    if (shelfRow) {
-      const shelfRect = shelfRow.getBoundingClientRect();
-      const elOffset = rect.left - shelfRect.left + shelfRow.scrollLeft;
-      const targetScroll = Math.max(0, elOffset - (shelfRow.clientWidth / 2) + (element.clientWidth / 2));
-      shelfRow.scrollLeft = targetScroll;
-    }
+  function focusSidebar() {
+    tvSidebar.classList.add('expanded');
+    const activeItem = tvSidebar.querySelector(`.sidebar-item[data-tab="${currentTab}"]`) || tvSidebar.querySelector('.sidebar-item');
+    if (activeItem) setFocus(activeItem);
   }
 
   function navigate(direction) {
     if (!currentFocusedEl || !isVisible(currentFocusedEl)) {
-      const initial = document.querySelector('.tv-btn-primary, .tv-card, .sidebar-item.active');
+      const initial = document.querySelector('.tv-view.active .tv-btn-primary, .tv-view.active .tv-card, .sidebar-item.active');
       if (initial) setFocus(initial);
       return;
     }
@@ -862,121 +1106,333 @@
         if (idx < items.length - 1) setFocus(items[idx + 1]);
         break;
       case 'RIGHT':
-        // Jump from sidebar into main content
         tvSidebar.classList.remove('expanded');
-        const candidate = tvMainContent.querySelector('.tv-btn-primary, .tv-card, .tv-continue-card, .tv-shelf-row .tv-card');
-        if (candidate) setFocus(candidate);
+        jumpFromSidebarToContent();
         break;
+    }
+  }
+
+  function jumpFromSidebarToContent() {
+    if (currentTab === 'home') {
+      if (tvMainContent.scrollTop < 220) {
+        const heroBtn = document.getElementById('hero-play-btn');
+        if (heroBtn && isVisible(heroBtn)) {
+          setFocus(heroBtn);
+          return;
+        }
+      }
+      const firstCard = tvMainContent.querySelector('#view-home .tv-card, #view-home .tv-continue-card');
+      if (firstCard) setFocus(firstCard);
+    } else if (CATEGORY_TABS[currentTab]) {
+      const firstCard = document.querySelector('#tv-category-grid .tv-card');
+      if (firstCard) setFocus(firstCard);
+    } else if (currentTab === 'search') {
+      const input = document.getElementById('tv-search-input');
+      if (input) setFocus(input);
+    } else if (currentTab === 'history') {
+      const card = document.querySelector('#tv-history-grid .tv-continue-card');
+      if (card) setFocus(card);
+      else {
+        const clearBtn = document.getElementById('tv-clear-history-btn');
+        if (clearBtn) setFocus(clearBtn);
+      }
+    } else if (currentTab === 'settings') {
+      const pill = document.querySelector('.domain-pill');
+      if (pill) setFocus(pill);
     }
   }
 
   function handleMainContentNavigation(direction) {
-    // 1. Ultra-fast horizontal sibling navigation
-    if (direction === 'LEFT' || direction === 'RIGHT') {
-      const container = currentFocusedEl.parentElement;
-      if (container && (container.classList.contains('tv-shelf-row') || container.classList.contains('hero-actions') || container.classList.contains('domain-pills'))) {
-        let sibling = direction === 'LEFT' ? currentFocusedEl.previousElementSibling : currentFocusedEl.nextElementSibling;
-        while (sibling) {
-          if (isVisible(sibling) && (sibling.classList.contains('tv-card') || sibling.classList.contains('tv-continue-card') || sibling.classList.contains('tv-btn') || sibling.classList.contains('domain-pill'))) {
-            setFocus(sibling);
-            return;
-          }
-          sibling = direction === 'LEFT' ? sibling.previousElementSibling : sibling.nextElementSibling;
-        }
+    if (currentTab === 'home') {
+      handleHomeNavigation(direction);
+    } else if (CATEGORY_TABS[currentTab]) {
+      handleCategoryNavigation(direction);
+    } else if (currentTab === 'search') {
+      handleSearchNavigation(direction);
+    } else if (currentTab === 'history') {
+      handleHistoryNavigation(direction);
+    } else if (currentTab === 'settings') {
+      handleSettingsNavigation(direction);
+    }
+  }
 
-        // If at leftmost card and pressed LEFT -> jump into sidebar!
-        if (direction === 'LEFT') {
-          const activeSideItem = tvSidebar.querySelector('.sidebar-item.active') || tvSidebar.querySelector('.sidebar-item');
-          if (activeSideItem) setFocus(activeSideItem);
-          return;
-        }
+  // Navigation inside Category View (Phim lẻ, Phim bộ, Chiếu rạp)
+  function handleCategoryNavigation(direction) {
+    const grid = document.getElementById('tv-category-grid');
+    const cards = Array.from(grid.querySelectorAll('.tv-card')).filter(isVisible);
+    const loadMoreBtn = document.getElementById('tv-load-more-btn');
+    const cols = getGridColumns(cards);
+
+    if (currentFocusedEl === loadMoreBtn) {
+      if (direction === 'UP' && cards.length > 0) {
+        setFocus(cards[cards.length - 1]);
+      } else if (direction === 'LEFT') {
+        focusSidebar();
       }
+      return;
     }
 
-    // 2. Vertical Jump between Bands / Shelves
-    const bands = getHomeNavigationBands();
-    let currentBandIdx = -1;
-    for (let b = 0; b < bands.length; b++) {
-      if (bands[b].items.includes(currentFocusedEl)) {
-        currentBandIdx = b;
-        break;
-      }
+    const idx = cards.indexOf(currentFocusedEl);
+    if (idx === -1) {
+      if (cards.length > 0) setFocus(cards[0]);
+      return;
     }
-
-    if (currentBandIdx === -1) return;
-
-    const currentRect = currentFocusedEl.getBoundingClientRect();
-    const currentCenterX = currentRect.left + currentRect.width / 2;
 
     switch (direction) {
+      case 'LEFT':
+        if (idx % cols === 0) {
+          focusSidebar();
+        } else if (idx > 0) {
+          setFocus(cards[idx - 1]);
+        }
+        break;
+
+      case 'RIGHT':
+        if ((idx + 1) % cols !== 0 && idx + 1 < cards.length) {
+          setFocus(cards[idx + 1]);
+        }
+        break;
+
       case 'UP':
-        if (currentBandIdx > 0) {
-          const target = getClosestItem(bands[currentBandIdx - 1].items, currentCenterX);
-          if (target) setFocus(target);
+        if (idx >= cols) {
+          setFocus(cards[idx - cols]);
         } else {
           tvMainContent.scrollTop = 0;
         }
         break;
+
       case 'DOWN':
-        if (currentBandIdx < bands.length - 1) {
-          const target = getClosestItem(bands[currentBandIdx + 1].items, currentCenterX);
-          if (target) setFocus(target);
+        if (idx + cols < cards.length) {
+          setFocus(cards[idx + cols]);
+        } else if (isVisible(loadMoreBtn)) {
+          setFocus(loadMoreBtn);
         }
         break;
     }
   }
 
-  function getHomeNavigationBands() {
-    const bands = [];
+  // Navigation inside Search View
+  function handleSearchNavigation(direction) {
+    const input = document.getElementById('tv-search-input');
+    const clearBtn = document.getElementById('tv-search-clear-btn');
+    const grid = document.getElementById('tv-search-grid');
+    const cards = Array.from(grid.querySelectorAll('.tv-card')).filter(isVisible);
+    const cols = getGridColumns(cards);
 
-    // Band 0: Hero Billboard Buttons
-    const heroBtns = Array.from(heroBanner.querySelectorAll('.tv-btn')).filter(isVisible);
-    if (heroBtns.length > 0) bands.push({ name: 'billboard', items: heroBtns });
-
-    // Band 1: Continue Watching Row
-    if (continueSection.style.display !== 'none') {
-      const continueCards = Array.from(continueRow.querySelectorAll('.tv-continue-card')).filter(isVisible);
-      if (continueCards.length > 0) bands.push({ name: 'continue', items: continueCards });
+    if (currentFocusedEl === input) {
+      if (direction === 'LEFT') focusSidebar();
+      else if (direction === 'RIGHT' && isVisible(clearBtn)) setFocus(clearBtn);
+      else if (direction === 'DOWN' && cards.length > 0) setFocus(cards[0]);
+      return;
     }
 
-    // Band 2+: Dynamic Shelves
-    const shelfRows = Array.from(shelvesContainer.querySelectorAll('.tv-shelf-row')).filter(isVisible);
-    shelfRows.forEach((row, idx) => {
-      const cards = Array.from(row.querySelectorAll('.tv-card')).filter(isVisible);
-      if (cards.length > 0) bands.push({ name: `shelf-${idx}`, items: cards });
-    });
-
-    // In Category or History or Search Views
-    const gridCards = Array.from(document.querySelectorAll('.tv-view.active .tv-movie-grid .tv-card, .tv-view.active .tv-history-grid .tv-continue-card')).filter(isVisible);
-    if (gridCards.length > 0) {
-      // Group grid cards by approximate vertical row (Y coordinate)
-      const rows = [];
-      let lastTop = -999;
-      gridCards.forEach(c => {
-        const top = Math.round(c.getBoundingClientRect().top);
-        if (Math.abs(top - lastTop) > 30) {
-          rows.push([]);
-          lastTop = top;
-        }
-        rows[rows.length - 1].push(c);
-      });
-      rows.forEach((r, idx) => bands.push({ name: `grid-row-${idx}`, items: r }));
+    if (currentFocusedEl === clearBtn) {
+      if (direction === 'LEFT') setFocus(input);
+      else if (direction === 'DOWN' && cards.length > 0) setFocus(cards[0]);
+      return;
     }
 
-    return bands;
+    const idx = cards.indexOf(currentFocusedEl);
+    if (idx === -1) return;
+
+    switch (direction) {
+      case 'LEFT':
+        if (idx % cols === 0) focusSidebar();
+        else if (idx > 0) setFocus(cards[idx - 1]);
+        break;
+      case 'RIGHT':
+        if ((idx + 1) % cols !== 0 && idx + 1 < cards.length) setFocus(cards[idx + 1]);
+        break;
+      case 'UP':
+        if (idx < cols) setFocus(input);
+        else setFocus(cards[idx - cols]);
+        break;
+      case 'DOWN':
+        if (idx + cols < cards.length) setFocus(cards[idx + cols]);
+        break;
+    }
   }
 
-  function getClosestItem(items, targetX) {
-    if (!items || items.length === 0) return null;
-    let closest = items[0];
+  // Navigation inside History View
+  function handleHistoryNavigation(direction) {
+    const clearBtn = document.getElementById('tv-clear-history-btn');
+    const grid = document.getElementById('tv-history-grid');
+    const cards = Array.from(grid.querySelectorAll('.tv-continue-card')).filter(isVisible);
+    const cols = getGridColumns(cards);
+
+    if (currentFocusedEl === clearBtn) {
+      if (direction === 'LEFT') focusSidebar();
+      else if (direction === 'DOWN' && cards.length > 0) setFocus(cards[0]);
+      return;
+    }
+
+    const idx = cards.indexOf(currentFocusedEl);
+    if (idx === -1) return;
+
+    switch (direction) {
+      case 'LEFT':
+        if (idx % cols === 0) focusSidebar();
+        else if (idx > 0) setFocus(cards[idx - 1]);
+        break;
+      case 'RIGHT':
+        if ((idx + 1) % cols !== 0 && idx + 1 < cards.length) setFocus(cards[idx + 1]);
+        break;
+      case 'UP':
+        if (idx < cols) setFocus(clearBtn);
+        else setFocus(cards[idx - cols]);
+        break;
+      case 'DOWN':
+        if (idx + cols < cards.length) setFocus(cards[idx + cols]);
+        break;
+    }
+  }
+
+  // Navigation inside Settings View
+  function handleSettingsNavigation(direction) {
+    const pills = Array.from(document.querySelectorAll('.domain-pill')).filter(isVisible);
+    const cacheBtn = document.getElementById('tv-clear-cache-btn');
+
+    if (pills.includes(currentFocusedEl)) {
+      const idx = pills.indexOf(currentFocusedEl);
+      if (direction === 'LEFT') {
+        if (idx === 0) focusSidebar();
+        else setFocus(pills[idx - 1]);
+      } else if (direction === 'RIGHT' && idx < pills.length - 1) {
+        setFocus(pills[idx + 1]);
+      } else if (direction === 'DOWN' && cacheBtn) {
+        setFocus(cacheBtn);
+      }
+      return;
+    }
+
+    if (currentFocusedEl === cacheBtn) {
+      if (direction === 'LEFT') focusSidebar();
+      else if (direction === 'UP' && pills.length > 0) setFocus(pills[0]);
+    }
+  }
+
+  // Navigation inside Home Screen (Billboard + Continue Watching + Shelves)
+  function handleHomeNavigation(direction) {
+    const heroPlay = document.getElementById('hero-play-btn');
+    const heroDetail = document.getElementById('hero-detail-btn');
+    const hasContinue = continueSection.style.display !== 'none';
+    const continueCards = hasContinue ? Array.from(continueRow.querySelectorAll('.tv-continue-card')).filter(isVisible) : [];
+
+    // Sub-zone A: On Hero Billboard Buttons
+    if (currentFocusedEl === heroPlay) {
+      if (direction === 'LEFT') focusSidebar();
+      else if (direction === 'RIGHT' && heroDetail) setFocus(heroDetail);
+      else if (direction === 'DOWN') {
+        if (continueCards.length > 0) setFocus(continueCards[0]);
+        else {
+          const firstShelfCard = shelvesContainer.querySelector('.tv-card');
+          if (firstShelfCard) setFocus(firstShelfCard);
+        }
+      }
+      return;
+    }
+
+    if (currentFocusedEl === heroDetail) {
+      if (direction === 'LEFT' && heroPlay) setFocus(heroPlay);
+      else if (direction === 'DOWN') {
+        if (continueCards.length > 0) setFocus(continueCards[0]);
+        else {
+          const firstShelfCard = shelvesContainer.querySelector('.tv-card');
+          if (firstShelfCard) setFocus(firstShelfCard);
+        }
+      }
+      return;
+    }
+
+    // Sub-zone B: In horizontal shelf row or continue row
+    const rowEl = currentFocusedEl.closest('.tv-shelf-row');
+    if (!rowEl) return;
+
+    // Horizontal inside the row
+    if (direction === 'LEFT') {
+      const prev = currentFocusedEl.previousElementSibling;
+      if (prev && isVisible(prev)) {
+        setFocus(prev);
+      } else {
+        // At leftmost item of row -> jump into Left Sidebar!
+        focusSidebar();
+      }
+      return;
+    }
+
+    if (direction === 'RIGHT') {
+      const next = currentFocusedEl.nextElementSibling;
+      if (next && isVisible(next)) {
+        setFocus(next);
+      }
+      return;
+    }
+
+    // Vertical jump between shelves / billboard
+    const curRect = currentFocusedEl.getBoundingClientRect();
+    const curCenterX = curRect.left + curRect.width / 2;
+
+    // 1. If currently in Continue Watching Row
+    if (rowEl === continueRow) {
+      if (direction === 'UP') {
+        if (heroPlay) setFocus(heroPlay);
+      } else if (direction === 'DOWN') {
+        const firstShelfRow = shelvesContainer.querySelector('.tv-shelf-row');
+        if (firstShelfRow) {
+          const target = getClosestCardInRow(firstShelfRow, curCenterX);
+          if (target) setFocus(target);
+        }
+      }
+      return;
+    }
+
+    // 2. If in one of the Home Category Shelves
+    const allShelves = Array.from(shelvesContainer.querySelectorAll('.tv-shelf-section')).filter(isVisible);
+    const currentSection = currentFocusedEl.closest('.tv-shelf-section');
+    const shelfIdx = allShelves.indexOf(currentSection);
+
+    if (shelfIdx === -1) return;
+
+    if (direction === 'UP') {
+      if (shelfIdx === 0) {
+        if (continueCards.length > 0) {
+          const target = getClosestCardInRow(continueRow, curCenterX);
+          if (target) setFocus(target);
+        } else if (heroPlay) {
+          setFocus(heroPlay);
+        }
+      } else {
+        const prevShelf = allShelves[shelfIdx - 1];
+        const prevRow = prevShelf.querySelector('.tv-shelf-row');
+        if (prevRow) {
+          const target = getClosestCardInRow(prevRow, curCenterX);
+          if (target) setFocus(target);
+        }
+      }
+    } else if (direction === 'DOWN') {
+      if (shelfIdx < allShelves.length - 1) {
+        const nextShelf = allShelves[shelfIdx + 1];
+        const nextRow = nextShelf.querySelector('.tv-shelf-row');
+        if (nextRow) {
+          const target = getClosestCardInRow(nextRow, curCenterX);
+          if (target) setFocus(target);
+        }
+      }
+    }
+  }
+
+  function getClosestCardInRow(rowEl, targetX) {
+    const cards = Array.from(rowEl.querySelectorAll('.tv-card, .tv-continue-card')).filter(isVisible);
+    if (cards.length === 0) return null;
+    let closest = cards[0];
     let minDiff = Infinity;
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
-      const r = it.getBoundingClientRect();
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[i];
+      const r = c.getBoundingClientRect();
       const diff = Math.abs((r.left + r.width / 2) - targetX);
       if (diff < minDiff) {
         minDiff = diff;
-        closest = it;
+        closest = c;
       }
     }
     return closest;
@@ -1022,7 +1478,24 @@
   }
 
   function handlePlayerNavigation(direction) {
-    showPlayerHud(3000);
+    showPlayerHud(3500);
+
+    // If error modal is open, navigate between retry and back
+    const errModal = document.getElementById('tv-player-error');
+    if (errModal && errModal.style.display !== 'none') {
+      const tryEmbed = document.getElementById('tv-player-btn-embed');
+      const backBtn = document.getElementById('tv-player-btn-back');
+      if (direction === 'LEFT' && tryEmbed && isVisible(tryEmbed)) setFocus(tryEmbed);
+      else if (direction === 'RIGHT' && backBtn) setFocus(backBtn);
+      return;
+    }
+
+    if (direction === 'UP') {
+      // Toggle stream source on Up key
+      togglePlayerSource();
+      return;
+    }
+
     if (direction === 'LEFT') {
       if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
         videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
@@ -1101,7 +1574,7 @@
     if (dir) {
       e.preventDefault();
       const now = Date.now();
-      if (now - lastNavTime < 40) return;
+      if (now - lastNavTime < 35) return;
       lastNavTime = now;
       navigate(dir);
       return;
@@ -1111,6 +1584,12 @@
     if (matchKey(e, REMOTE_KEYS.ENTER)) {
       e.preventDefault();
       if (playerOverlay.classList.contains('open')) {
+        const errModal = document.getElementById('tv-player-error');
+        if (errModal && errModal.style.display !== 'none') {
+          if (currentFocusedEl) currentFocusedEl.click();
+          return;
+        }
+
         if (videoPlayer) {
           if (videoPlayer.paused) {
             videoPlayer.play().catch(() => {});

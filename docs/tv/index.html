@@ -16,7 +16,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.0">
+  <link rel="stylesheet" href="style.css?v=1.0.3">
 
   <!-- HLS.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -138,7 +138,7 @@
 
           <div class="settings-card">
             <h3>Thông tin phiên bản</h3>
-            <p>Phiên bản Smart TV: <strong>v1.0.2 (TV Edition)</strong></p>
+            <p>Phiên bản Smart TV: <strong>v1.0.3 (TV Edition)</strong></p>
             <p>Hệ thống: Tối ưu 100% cho Smart TV Samsung (Tizen) & LG (webOS).</p>
             <div style="margin-top: 16px;">
               <button id="tv-clear-cache-btn" class="tv-btn tv-btn-secondary" tabindex="0">Xóa bộ nhớ đệm (Clear Cache)</button>
@@ -184,13 +184,18 @@
     <!-- TV Fullscreen Video Player Overlay -->
     <div id="tv-player-overlay" class="tv-player-overlay">
       <video id="tv-video-player" playsinline preload="auto"></video>
-      <iframe id="tv-iframe-player" referrerpolicy="no-referrer" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      <iframe id="tv-iframe-player" referrerpolicy="no-referrer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
       <!-- Player HUD -->
       <div id="tv-player-hud" class="tv-player-hud">
         <div class="player-top-bar">
-          <span id="tv-player-movie-title" class="player-movie-title">Tên Phim</span>
-          <span id="tv-player-ep-name" class="player-ep-name">Tập 1</span>
+          <div class="player-title-box">
+            <span id="tv-player-movie-title" class="player-movie-title">Tên Phim</span>
+            <span id="tv-player-ep-name" class="player-ep-name">Tập 1</span>
+          </div>
+          <div class="player-source-box">
+            <button id="tv-player-source-toggle-btn" class="player-source-badge" tabindex="0" title="Bấm phím Lên hoặc OK để đổi nguồn">⚡ Nguồn: Trực tiếp (HLS)</button>
+          </div>
         </div>
 
         <div class="player-bottom-bar">
@@ -201,7 +206,20 @@
             <span id="tv-player-current-time">00:00</span>
             <span id="tv-player-duration">00:00</span>
           </div>
-          <div class="player-help-hint">Bấm OK: Tạm dừng | Trái/Phải: Tua 10s | Lên/Xuống: Danh sách tập | Back: Thoát</div>
+          <div class="player-help-hint">OK: Tạm dừng | Trái/Phải: Tua 10s | Phím Lên: Đổi nguồn phát | Back: Thoát</div>
+        </div>
+      </div>
+
+      <!-- Player Error / Fallback Banner -->
+      <div id="tv-player-error" class="tv-player-error-modal" style="display:none;">
+        <div class="player-error-content">
+          <div class="player-error-icon">⚠️</div>
+          <h2 class="player-error-title">Không thể phát luồng này</h2>
+          <p id="tv-player-error-desc" class="player-error-desc">Nguồn phát trực tiếp có thể bị lỗi hoặc bị chặn CORS trên Smart TV.</p>
+          <div class="player-error-buttons">
+            <button id="tv-player-btn-embed" class="tv-btn tv-btn-primary" tabindex="0">Thử Trình Phát Dự Phòng (Web Embed)</button>
+            <button id="tv-player-btn-back" class="tv-btn tv-btn-secondary" tabindex="0">Quay lại chọn tập/server khác</button>
+          </div>
         </div>
       </div>
     </div>
@@ -212,6 +230,6 @@
   </div>
 
   <!-- TV Script -->
-  <script src="app.js?v=1.0.0"></script>
+  <script src="app.js?v=1.0.3"></script>
 </body>
 </html>
