@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
@@ -21,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +47,7 @@ fun HomeScreen(
     repository: PhimMoiRepository,
     watchHistoryManager: WatchHistoryManager,
     onMovieClick: (MovieItem) -> Unit,
+    onCategoryMoreClick: ((MovieSection) -> Unit)? = null,
     onContinueWatchingClick: ((WatchProgress) -> Unit)? = null,
     onSettingsClick: (() -> Unit)? = null
 ) {
@@ -55,6 +61,38 @@ fun HomeScreen(
     var categoryMovies by remember { mutableStateOf<List<MovieItem>>(emptyList()) }
     var categoryPage by remember { mutableIntStateOf(1) }
     var isLoadingMore by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+
+    // Infinite scroll for category tabs (SINGLE & SERIES)
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val total = listState.layoutInfo.totalItemsCount
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 2
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && !isLoading && !isLoadingMore && currentTab != MobileTab.HOME && categoryMovies.isNotEmpty()) {
+            val slug = if (currentTab == MobileTab.SINGLE) "phim-le" else "phim-bo"
+            val nextPage = categoryPage + 1
+            isLoadingMore = true
+            try {
+                val more = repository.getCategoryPage(slug, nextPage)
+                if (more.isNotEmpty()) {
+                    val existingSlugs = categoryMovies.map { it.slug }.toSet()
+                    val uniqueNew = more.filter { !existingSlugs.contains(it.slug) }
+                    categoryMovies = categoryMovies + uniqueNew
+                    categoryPage = nextPage
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingMore = false
+            }
+        }
+    }
 
     LaunchedEffect(currentTab) {
         isLoading = true
@@ -97,6 +135,7 @@ fun HomeScreen(
     }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(NetflixBlack),
@@ -157,22 +196,49 @@ fun HomeScreen(
         if (currentTab == MobileTab.HOME) {
             items(sections) { section ->
                 Column(modifier = Modifier.padding(top = 16.dp)) {
-                    Text(
-                        text = section.title,
-                        color = TextWhite,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = section.title,
+                            color = TextWhite,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (onCategoryMoreClick != null) {
+                            Text(
+                                text = "Xem thêm ›",
+                                color = NetflixRed,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clickable { onCategoryMoreClick(section) }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp)
+                            )
+                        }
+                    }
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         items(section.movies) { movie ->
                             MobileMovieCard(
                                 movie = movie,
                                 onClick = { onMovieClick(movie) }
                             )
+                        }
+                        if (onCategoryMoreClick != null) {
+                            item {
+                                CategoryMoreCard(
+                                    title = section.title,
+                                    onClick = { onCategoryMoreClick(section) }
+                                )
+                            }
                         }
                     }
                 }
@@ -464,3 +530,60 @@ fun ContinueWatchingMobileCard(
         )
     }
 }
+
+@Composable
+fun CategoryMoreCard(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Int = 110,
+    height: Int = 160
+) {
+    Card(
+        modifier = modifier
+            .width(width.dp)
+            .height(height.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = NetflixCard),
+        border = BorderStroke(1.dp, Color(0xFF333333))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(NetflixRed.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Xem thêm",
+                    tint = NetflixRed,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Xem thêm",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Tất cả phim",
+                color = TextMuted,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+

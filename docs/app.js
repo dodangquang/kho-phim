@@ -57,6 +57,7 @@
   // Categories Definition
   const CATEGORIES = [
     { id: 'all', title: 'Tất cả' },
+    { id: 'moi-cap-nhat', title: '⚡ Mới Cập Nhật Tập Mới', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
     { id: 'phim-thuyet-minh', title: '🎙️ Thuyết Minh', path: 'v1/api/danh-sach/phim-thuyet-minh' },
     { id: 'phim-long-tieng', title: '🎧 Lồng Tiếng', path: 'v1/api/danh-sach/phim-long-tieng' },
     { id: 'viet-nam', title: '🇻🇳 Việt Nam', path: 'v1/api/quoc-gia/viet-nam' },
@@ -239,7 +240,16 @@
     try {
       const resp = await fetch(url);
       const data = await resp.json();
-      const items = (data.data && data.data.items) ? data.data.items : (data.items || []);
+      const rawItems = (data.data && data.data.items) ? data.data.items : (data.items || []);
+      // Sort movies by newest updated first (modified.time descending)
+      const items = [...rawItems].sort((a, b) => {
+        const timeA = (a.modified && a.modified.time) ? a.modified.time : '';
+        const timeB = (b.modified && b.modified.time) ? b.modified.time : '';
+        if (timeA && timeB && timeA !== timeB) {
+          return timeB.localeCompare(timeA);
+        }
+        return (b.year || 0) - (a.year || 0);
+      });
       const totalPages = (data.data && data.data.params && data.data.params.pagination)
         ? data.data.params.pagination.totalPages
         : (data.pagination ? data.pagination.totalPages : 1);
@@ -254,10 +264,15 @@
   async function loadCategoryBrowse(cat, page = 1) {
     categoryPage = page;
     browseTitle.textContent = cat.title;
-    switchTab('browse');
 
     if (page === 1) {
+      switchTab('browse');
       browseGrid.innerHTML = '<div class="spinner"></div>';
+    } else {
+      if (browseLoadMoreBtn) {
+        browseLoadMoreBtn.textContent = 'Đang tải thêm...';
+        browseLoadMoreBtn.disabled = true;
+      }
     }
 
     const { items, totalPages } = await fetchCategory(cat, page);
@@ -265,6 +280,11 @@
 
     if (page === 1) {
       browseGrid.innerHTML = '';
+    } else {
+      if (browseLoadMoreBtn) {
+        browseLoadMoreBtn.textContent = 'Tải thêm phim';
+        browseLoadMoreBtn.disabled = false;
+      }
     }
 
     if (!items || items.length === 0) {
@@ -282,7 +302,11 @@
   }
 
   if (browseLoadMoreBtn) {
-    browseLoadMoreBtn.onclick = () => {
+    browseLoadMoreBtn.onclick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       const cat = CATEGORIES.find(c => c.id === activeCategory);
       if (cat && categoryPage < categoryTotalPages) {
         loadCategoryBrowse(cat, categoryPage + 1);
@@ -323,10 +347,10 @@
 
     // Fetch top sections in parallel
     const homeSectionsDef = [
+      CATEGORIES.find(c => c.id === 'moi-cap-nhat'),
       CATEGORIES.find(c => c.id === 'phim-thuyet-minh'),
       CATEGORIES.find(c => c.id === 'phim-long-tieng'),
       CATEGORIES.find(c => c.id === 'viet-nam'),
-      CATEGORIES.find(c => c.id === 'phim-moi'),
       CATEGORIES.find(c => c.id === 'phim-chieu-rap'),
       CATEGORIES.find(c => c.id === 'phim-bo'),
       CATEGORIES.find(c => c.id === 'hanh-dong'),
@@ -1061,20 +1085,41 @@
     }
     currentPlayerMode = 'hls';
 
-    videoPlayer.pause();
-    videoPlayer.src = '';
+    try {
+      videoPlayer.pause();
+      videoPlayer.removeAttribute('src');
+      videoPlayer.load();
+    } catch (_) {}
+
     if (hlsInstance) {
-      try { hlsInstance.destroy(); } catch (_) {}
+      try {
+        hlsInstance.stopLoad();
+        hlsInstance.destroy();
+      } catch (_) {}
       hlsInstance = null;
     }
-    iframePlayer.src = 'about:blank';
-    iframePlayer.style.display = 'none';
+
+    try {
+      iframePlayer.src = 'about:blank';
+      iframePlayer.removeAttribute('src');
+      iframePlayer.style.display = 'none';
+    } catch (_) {}
     videoPlayer.style.display = 'block';
 
     playerOverlay.classList.remove('open');
 
-    if (!fromPopState && window.location.hash.startsWith('#player-')) {
-      history.back();
+    // Cleanly clear hash and prevent audio staying in background
+    if (window.location.hash.startsWith('#player-')) {
+      if (!fromPopState) {
+        history.back();
+      }
+      setTimeout(() => {
+        if (window.location.hash.startsWith('#player-')) {
+          try {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+          } catch (_) {}
+        }
+      }, 50);
     }
 
     if (document.fullscreenElement && document.exitFullscreen) {

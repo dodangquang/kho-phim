@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.phimmoi.mobile.data.*
 import com.phimmoi.mobile.ui.detail.DetailScreen
 import com.phimmoi.mobile.ui.history.HistoryScreen
+import com.phimmoi.mobile.ui.home.CategoryBrowseScreen
 import com.phimmoi.mobile.ui.home.HomeScreen
 import com.phimmoi.mobile.ui.player.MobilePlayerScreen
 import com.phimmoi.mobile.ui.search.SearchScreen
@@ -50,6 +51,7 @@ enum class MobileTab(val label: String, val icon: ImageVector) {
 sealed interface Screen {
     data class Main(val tab: MobileTab = MobileTab.HOME) : Screen
     data class Detail(val movie: MovieItem) : Screen
+    data class CategoryBrowse(val title: String, val categoryPath: String) : Screen
     data class Player(
         val movie: MovieItem,
         val initialEpisode: EpisodeSource,
@@ -194,6 +196,14 @@ class MainActivity : ComponentActivity() {
                                         onMovieClick = { movie ->
                                             screenStack.add(Screen.Detail(movie))
                                         },
+                                        onCategoryMoreClick = { section ->
+                                            screenStack.add(
+                                                Screen.CategoryBrowse(
+                                                    title = section.title,
+                                                    categoryPath = section.slug
+                                                )
+                                            )
+                                        },
                                         onContinueWatchingClick = { item ->
                                             screenStack.add(
                                                 Screen.Detail(
@@ -232,6 +242,24 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
+                        }
+
+                        // Category browse overlay
+                        val categoryBrowseScreen = currentScreen as? Screen.CategoryBrowse
+                        if (categoryBrowseScreen != null) {
+                            CategoryBrowseScreen(
+                                title = categoryBrowseScreen.title,
+                                categoryPath = categoryBrowseScreen.categoryPath,
+                                repository = repository,
+                                onMovieClick = { movie ->
+                                    screenStack.add(Screen.Detail(movie))
+                                },
+                                onBackPress = {
+                                    if (screenStack.size > 1) {
+                                        screenStack.removeAt(screenStack.lastIndex)
+                                    }
+                                }
+                            )
                         }
 
                         // Detail screen overlay

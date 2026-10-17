@@ -52,6 +52,9 @@ class PhimRepository {
             let quality = (item["quality"] as? String) ?? (item["year"] as? String)
             let epBadge = (item["episode_current"] as? String) ?? (item["time"] as? String)
 
+            let modifiedObj = item["modified"] as? [String: Any]
+            let modifiedTime = modifiedObj?["time"] as? String
+
             results.append(
                 MovieItem(
                     title: name,
@@ -59,17 +62,29 @@ class PhimRepository {
                     posterUrl: finalPoster,
                     bannerUrl: finalBanner,
                     badge: quality?.isEmpty == false ? quality : nil,
-                    episodeBadge: epBadge?.isEmpty == false ? epBadge : nil
+                    episodeBadge: epBadge?.isEmpty == false ? epBadge : nil,
+                    modifiedTime: modifiedTime
                 )
             )
         }
+
+        // Sắp xếp các phim: phim mới cập nhật lên đầu
+        results.sort { (a, b) -> Bool in
+            let timeA = a.modifiedTime ?? ""
+            let timeB = b.modifiedTime ?? ""
+            if !timeA.isEmpty && !timeB.isEmpty && timeA != timeB {
+                return timeA > timeB
+            }
+            return (a.badge ?? "") > (b.badge ?? "")
+        }
+
         return results
     }
 
     func getCategoryPage(path: String, page: Int = 1) async -> [MovieItem] {
         let clean = path.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         var apiUrl = "https://phimapi.com/v1/api/danh-sach/\(clean)?page=\(page)"
-        if clean == "phim-moi" {
+        if clean == "phim-moi" || clean == "danh-sach/phim-moi-cap-nhat" || clean == "phim-moi-cap-nhat" {
             apiUrl = "https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=\(page)"
         } else if clean.starts(with: "the-loai/") || clean.starts(with: "quoc-gia/") || clean.starts(with: "danh-sach/") {
             apiUrl = "https://phimapi.com/v1/api/\(clean)?page=\(page)"
@@ -90,6 +105,7 @@ class PhimRepository {
     }
 
     func getNetflixHomeSections() async -> (hero: MovieItem?, sections: [MovieSection]) {
+        async let moiCapNhatReq = getCategoryPage(path: "danh-sach/phim-moi-cap-nhat")
         async let thuyetMinhReq = getCategoryPage(path: "danh-sach/phim-thuyet-minh")
         async let longTiengReq = getCategoryPage(path: "danh-sach/phim-long-tieng")
         async let vietNamReq = getCategoryPage(path: "quoc-gia/viet-nam")
@@ -102,13 +118,14 @@ class PhimRepository {
         async let scifiReq = getCategoryPage(path: "the-loai/vien-tuong")
         async let romanceReq = getCategoryPage(path: "the-loai/tinh-cam")
 
-        let (thuyetMinh, longTieng, vietNam, newest, theater, series, action, anime, horror, scifi, romance) = await (
-            thuyetMinhReq, longTiengReq, vietNamReq, newestReq, theaterReq, seriesReq, actionReq, animeReq, horrorReq, scifiReq, romanceReq
+        let (moiCapNhat, thuyetMinh, longTieng, vietNam, newest, theater, series, action, anime, horror, scifi, romance) = await (
+            moiCapNhatReq, thuyetMinhReq, longTiengReq, vietNamReq, newestReq, theaterReq, seriesReq, actionReq, animeReq, horrorReq, scifiReq, romanceReq
         )
 
-        let hero = thuyetMinh.first ?? longTieng.first ?? vietNam.first ?? newest.first
+        let hero = moiCapNhat.first ?? thuyetMinh.first ?? longTieng.first ?? vietNam.first ?? newest.first
         var sections: [MovieSection] = []
 
+        if !moiCapNhat.isEmpty { sections.append(MovieSection(title: "⚡ Mới Cập Nhật Tập Mới", slug: "danh-sach/phim-moi-cap-nhat", movies: moiCapNhat)) }
         if !thuyetMinh.isEmpty { sections.append(MovieSection(title: "🎙️ Phim Thuyết Minh", slug: "danh-sach/phim-thuyet-minh", movies: thuyetMinh)) }
         if !longTieng.isEmpty { sections.append(MovieSection(title: "🎧 Phim Lồng Tiếng", slug: "danh-sach/phim-long-tieng", movies: longTieng)) }
         if !vietNam.isEmpty { sections.append(MovieSection(title: "🇻🇳 Phim Việt Nam", slug: "quoc-gia/viet-nam", movies: vietNam)) }

@@ -91,7 +91,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
     private fun fetchCategoryFromApi(categoryPath: String, page: Int): List<MovieItem> {
         val clean = categoryPath.trim().trimStart('/').trimEnd('/')
         val apiUrl = when {
-            clean == "phim-moi" -> "https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=$page"
+            clean == "phim-moi" || clean == "danh-sach/phim-moi-cap-nhat" || clean == "phim-moi-cap-nhat" -> "https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=$page"
             clean == "danh-sach/phim-thuyet-minh" || clean == "phim-thuyet-minh" -> "https://phimapi.com/v1/api/danh-sach/phim-thuyet-minh?page=$page"
             clean == "danh-sach/phim-long-tieng" || clean == "phim-long-tieng" -> "https://phimapi.com/v1/api/danh-sach/phim-long-tieng?page=$page"
             clean == "quoc-gia/viet-nam" || clean == "viet-nam" -> "https://phimapi.com/v1/api/quoc-gia/viet-nam?page=$page"
@@ -156,8 +156,12 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                 val finalBanner = if (isThumbFromCdn) resolvedThumb else if (resolvedThumb.isNotEmpty()) resolvedThumb else resolvedPoster
                 val badge = item.optString("quality").ifEmpty { if (item.has("year")) item.optString("year") else "" }
                 val epBadge = item.optString("episode_current").ifEmpty { item.optString("time", "") }
-                list.add(MovieItem(title = name.ifEmpty { slug }, slug = slug, posterUrl = finalPoster, bannerUrl = finalBanner, badge = badge.ifEmpty { null }, episodeBadge = epBadge.ifEmpty { null }))
+                val modifiedObj = item.optJSONObject("modified")
+                val modifiedTime = modifiedObj?.optString("time")?.ifEmpty { null }
+                list.add(MovieItem(title = name.ifEmpty { slug }, slug = slug, posterUrl = finalPoster, bannerUrl = finalBanner, badge = badge.ifEmpty { null }, episodeBadge = epBadge.ifEmpty { null }, modifiedTime = modifiedTime))
             }
+            // Sắp xếp các phim: phim mới cập nhật lên đầu
+            list.sortWith(compareByDescending<MovieItem> { it.modifiedTime ?: "" }.thenByDescending { it.badge ?: "" })
         } catch (e: Exception) {
             Log.e("PhimMoiRepo", "JSON parse error: ${e.message}")
         }
@@ -171,6 +175,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
 
     suspend fun getNetflixHomeSections(): NetflixHomeData = withContext(Dispatchers.IO) {
         coroutineScope {
+            val moiCapNhatReq = async { getCategoryPage("danh-sach/phim-moi-cap-nhat", 1) }
             val thuyetMinhReq = async { getCategoryPage("danh-sach/phim-thuyet-minh", 1) }
             val longTiengReq = async { getCategoryPage("danh-sach/phim-long-tieng", 1) }
             val vietNamReq = async { getCategoryPage("quoc-gia/viet-nam", 1) }
@@ -182,6 +187,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
             val horrorReq = async { getCategoryPage("the-loai/kinh-di", 1) }
             val scifiReq = async { getCategoryPage("the-loai/vien-tuong", 1) }
             val romanceReq = async { getCategoryPage("the-loai/tinh-cam", 1) }
+            val moiCapNhat = moiCapNhatReq.await()
             val thuyetMinh = thuyetMinhReq.await()
             val longTieng = longTiengReq.await()
             val vietNam = vietNamReq.await()
@@ -193,8 +199,9 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
             val horror = horrorReq.await()
             val scifi = scifiReq.await()
             val romance = romanceReq.await()
-            val hero = thuyetMinh.firstOrNull() ?: longTieng.firstOrNull() ?: vietNam.firstOrNull() ?: newest.firstOrNull()
+            val hero = moiCapNhat.firstOrNull() ?: thuyetMinh.firstOrNull() ?: longTieng.firstOrNull() ?: vietNam.firstOrNull() ?: newest.firstOrNull()
             val sections = mutableListOf<MovieSection>()
+            if (moiCapNhat.isNotEmpty()) sections.add(MovieSection("⚡ Mới Cập Nhật Tập Mới", "danh-sach/phim-moi-cap-nhat", moiCapNhat))
             if (thuyetMinh.isNotEmpty()) sections.add(MovieSection("🎙️ Phim Thuyết Minh", "danh-sach/phim-thuyet-minh", thuyetMinh))
             if (longTieng.isNotEmpty()) sections.add(MovieSection("🎧 Phim Lồng Tiếng", "danh-sach/phim-long-tieng", longTieng))
             if (vietNam.isNotEmpty()) sections.add(MovieSection("🇻🇳 Phim Việt Nam", "quoc-gia/viet-nam", vietNam))

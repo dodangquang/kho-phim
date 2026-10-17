@@ -6,7 +6,8 @@ data class MovieItem(
     val posterUrl: String,
     val bannerUrl: String? = null,
     val badge: String? = null,
-    val episodeBadge: String? = null
+    val episodeBadge: String? = null,
+    val modifiedTime: String? = null
 )
 
 data class MovieSection(
