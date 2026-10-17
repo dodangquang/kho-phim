@@ -448,6 +448,43 @@
         setupHeroBanner(heroItem);
       }
 
+      // Check if user has watch history and render Continue Watching row at top of Home
+      const historyListItems = getWatchHistory();
+      if (historyListItems && historyListItems.length > 0) {
+        const continueSection = document.createElement('div');
+        continueSection.className = 'movie-section continue-watching-section';
+        continueSection.innerHTML = `
+          <div class="section-header">
+            <div class="section-title">🕒 Tiếp tục xem</div>
+            <button class="section-more" onclick="window.switchTabDirect('history')">
+              Tất cả lịch sử ›
+            </button>
+          </div>
+          <div class="movie-row"></div>
+        `;
+        const row = continueSection.querySelector('.movie-row');
+        historyListItems.slice(0, 10).forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'movie-card continue-card';
+          const progressPct = (item.duration > 0)
+            ? Math.min(100, Math.round((item.currentTime / item.duration) * 100))
+            : (item.currentTime > 0 ? 15 : 0);
+          card.innerHTML = `
+            <div class="movie-poster-wrap">
+              <img src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';" loading="lazy">
+              <span class="movie-badge-top-left" style="background:var(--accent-red);">${item.episodeName || 'Đang xem'}</span>
+              <div class="history-progress-wrap" style="position:absolute; bottom:0; left:0; right:0; margin:0; border-radius:0; height:4px; z-index:2;">
+                <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
+              </div>
+            </div>
+            <div class="movie-title">${item.movieTitle || 'Phim'}</div>
+          `;
+          card.onclick = () => openMovieDetail(item.movieSlug, true);
+          row.appendChild(card);
+        });
+        homeSectionsContainer.appendChild(continueSection);
+      }
+
       // Render rows
       results.forEach(({ cat, items }) => {
         if (!items || items.length === 0) return;
@@ -1394,16 +1431,19 @@
 
       const progressPct = (item.duration > 0)
         ? Math.min(100, Math.round((item.currentTime / item.duration) * 100))
-        : (item.currentTime > 0 ? 10 : 0);
+        : (item.currentTime > 0 ? 15 : 0);
       const formattedCurrent = formatTime(item.currentTime);
       const formattedTotal = item.duration > 0 ? formatTime(item.duration) : '--:--';
+      const progressLabel = (item.duration > 0)
+        ? `${formattedCurrent} / ${formattedTotal} (${progressPct}%)`
+        : (item.currentTime > 0 ? `Đã xem ${formattedCurrent}` : 'Vừa xem');
 
       card.innerHTML = `
         <img class="history-thumb" src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
         <div class="history-info">
           <div class="history-title">${item.movieTitle || 'Phim'}</div>
           <div class="history-sub">${item.episodeName || 'Tập 1'} • ${item.serverName || 'VIP'}</div>
-          <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${formattedCurrent} / ${formattedTotal} ${progressPct > 0 ? `(${progressPct}%)` : ''}</div>
+          <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${progressLabel}</div>
           <div class="history-progress-wrap">
             <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
           </div>
