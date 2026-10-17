@@ -6,6 +6,18 @@
   const API_BASE = 'https://phimapi.com';
   const IMG_BASE = 'https://phimimg.com';
 
+  // Danh sách các phim đối chiếu máy chủ bị lỗi link/404 -> tự động xóa khỏi kho
+  const BROKEN_MOVIE_SLUGS = new Set([
+    'vision-quest',
+    'mot-tran-thanh-danh'
+  ]);
+
+  function isBrokenMovie(slug) {
+    if (!slug) return false;
+    const clean = slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '');
+    return BROKEN_MOVIE_SLUGS.has(clean) || clean.includes('vision-quest') || clean.includes('mot-tran-thanh-danh');
+  }
+
   // State
   let currentTab = 'home';
   let activeCategory = 'all';
@@ -163,7 +175,17 @@
   function getWatchHistory() {
     try {
       const saved = localStorage.getItem('khophim_history') || localStorage.getItem('kho_phim_history') || localStorage.getItem('phimmoi_history');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      const cleanList = parsed.filter(item => item && item.movieSlug && !isBrokenMovie(item.movieSlug));
+      if (cleanList.length !== parsed.length) {
+        try {
+          localStorage.setItem('khophim_history', JSON.stringify(cleanList));
+          localStorage.setItem('khophim_watch_history', JSON.stringify(cleanList));
+        } catch (_) {}
+      }
+      return cleanList;
     } catch (e) {
       console.warn('Failed to parse watch history:', e);
       return [];
@@ -585,18 +607,6 @@
         </div>
       </div>
     `;
-  }
-
-  // Danh sách các phim đối chiếu máy chủ bị lỗi link/404 -> tự động xóa khỏi kho
-  const BROKEN_MOVIE_SLUGS = new Set([
-    'vision-quest',
-    'mot-tran-thanh-danh'
-  ]);
-
-  function isBrokenMovie(slug) {
-    if (!slug) return false;
-    const clean = slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '');
-    return BROKEN_MOVIE_SLUGS.has(clean) || clean.includes('vision-quest') || clean.includes('mot-tran-thanh-danh');
   }
 
   // Open Movie Detail Modal
