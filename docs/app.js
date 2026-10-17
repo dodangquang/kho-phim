@@ -297,8 +297,10 @@
       const resp = await fetch(url);
       const data = await resp.json();
       const rawItems = (data.data && data.data.items) ? data.data.items : (data.items || []);
+      // Loại bỏ các phim bị lỗi link/404 khỏi kho
+      const filteredRawItems = rawItems.filter(m => !isBrokenMovie(m.slug));
       // Sort movies by newest updated first (modified.time descending)
-      const items = [...rawItems].sort((a, b) => {
+      const items = [...filteredRawItems].sort((a, b) => {
         const timeA = (a.modified && a.modified.time) ? a.modified.time : '';
         const timeB = (b.modified && b.modified.time) ? b.modified.time : '';
         if (timeA && timeB && timeA !== timeB) {
@@ -417,7 +419,7 @@
   // Render Continue Watching Shelf on Home Screen (Landscape card matching mobile app)
   function renderContinueWatchingHome() {
     if (!continueWatchingSection) return;
-    const history = getWatchHistory();
+    const history = getWatchHistory().filter(item => !isBrokenMovie(item.movieSlug));
     if (!history || history.length === 0) {
       continueWatchingSection.style.display = 'none';
       continueWatchingSection.innerHTML = '';
@@ -585,60 +587,16 @@
     `;
   }
 
-  // Enrich movie episodes with fallback/backup servers (MultiEmbed & VidSrc)
-  function enrichEpisodesWithBackupServers(movie, episodes) {
-    if (!movie) return episodes;
-    const tmdb = movie.tmdb || {};
-    let tmdbId = (tmdb.id || '').toString().trim();
-    if (!tmdbId && movie.slug === 'vision-quest') {
-      tmdbId = '213375';
-    }
-    const tmdbType = (tmdb.type || '').trim();
-    const isTv = tmdbType === 'tv' || movie.type === 'series' || movie.slug === 'vision-quest' || (episodes.length > 0 && (episodes[0].server_data || []).length > 1);
+  // Danh sách các phim đối chiếu máy chủ bị lỗi link/404 -> tự động xóa khỏi kho
+  const BROKEN_MOVIE_SLUGS = new Set([
+    'vision-quest',
+    'mot-tran-thanh-danh'
+  ]);
 
-    if (!tmdbId) return episodes;
-
-    const primaryServerData = (episodes[0] && episodes[0].server_data) ? episodes[0].server_data : [];
-    const epCount = Math.max(primaryServerData.length, 1);
-
-    if (!episodes.some(s => s.server_name && s.server_name.includes('MultiEmbed'))) {
-      const multiEmbedData = [];
-      const vidSrcData = [];
-      for (let i = 0; i < epCount; i++) {
-        const epNum = i + 1;
-        const epSlug = primaryServerData[i] ? primaryServerData[i].slug : `tap-${epNum}`;
-        const epName = primaryServerData[i] ? primaryServerData[i].name : `Tập ${epNum}`;
-        const mUrl = isTv 
-          ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=1&e=${epNum}`
-          : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
-        const vUrl = isTv
-          ? `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=1&episode=${epNum}`
-          : `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`;
-
-        multiEmbedData.push({
-          name: epName,
-          slug: epSlug,
-          link_embed: mUrl,
-          link_m3u8: ''
-        });
-        vidSrcData.push({
-          name: epName,
-          slug: epSlug,
-          link_embed: vUrl,
-          link_m3u8: ''
-        });
-      }
-
-      episodes.push({
-        server_name: 'Dự Phòng MultiEmbed',
-        server_data: multiEmbedData
-      });
-      episodes.push({
-        server_name: 'Dự Phòng VidSrc',
-        server_data: vidSrcData
-      });
-    }
-    return episodes;
+  function isBrokenMovie(slug) {
+    if (!slug) return false;
+    const clean = slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '');
+    return BROKEN_MOVIE_SLUGS.has(clean) || clean.includes('vision-quest') || clean.includes('mot-tran-thanh-danh');
   }
 
   // Open Movie Detail Modal
@@ -669,19 +627,19 @@
         json = await resp.json();
       }
 
-      if (!json || !json.movie) {
+      if (!json || !json.movie || isBrokenMovie(slug) || isBrokenMovie(json.movie.slug)) {
         detailModal.innerHTML = `
           <div class="detail-modal" style="padding:40px; text-align:center;">
-            <p>Không tìm thấy thông tin phim.</p>
-            <button class="btn-primary" style="margin-top:16px;" onclick="closeMovieDetail()">Đóng</button>
+            <p style="font-size:16px; margin-bottom:12px; color:var(--accent-red); font-weight:bold;">Phim này đã bị gỡ khỏi kho</p>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">Máy chủ gốc của nhà cung cấp bị lỗi nguồn phát (HTTP 404). Hệ thống đã tự động đối chiếu và loại bỏ phim này khỏi kho.</p>
+            <button class="btn-primary" onclick="closeMovieDetail()">Đóng</button>
           </div>
         `;
         return;
       }
 
       const movie = json.movie;
-      let episodes = json.episodes || [];
-      episodes = enrichEpisodesWithBackupServers(movie, episodes);
+      const episodes = json.episodes || [];
       currentDetailMovie = movie;
       currentDetailEpisodes = episodes;
       currentServerIndex = 0;
@@ -1187,23 +1145,6 @@
       streamWatchdogTimer = null;
     }
 
-    // Check if backup server is available (MultiEmbed / VidSrc)
-    const backupServer = (currentDetailEpisodes || []).find(
-      s => s !== currentDetailEpisodes[currentServerIndex] &&
-           s.server_data && s.server_data.length > 0 &&
-           (s.server_name.includes('Dự Phòng') || s.server_name.includes('MultiEmbed') || s.server_name.includes('VidSrc'))
-    );
-
-    // If direct stream failed and primary embed is also a phimapi wrapper that points to the same broken stream
-    if (backupServer && (!embedUrl || embedUrl.includes('player.phimapi.com'))) {
-      const matchEp = backupServer.server_data.find(e => e.slug === (currentPlayingEpisode ? currentPlayingEpisode.slug : '')) || backupServer.server_data[0];
-      if (matchEp && matchEp.link_embed) {
-        showPlayerToast(`Nguồn chính gặp sự cố (404). Đang tự động chuyển sang ${backupServer.server_name}...`);
-        fallbackToIframe(matchEp.link_embed, true);
-        return;
-      }
-    }
-
     // Auto-fallback to Web Embed if available
     if (embedUrl && currentPlayerMode === 'hls') {
       console.warn('Direct stream failed, automatically switching to Web Embed.');
@@ -1218,21 +1159,12 @@
 
     const is404 = streamUrl && (streamUrl.includes('kvp726.com') || streamUrl.includes('404'));
     playerErrorText.textContent = is404
-      ? 'Máy chủ CDN gốc chưa tải xong tập này (Lỗi HTTP 404 từ nhà cung cấp nguồn). Bạn có thể đổi sang Server Dự Phòng hoặc xem lại sau ít phút.'
+      ? 'Máy chủ CDN gốc chưa tải xong tập này (Lỗi HTTP 404 từ nhà cung cấp nguồn).'
       : 'Luồng phát trực tiếp gặp lỗi hoặc máy chủ quá tải.';
     playerErrorBanner.style.display = 'block';
 
     const embedBtn = document.getElementById('player-try-embed-btn');
-    if (backupServer) {
-      embedBtn.style.display = 'inline-flex';
-      embedBtn.textContent = `Chuyển sang ${backupServer.server_name}`;
-      embedBtn.onclick = () => {
-        const matchEp = backupServer.server_data.find(e => e.slug === (currentPlayingEpisode ? currentPlayingEpisode.slug : '')) || backupServer.server_data[0];
-        if (matchEp) {
-          startVideoPlayback(currentPlayingMovie, matchEp, backupServer.server_data, backupServer.server_name);
-        }
-      };
-    } else if (embedUrl) {
+    if (embedUrl) {
       embedBtn.style.display = 'inline-flex';
       embedBtn.textContent = 'Thử Trình phát Dự phòng';
       embedBtn.onclick = () => {
@@ -1512,7 +1444,8 @@
       const encoded = encodeURIComponent(query);
       const resp = await fetch(`${API_BASE}/v1/api/tim-kiem?keyword=${encoded}&limit=40`);
       const data = await resp.json();
-      const items = (data.data && data.data.items) ? data.data.items : [];
+      const rawItems = (data.data && data.data.items) ? data.data.items : [];
+      const items = rawItems.filter(m => !isBrokenMovie(m.slug));
 
       searchStatus.innerHTML = '';
 
@@ -1533,7 +1466,7 @@
 
   // History Screen Render
   function renderHistoryScreen() {
-    const history = getWatchHistory();
+    const history = getWatchHistory().filter(item => !isBrokenMovie(item.movieSlug));
     const clearBtn = document.getElementById('history-clear-btn');
     if (!history || history.length === 0) {
       if (historyEmpty) historyEmpty.style.display = 'block';

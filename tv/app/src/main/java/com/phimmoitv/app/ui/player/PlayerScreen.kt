@@ -114,13 +114,7 @@ fun PlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                val rawMsg = error.localizedMessage ?: ""
-                val is404 = rawMsg.contains("404") || rawMsg.contains("Response code: 404")
-                if (is404) {
-                    errorMessage = "Máy chủ CDN gốc chưa tải xong tập này (Lỗi 404 từ nhà cung cấp nguồn). Bạn có thể đổi sang Server Dự Phòng hoặc xem lại sau ít phút."
-                } else {
-                    errorMessage = "Lỗi phát video: ${error.localizedMessage}"
-                }
+                errorMessage = "Lỗi phát video: ${error.localizedMessage}"
             }
         }
         exoPlayer.addListener(listener)
