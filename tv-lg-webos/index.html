@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kho Phim - LG Smart TV webOS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #121212;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .splash {
+      position: absolute;
+      inset: 0;
+      background: #121212;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      z-index: 10;
+    }
+    .splash img {
+      width: 96px;
+      height: 96px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+    .splash h1 {
+      font-size: 28px;
+      color: #E50914;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .splash p {
+      font-size: 14px;
+      color: #888;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" class="splash">
+    <img src="icon.png" alt="Kho Phim">
+    <h1>KHO PHIM</h1>
+    <p>Đang kết nối kho phim...</p>
+  </div>
+
+  <script>
+    // LG webOS stage ready
+    if (window.PalmSystem && window.PalmSystem.stageReady) {
+      try { window.PalmSystem.stageReady(); } catch (e) {}
+    }
+
+    // Direct launch into the hosted Kho Phim TV web app
+    setTimeout(function() {
+      window.location.replace('https://dodangquang.github.io/kho-phim/');
+    }, 400);
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://khophim.tv/widget" version="1.0.2" viewmodes="maximized">
+    <tizen:application id="X84DodangQ.KhoPhim" package="X84DodangQ" exec="index.html" screen-orientation="landscape" required_version="3.0"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <feature name="http://tizen.org/feature/network.internet"/>
+    <icon src="icon.png"/>
+    <name>Kho Phim</name>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto"/>
+</widget>

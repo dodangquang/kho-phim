@@ -1164,3 +1164,173 @@ button {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   SMART TV OPTIMIZATION & REMOTE CONTROL SPATIAL NAVIGATION (Samsung & LG)
+   ========================================================================== */
+
+/* TV Remote Focus State (Glowing ring with smooth scale) */
+.tv-focused {
+  outline: 3px solid var(--accent-red) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 24px rgba(229, 9, 20, 0.9), 0 0 8px rgba(255, 255, 255, 0.6) !important;
+  transform: scale(1.08) !important;
+  z-index: 99 !important;
+  position: relative !important;
+  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1), box-shadow 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+}
+
+/* Specific focus tweaks for rounded pills and tabs */
+.pill-chip.tv-focused,
+.player-mode-btn.tv-focused,
+.btn-primary.tv-focused,
+.btn-secondary.tv-focused,
+.download-btn.tv-focused {
+  border-radius: 20px !important;
+}
+
+.nav-tab.tv-focused {
+  outline: 2px solid var(--accent-red) !important;
+  background: rgba(229, 9, 20, 0.2) !important;
+  border-radius: 8px !important;
+  transform: scale(1.06) !important;
+  color: var(--accent-red) !important;
+}
+
+.icon-btn.tv-focused,
+.detail-close-btn.tv-focused {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 50% !important;
+  transform: scale(1.15) !important;
+}
+
+.episode-btn.tv-focused {
+  outline: 2px solid var(--accent-red) !important;
+  background: rgba(229, 9, 20, 0.25) !important;
+  color: #fff !important;
+  transform: scale(1.06) !important;
+}
+
+/* Ensure horizontal rows have enough padding so scaling cards don't get clipped */
+.movie-row,
+.continue-row,
+.category-filter-bar {
+  padding-top: 10px !important;
+  padding-bottom: 14px !important;
+  scroll-behavior: smooth;
+}
+
+/* TV Mode Layout & Typography */
+body.tv-mode {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* TV Toast Notification */
+.tv-toast {
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 18, 18, 0.96);
+  color: #fff;
+  border: 1px solid rgba(229, 9, 20, 0.7);
+  padding: 12px 28px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 10000;
+  display: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), 0 0 16px rgba(229, 9, 20, 0.5);
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: tvToastFadeIn 0.25s ease;
+}
+
+@keyframes tvToastFadeIn {
+  from { opacity: 0; transform: translate(-50%, 15px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* TV & Wide Desktop Viewport Scaling (10-Foot UI for 1080p / 4K) */
+@media (min-width: 960px) {
+  .app-header {
+    padding: 14px 40px;
+  }
+  .logo-title {
+    font-size: 24px;
+  }
+  .category-filter-bar {
+    padding: 12px 40px;
+    gap: 12px;
+  }
+  .pill-chip {
+    font-size: 14px;
+    padding: 8px 18px;
+  }
+  .hero-banner {
+    height: 480px;
+    padding: 40px 48px;
+    margin-bottom: 30px;
+  }
+  .hero-title {
+    font-size: 38px;
+    max-width: 700px;
+  }
+  .hero-badge {
+    font-size: 13px;
+    padding: 4px 10px;
+  }
+  .hero-buttons {
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .hero-buttons .btn-primary,
+  .hero-buttons .btn-secondary {
+    font-size: 16px;
+    padding: 12px 28px;
+    border-radius: 10px;
+  }
+  .movie-section {
+    padding-left: 24px;
+    margin-bottom: 32px;
+  }
+  .section-title {
+    font-size: 22px;
+  }
+  .section-more {
+    font-size: 14px;
+    margin-right: 24px;
+  }
+  .movie-card {
+    flex: 0 0 170px;
+    width: 170px;
+  }
+  .movie-poster-wrap {
+    height: 245px;
+  }
+  .movie-title {
+    font-size: 14px;
+  }
+  .continue-card {
+    flex: 0 0 280px;
+    width: 280px;
+  }
+  .continue-thumb-wrap {
+    height: 158px;
+  }
+  .continue-title {
+    font-size: 14.5px;
+  }
+  .movie-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 20px;
+    padding: 20px 40px;
+  }
+  .detail-modal {
+    max-width: 800px;
+    margin: 40px auto;
+    border-radius: 16px;
+  }
+}

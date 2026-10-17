@@ -146,16 +146,49 @@
         <div class="download-card">
           <h3>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
-            Kho Phim TV (Android TV APK)
+            Kho Phim TV (Android TV / Google TV)
           </h3>
-          <p>Ứng dụng chuẩn Google TV và Android TV (Sony, Samsung, Xiaomi, LG, Casper, TCL...) tối ưu điều khiển bằng Remote.</p>
+          <p>Ứng dụng dành riêng cho TV chạy Android / Google TV (Sony, TCL, Xiaomi, Casper, Sharp, Android Box...) với điều khiển Remote mượt mà.</p>
           <a class="download-btn" href="https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_TV_v1.0.2.apk" download>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
             Tải KhoPhim_TV_v1.0.2.apk (Mới nhất)
           </a>
         </div>
+
+        <!-- Smart TV Samsung & LG (Tizen OS / webOS) -->
+        <div class="download-card" style="border-left: 4px solid #00a8e8;">
+          <h3>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zm-9-4l5-3-5-3v6z"/></svg>
+            Smart TV Samsung (Tizen) &amp; LG (webOS)
+          </h3>
+          <p>TV Samsung và LG chạy hệ điều hành Tizen và webOS (không dùng Android), nên không cài được file .apk. Tuy nhiên bạn có thể dùng Kho Phim cực kỳ dễ dàng theo 2 cách:</p>
+          <div class="pwa-instruction">
+            <strong>Cách 1 (Nhanh nhất): Mở trên Trình duyệt TV &amp; Ghim ra Màn hình chính</strong>
+            <ol>
+              <li>Mở trình duyệt <strong>Samsung Internet</strong> (trên Samsung) hoặc <strong>Web Browser</strong> (trên LG).</li>
+              <li>Truy cập địa chỉ: <strong>https://dodangquang.github.io/kho-phim/</strong></li>
+              <li>Bấm vào menu tuỳ chọn của trình duyệt TV &gt; chọn <strong>"Thêm vào Màn hình chính"</strong> hoặc <strong>"Ghim lối tắt"</strong>. Biểu tượng Kho Phim sẽ xuất hiện ngay màn hình chủ TV!</li>
+              <li>Sử dụng remote phím điều hướng (Lên / Xuống / Trái / Phải / OK / Back) hoặc chuột bay Magic Remote hoàn toàn tự nhiên.</li>
+            </ol>
+          </div>
+          <div style="margin-top: 12px; font-size: 13px; color: var(--text-secondary);">
+            <strong>Cách 2: Cài gói ứng dụng độc lập qua Developer Mode</strong>
+            <p style="margin-top: 4px;">Tải gói cài đặt dành riêng cho TV của bạn:</p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+              <a class="btn-secondary" style="font-size:12px; padding:8px 14px; text-decoration:none;" href="https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_LG_webOS_v1.0.2.zip" download>
+                📦 Tải gói LG webOS (.ipk / zip)
+              </a>
+              <a class="btn-secondary" style="font-size:12px; padding:8px 14px; text-decoration:none;" href="https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_Samsung_Tizen_v1.0.2.wgt" download>
+                📦 Tải gói Samsung Tizen (.wgt)
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
+
+    <!-- TV Toast Notification Feedback -->
+    <div id="tv-toast" class="tv-toast"></div>
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">

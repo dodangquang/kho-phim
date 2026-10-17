@@ -1,0 +1,16 @@
+{
+  "id": "com.khophim.tv",
+  "version": "1.0.2",
+  "vendor": "Kho Phim",
+  "type": "web",
+  "main": "index.html",
+  "title": "Kho Phim",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "transparent": false,
+  "requiredMemory": 64,
+  "disableBackHistoryFilter": true,
+  "supportGpu": true,
+  "appDescription": "Kho Phim - Xem Phim Miễn Phí Full HD Trên Smart TV LG webOS"
+}

@@ -596,11 +596,11 @@
         </div>
         <h1 class="hero-title">${movie.name}</h1>
         <div class="hero-buttons">
-          <button class="btn-primary" onclick="openMovieDetail('${movie.slug}', true)">
+          <button id="hero-play-btn" class="btn-primary" onclick="openMovieDetail('${movie.slug}', true)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             Xem ngay
           </button>
-          <button class="btn-secondary" onclick="openMovieDetail('${movie.slug}')">
+          <button id="hero-info-btn" class="btn-secondary" onclick="openMovieDetail('${movie.slug}')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             Chi tiết
           </button>
@@ -672,6 +672,12 @@
 
   window.closeMovieDetail = function (fromPopState = false) {
     detailModal.classList.remove('open');
+    if (tvModeActive) {
+      setTimeout(() => {
+        const fallback = findDefaultInitialFocus();
+        if (fallback) setTvFocus(fallback);
+      }, 50);
+    }
     if (!fromPopState && window.history.length > 1 && window.location.hash.startsWith('#detail-')) {
       try { history.back(); } catch (_) {}
     }
@@ -751,6 +757,13 @@
     `;
 
     detailModal.innerHTML = html;
+
+    if (tvModeActive) {
+      setTimeout(() => {
+        const playBtn = detailModal.querySelector('.btn-primary');
+        if (playBtn) setTvFocus(playBtn);
+      }, 50);
+    }
   }
 
   function renderServersAndEpisodesHtml(episodes, slug) {
@@ -1318,8 +1331,19 @@
       }
     } catch (_) {}
     videoPlayer.style.display = 'block';
-
     playerOverlay.classList.remove('open');
+
+    if (tvModeActive) {
+      setTimeout(() => {
+        if (detailModal && detailModal.classList.contains('open')) {
+          const playBtn = detailModal.querySelector('.btn-primary');
+          if (playBtn) setTvFocus(playBtn);
+        } else {
+          const fallback = findDefaultInitialFocus();
+          if (fallback) setTvFocus(fallback);
+        }
+      }, 60);
+    }
 
     // 4. Immediately clear player hash from URL bar
     if (window.location.hash.startsWith('#player-')) {
@@ -1556,6 +1580,449 @@
     return `${m}:${remS < 10 ? '0' : ''}${remS}`;
   }
 
+  // ==========================================================================
+  // SMART TV REMOTE NAVIGATION SYSTEM (Samsung Tizen, LG webOS & Android TV)
+  // ==========================================================================
+
+  let currentTvFocusedEl = null;
+  let tvModeActive = false;
+  let tvToastTimer = null;
+
+  function showTvToast(msg, duration = 2000) {
+    const toast = document.getElementById('tv-toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    if (tvToastTimer) clearTimeout(tvToastTimer);
+    tvToastTimer = setTimeout(() => {
+      toast.style.display = 'none';
+      tvToastTimer = null;
+    }, duration);
+  }
+
+  // Register Samsung Tizen & LG webOS hardware keys
+  function initSmartTvDevice() {
+    // 1. Samsung Tizen Input Device Key Registration
+    if (typeof window.tizen !== 'undefined' && window.tizen.tvinputdevice) {
+      const tizenKeys = [
+        'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop',
+        'MediaFastForward', 'MediaRewind', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
+      ];
+      tizenKeys.forEach(keyName => {
+        try { window.tizen.tvinputdevice.registerKey(keyName); } catch (_) {}
+      });
+    }
+
+    // 2. LG webOS platform ready
+    if (window.PalmSystem && window.PalmSystem.stageReady) {
+      try { window.PalmSystem.stageReady(); } catch (_) {}
+    }
+
+    // 3. Auto-detect TV from user-agent
+    const isTvUserAgent = /SmartTV|Tizen|web0s|webOS|HbbTV|NetCast|POV_TV|Viera|BRAVIA|GoogleTV|Android.*TV|AppleTV|Roku/i.test(navigator.userAgent);
+    if (isTvUserAgent) {
+      document.body.classList.add('tv-mode');
+      tvModeActive = true;
+    }
+  }
+
+  // Key codes for Samsung, LG, standard keyboards, Android TV
+  const KEY_GROUPS = {
+    UP: [38, 'ArrowUp', 'Up'],
+    DOWN: [40, 'ArrowDown', 'Down'],
+    LEFT: [37, 'ArrowLeft', 'Left'],
+    RIGHT: [39, 'ArrowRight', 'Right'],
+    ENTER: [13, 'Enter', 'Select', 'Accept'],
+    BACK: [27, 8, 461, 10009, 'Escape', 'Backspace', 'Back', 'Return', 'GoBack'],
+    PLAY_PAUSE: [179, 10252, 32, 'MediaPlayPause', 'MediaPlay', 'MediaPause', ' '],
+    FAST_FORWARD: [417, 'MediaFastForward'],
+    REWIND: [412, 'MediaRewind']
+  };
+
+  function isKeyMatch(e, group) {
+    if (group.includes(e.keyCode)) return true;
+    if (group.includes(e.key)) return true;
+    if (group.includes(e.code)) return true;
+    return false;
+  }
+
+  function setTvFocus(element) {
+    if (!element) return;
+    if (currentTvFocusedEl && currentTvFocusedEl !== element) {
+      currentTvFocusedEl.classList.remove('tv-focused');
+    }
+    currentTvFocusedEl = element;
+    currentTvFocusedEl.classList.add('tv-focused');
+    tvModeActive = true;
+    document.body.classList.add('tv-mode');
+
+    // Smoothly bring the focused item into view
+    try {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    } catch (_) {}
+
+    if (element.tagName === 'INPUT') {
+      try { element.focus(); } catch (_) {}
+    }
+  }
+
+  function clearTvFocus() {
+    if (currentTvFocusedEl) {
+      currentTvFocusedEl.classList.remove('tv-focused');
+      currentTvFocusedEl = null;
+    }
+  }
+
+  function isElementVisible(el) {
+    if (!el || !el.isConnected) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    return true;
+  }
+
+  // Find all focusable candidates in the current active UI layer
+  function getActiveFocusableElements() {
+    // Layer 1: Player Overlay is open
+    if (playerOverlay && playerOverlay.classList.contains('open')) {
+      const candidates = Array.from(playerOverlay.querySelectorAll(
+        '.icon-btn, .player-mode-btn, #player-try-embed-btn, video'
+      ));
+      return candidates.filter(isElementVisible);
+    }
+
+    // Layer 2: Detail Modal is open
+    if (detailModal && detailModal.classList.contains('open')) {
+      const candidates = Array.from(detailModal.querySelectorAll(
+        '.detail-close-btn, .btn-primary, .btn-secondary, .episode-btn, .movie-card, button, a'
+      ));
+      return candidates.filter(isElementVisible);
+    }
+
+    // Layer 3: Main App views
+    const selector = [
+      '.nav-tab',
+      '.pill-chip',
+      '#hero-banner .btn-primary',
+      '#hero-banner .btn-secondary',
+      '.movie-card',
+      '.continue-card',
+      '.section-more',
+      '.header-actions .icon-btn',
+      '.logo-area',
+      '#search-input',
+      '#search-clear-btn',
+      '#browse-load-more',
+      '#history-clear-btn',
+      '.history-card',
+      '.download-card .download-btn',
+      '.download-card a.btn-secondary'
+    ].join(',');
+
+    const candidates = Array.from(document.querySelectorAll(selector));
+    return candidates.filter(isElementVisible);
+  }
+
+  function findDefaultInitialFocus() {
+    const candidates = getActiveFocusableElements();
+    if (candidates.length === 0) return null;
+
+    // In player: back button or mode button
+    if (playerOverlay && playerOverlay.classList.contains('open')) {
+      return candidates[0] || null;
+    }
+
+    // In detail: play button or close button
+    if (detailModal && detailModal.classList.contains('open')) {
+      const playBtn = detailModal.querySelector('.btn-primary');
+      if (playBtn && isElementVisible(playBtn)) return playBtn;
+      return candidates[0] || null;
+    }
+
+    // In Home screen
+    if (currentTab === 'home') {
+      const heroPlay = document.querySelector('#hero-banner .btn-primary');
+      if (heroPlay && isElementVisible(heroPlay)) return heroPlay;
+      const firstContinue = document.querySelector('.continue-card');
+      if (firstContinue && isElementVisible(firstContinue)) return firstContinue;
+      const firstCard = document.querySelector('.movie-card');
+      if (firstCard && isElementVisible(firstCard)) return firstCard;
+      const activePill = document.querySelector('.pill-chip.active') || document.querySelector('.pill-chip');
+      if (activePill && isElementVisible(activePill)) return activePill;
+    }
+
+    // In Browse
+    if (currentTab === 'browse') {
+      const firstCard = document.querySelector('#browse-grid .movie-card');
+      if (firstCard && isElementVisible(firstCard)) return firstCard;
+    }
+
+    // In Search
+    if (currentTab === 'search') {
+      if (searchInput && isElementVisible(searchInput)) return searchInput;
+    }
+
+    return candidates[0] || null;
+  }
+
+  // 2D Geometric Spatial Direction Algorithm
+  function findNextSpatialCandidate(direction) {
+    const candidates = getActiveFocusableElements();
+    if (candidates.length === 0) return null;
+
+    if (!currentTvFocusedEl || !isElementVisible(currentTvFocusedEl)) {
+      return findDefaultInitialFocus();
+    }
+
+    const currentRect = currentTvFocusedEl.getBoundingClientRect();
+    const currentCenter = {
+      x: currentRect.left + currentRect.width / 2,
+      y: currentRect.top + currentRect.height / 2
+    };
+
+    let bestCandidate = null;
+    let minScore = Infinity;
+
+    for (const cand of candidates) {
+      if (cand === currentTvFocusedEl) continue;
+
+      const r = cand.getBoundingClientRect();
+      const center = {
+        x: r.left + r.width / 2,
+        y: r.top + r.height / 2
+      };
+
+      let dx = 0;
+      let dy = 0;
+
+      switch (direction) {
+        case 'RIGHT':
+          if (r.left >= currentRect.left + 5 || center.x > currentCenter.x + 8) {
+            dx = Math.max(0, r.left - currentRect.right);
+            dy = Math.abs(center.y - currentCenter.y);
+            const score = dx + 3.2 * dy;
+            if (score < minScore) {
+              minScore = score;
+              bestCandidate = cand;
+            }
+          }
+          break;
+
+        case 'LEFT':
+          if (r.right <= currentRect.right - 5 || center.x < currentCenter.x - 8) {
+            dx = Math.max(0, currentRect.left - r.right);
+            dy = Math.abs(center.y - currentCenter.y);
+            const score = dx + 3.2 * dy;
+            if (score < minScore) {
+              minScore = score;
+              bestCandidate = cand;
+            }
+          }
+          break;
+
+        case 'DOWN':
+          if (r.top >= currentRect.top + 5 || center.y > currentCenter.y + 8) {
+            dy = Math.max(0, r.top - currentRect.bottom);
+            dx = Math.abs(center.x - currentCenter.x);
+            const score = dy + 2.2 * dx;
+            if (score < minScore) {
+              minScore = score;
+              bestCandidate = cand;
+            }
+          }
+          break;
+
+        case 'UP':
+          if (r.bottom <= currentRect.bottom - 5 || center.y < currentCenter.y - 8) {
+            dy = Math.max(0, currentRect.top - r.bottom);
+            dx = Math.abs(center.x - currentCenter.x);
+            const score = dy + 2.2 * dx;
+            if (score < minScore) {
+              minScore = score;
+              bestCandidate = cand;
+            }
+          }
+          break;
+      }
+    }
+
+    return bestCandidate;
+  }
+
+  // Master Remote Control Event Handler
+  let backPressCount = 0;
+  let backPressResetTimer = null;
+
+  window.addEventListener('keydown', (e) => {
+    // 1. BACK Key Handling (Samsung 10009, webOS 461, Escape 27, Backspace 8)
+    if (isKeyMatch(e, KEY_GROUPS.BACK)) {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        document.activeElement.blur();
+        e.preventDefault();
+        return;
+      }
+
+      if (playerOverlay && playerOverlay.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeVideoPlayer();
+        return;
+      }
+
+      if (detailModal && detailModal.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMovieDetail();
+        return;
+      }
+
+      if (currentTab !== 'home') {
+        e.preventDefault();
+        switchTabDirect('home');
+        return;
+      }
+
+      backPressCount++;
+      if (backPressCount === 1) {
+        showTvToast('Nhấn BACK lần nữa để thoát Kho Phim', 2500);
+        if (backPressResetTimer) clearTimeout(backPressResetTimer);
+        backPressResetTimer = setTimeout(() => {
+          backPressCount = 0;
+        }, 2500);
+        e.preventDefault();
+        return;
+      } else {
+        try {
+          if (typeof window.tizen !== 'undefined' && window.tizen.application) {
+            window.tizen.application.getCurrentApplication().exit();
+          } else if (window.close) {
+            window.close();
+          }
+        } catch (_) {}
+      }
+      return;
+    }
+
+    // 2. In Player Overlay Video Controls
+    if (playerOverlay && playerOverlay.classList.contains('open')) {
+      // Seek Backward 10s
+      if (isKeyMatch(e, KEY_GROUPS.LEFT) || isKeyMatch(e, KEY_GROUPS.REWIND)) {
+        e.preventDefault();
+        if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
+          videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+          showTvToast(`⏪ -10s (${formatTime(videoPlayer.currentTime)})`);
+        }
+        return;
+      }
+
+      // Seek Forward 10s
+      if (isKeyMatch(e, KEY_GROUPS.RIGHT) || isKeyMatch(e, KEY_GROUPS.FAST_FORWARD)) {
+        e.preventDefault();
+        if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
+          const maxDur = (videoPlayer.duration && isFinite(videoPlayer.duration)) ? videoPlayer.duration : 999999;
+          videoPlayer.currentTime = Math.min(maxDur, videoPlayer.currentTime + 10);
+          showTvToast(`⏩ +10s (${formatTime(videoPlayer.currentTime)})`);
+        }
+        return;
+      }
+
+      // Volume Up
+      if (isKeyMatch(e, KEY_GROUPS.UP)) {
+        e.preventDefault();
+        if (videoPlayer) {
+          videoPlayer.volume = Math.min(1, Number((videoPlayer.volume + 0.1).toFixed(1)));
+          showTvToast(`🔊 Âm lượng: ${Math.round(videoPlayer.volume * 100)}%`);
+        }
+        return;
+      }
+
+      // Volume Down
+      if (isKeyMatch(e, KEY_GROUPS.DOWN)) {
+        e.preventDefault();
+        if (videoPlayer) {
+          videoPlayer.volume = Math.max(0, Number((videoPlayer.volume - 0.1).toFixed(1)));
+          showTvToast(`🔉 Âm lượng: ${Math.round(videoPlayer.volume * 100)}%`);
+        }
+        return;
+      }
+
+      // Play / Pause Toggle
+      if (isKeyMatch(e, KEY_GROUPS.PLAY_PAUSE) || isKeyMatch(e, KEY_GROUPS.ENTER)) {
+        if (currentTvFocusedEl && currentTvFocusedEl !== videoPlayer && currentTvFocusedEl.closest('.player-header')) {
+          currentTvFocusedEl.click();
+          e.preventDefault();
+          return;
+        }
+
+        e.preventDefault();
+        if (videoPlayer) {
+          if (videoPlayer.paused) {
+            videoPlayer.play().catch(() => {});
+            showTvToast('▶️ Đang phát');
+          } else {
+            videoPlayer.pause();
+            showTvToast('⏸️ Tạm dừng');
+          }
+        }
+        return;
+      }
+    }
+
+    // 3. Arrow Keys Navigation (D-Pad UP, DOWN, LEFT, RIGHT)
+    let dir = null;
+    if (isKeyMatch(e, KEY_GROUPS.UP)) dir = 'UP';
+    else if (isKeyMatch(e, KEY_GROUPS.DOWN)) dir = 'DOWN';
+    else if (isKeyMatch(e, KEY_GROUPS.LEFT)) dir = 'LEFT';
+    else if (isKeyMatch(e, KEY_GROUPS.RIGHT)) dir = 'RIGHT';
+
+    if (dir) {
+      e.preventDefault();
+      const nextEl = findNextSpatialCandidate(dir);
+      if (nextEl) {
+        setTvFocus(nextEl);
+      }
+      return;
+    }
+
+    // 4. ENTER / OK Key Handling
+    if (isKeyMatch(e, KEY_GROUPS.ENTER)) {
+      if (currentTvFocusedEl) {
+        e.preventDefault();
+        if (currentTvFocusedEl.tagName === 'INPUT') {
+          currentTvFocusedEl.focus();
+        } else {
+          currentTvFocusedEl.click();
+        }
+      }
+      return;
+    }
+  });
+
+  // Seamless coexistence with mouse / LG Magic Remote pointer
+  window.addEventListener('mousemove', (e) => {
+    if (Math.abs(e.movementX) > 2 || Math.abs(e.movementY) > 2) {
+      if (currentTvFocusedEl) {
+        clearTvFocus();
+      }
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchstart', () => {
+    if (currentTvFocusedEl) {
+      clearTvFocus();
+    }
+  }, { passive: true });
+
+  // Initialize Smart TV integrations
+  initSmartTvDevice();
+
   // Navigation tab click listeners
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1579,7 +2046,15 @@
     clearAllWatchHistory,
     renderHistoryScreen,
     trackAndSaveHistory,
-    renderContinueWatchingHome
+    renderContinueWatchingHome,
+    setTvFocus,
+    clearTvFocus,
+    findNextSpatialCandidate,
+    getActiveFocusableElements,
+    findDefaultInitialFocus,
+    isKeyMatch,
+    KEY_GROUPS,
+    showTvToast
   };
 
   // App Init
