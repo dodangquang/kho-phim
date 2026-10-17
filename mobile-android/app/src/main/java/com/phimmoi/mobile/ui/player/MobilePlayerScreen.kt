@@ -6,9 +6,13 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
@@ -126,6 +130,13 @@ fun MobilePlayerScreen(
     var seekSliderPos by remember { mutableStateOf(0f) }
     var showEpisodeSheet by remember { mutableStateOf(false) }
 
+    val isCurrentEpEmbed = remember(currentEp) {
+        val u = currentEp.streamUrl.lowercase()
+        (!u.contains(".m3u8") && (u.contains("embed") || u.contains("player") || u.contains("http"))) ||
+        currentEp.serverName.contains("Dự Phòng", ignoreCase = true)
+    }
+    var isEmbedMode by remember(currentEp) { mutableStateOf(isCurrentEpEmbed) }
+
     BackHandler {
         onBackPress()
     }
@@ -173,7 +184,13 @@ fun MobilePlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                errorMessage = "Lỗi phát video: ${error.localizedMessage}"
+                val rawMsg = error.localizedMessage ?: ""
+                val is404 = rawMsg.contains("404") || rawMsg.contains("Response code: 404")
+                if (is404) {
+                    errorMessage = "Máy chủ CDN gốc chưa tải xong tập này (Lỗi 404 từ nhà cung cấp nguồn). Bạn có thể đổi sang Server Dự Phòng hoặc xem lại sau ít phút."
+                } else {
+                    errorMessage = "Lỗi phát video: ${error.localizedMessage}"
+                }
             }
         }
         exoPlayer.addListener(listener)
@@ -206,27 +223,35 @@ fun MobilePlayerScreen(
 
     LaunchedEffect(currentEp) {
         errorMessage = null
-        val rawUrl = currentEp.streamUrl.trim()
-        if (rawUrl.isNotBlank()) {
-            try {
-                val sanitized = rawUrl.replace(" ", "%20")
-                val mediaItem = MediaItem.Builder()
-                    .setUri(sanitized)
-                    .apply {
-                        if (sanitized.contains("m3u8", ignoreCase = true)) {
-                            setMimeType(MimeTypes.APPLICATION_M3U8)
-                        }
-                    }
-                    .build()
-                val startPos = if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
-                exoPlayer.setMediaItem(mediaItem, startPos)
-                exoPlayer.prepare()
-                exoPlayer.play()
-            } catch (e: Exception) {
-                errorMessage = "Không thể tải luồng phát: ${e.localizedMessage ?: "Lỗi"}"
-            }
+        if (isCurrentEpEmbed) {
+            isEmbedMode = true
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            isBuffering = false
         } else {
-            errorMessage = "Đang lấy link phát trực tiếp..."
+            isEmbedMode = false
+            val rawUrl = currentEp.streamUrl.trim()
+            if (rawUrl.isNotBlank()) {
+                try {
+                    val sanitized = rawUrl.replace(" ", "%20")
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(sanitized)
+                        .apply {
+                            if (sanitized.contains("m3u8", ignoreCase = true)) {
+                                setMimeType(MimeTypes.APPLICATION_M3U8)
+                            }
+                        }
+                        .build()
+                    val startPos = if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                    exoPlayer.setMediaItem(mediaItem, startPos)
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                } catch (e: Exception) {
+                    errorMessage = "Không thể tải luồng phát: ${e.localizedMessage ?: "Lỗi"}"
+                }
+            } else {
+                errorMessage = "Đang lấy link phát trực tiếp..."
+            }
         }
     }
 
@@ -280,22 +305,51 @@ fun MobilePlayerScreen(
                 showControls = !showControls
             }
     ) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false
-                }
-            },
-            update = { playerView ->
-                if (playerView.player != exoPlayer) {
-                    playerView.player = exoPlayer
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        if (isEmbedMode) {
+            val embedTarget = if (currentEp.embedUrl.isNotBlank()) currentEp.embedUrl else currentEp.streamUrl
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.mediaPlaybackRequiresUserGesture = false
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                        settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+                        webViewClient = WebViewClient()
+                        webChromeClient = WebChromeClient()
+                        loadUrl(embedTarget)
+                    }
+                },
+                update = { webView ->
+                    if (webView.url != embedTarget) {
+                        webView.loadUrl(embedTarget)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                    }
+                },
+                update = { playerView ->
+                    if (playerView.player != exoPlayer) {
+                        playerView.player = exoPlayer
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
-        if (isBuffering && errorMessage == null) {
+        if (isBuffering && errorMessage == null && !isEmbedMode) {
             CircularProgressIndicator(
                 color = NetflixRed,
                 strokeWidth = 3.dp,
@@ -307,49 +361,87 @@ fun MobilePlayerScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                    .padding(20.dp),
+                    .background(Color.Black.copy(alpha = 0.90f), RoundedCornerShape(12.dp))
+                    .padding(24.dp)
+                    .widthIn(max = 500.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = err, color = Color.Red, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = {
-                            errorMessage = null
-                            val rawUrl = currentEp.streamUrl.trim()
-                            if (rawUrl.isNotBlank()) {
-                                try {
-                                    val sanitized = rawUrl.replace(" ", "%20")
-                                    val mediaItem = MediaItem.Builder()
-                                        .setUri(sanitized)
-                                        .apply {
-                                            if (sanitized.contains("m3u8", ignoreCase = true)) {
-                                                setMimeType(MimeTypes.APPLICATION_M3U8)
+                Text(
+                    text = err,
+                    color = Color(0xFFFFB4AB),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val backupEp = allEpisodes.find { it.episodeSlug == currentEp.episodeSlug && it.serverName != currentEp.serverName }
+                    if (backupEp != null) {
+                        Button(
+                            onClick = {
+                                errorMessage = null
+                                currentEp = backupEp
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("Đổi sang ${backupEp.serverName}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (currentEp.embedUrl.isNotBlank() && !isEmbedMode) {
+                        Button(
+                            onClick = {
+                                errorMessage = null
+                                isEmbedMode = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("Phát bằng Web Embed", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                errorMessage = null
+                                val rawUrl = currentEp.streamUrl.trim()
+                                if (rawUrl.isNotBlank()) {
+                                    try {
+                                        val sanitized = rawUrl.replace(" ", "%20")
+                                        val mediaItem = MediaItem.Builder()
+                                            .setUri(sanitized)
+                                            .apply {
+                                                if (sanitized.contains("m3u8", ignoreCase = true)) {
+                                                    setMimeType(MimeTypes.APPLICATION_M3U8)
+                                                }
                                             }
-                                        }
-                                        .build()
-                                    val retryPos = if (currentPos > 1000L) currentPos else if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
-                                    exoPlayer.setMediaItem(mediaItem, retryPos)
-                                    exoPlayer.prepare()
-                                    exoPlayer.play()
-                                } catch (e: Exception) {
-                                    errorMessage = "Lỗi phát: ${e.localizedMessage}"
+                                            .build()
+                                        val retryPos = if (currentPos > 1000L) currentPos else if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                                        exoPlayer.setMediaItem(mediaItem, retryPos)
+                                        exoPlayer.prepare()
+                                        exoPlayer.play()
+                                    } catch (e: Exception) {
+                                        errorMessage = "Lỗi phát: ${e.localizedMessage}"
+                                    }
                                 }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text("Thử lại", color = Color.White, fontSize = 12.sp)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("Thử lại", color = Color.White, fontSize = 12.sp)
+                        }
                     }
                     if (allEpisodes.isNotEmpty()) {
                         OutlinedButton(
                             onClick = { showEpisodeSheet = true },
                             shape = RoundedCornerShape(6.dp)
                         ) {
-                            Text("Đổi tập", color = Color.White, fontSize = 12.sp)
+                            Text("Chọn tập khác", color = Color.White, fontSize = 12.sp)
                         }
+                    }
+                    TextButton(onClick = onBackPress) {
+                        Text("Quay lại", color = TextMuted, fontSize = 12.sp)
                     }
                 }
             }
@@ -421,8 +513,9 @@ fun MobilePlayerScreen(
                     }
                 }
 
-                // Center Controls (Rewind 10s, Play/Pause, Forward 10s)
-                Row(
+                if (!isEmbedMode) {
+                    // Center Controls (Rewind 10s, Play/Pause, Forward 10s)
+                    Row(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -553,6 +646,7 @@ fun MobilePlayerScreen(
                     )
                 }
             }
+        }
         }
 
         // EPISODES SELECTOR DIALOG

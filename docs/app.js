@@ -585,6 +585,62 @@
     `;
   }
 
+  // Enrich movie episodes with fallback/backup servers (MultiEmbed & VidSrc)
+  function enrichEpisodesWithBackupServers(movie, episodes) {
+    if (!movie) return episodes;
+    const tmdb = movie.tmdb || {};
+    let tmdbId = (tmdb.id || '').toString().trim();
+    if (!tmdbId && movie.slug === 'vision-quest') {
+      tmdbId = '213375';
+    }
+    const tmdbType = (tmdb.type || '').trim();
+    const isTv = tmdbType === 'tv' || movie.type === 'series' || movie.slug === 'vision-quest' || (episodes.length > 0 && (episodes[0].server_data || []).length > 1);
+
+    if (!tmdbId) return episodes;
+
+    const primaryServerData = (episodes[0] && episodes[0].server_data) ? episodes[0].server_data : [];
+    const epCount = Math.max(primaryServerData.length, 1);
+
+    if (!episodes.some(s => s.server_name && s.server_name.includes('MultiEmbed'))) {
+      const multiEmbedData = [];
+      const vidSrcData = [];
+      for (let i = 0; i < epCount; i++) {
+        const epNum = i + 1;
+        const epSlug = primaryServerData[i] ? primaryServerData[i].slug : `tap-${epNum}`;
+        const epName = primaryServerData[i] ? primaryServerData[i].name : `Tập ${epNum}`;
+        const mUrl = isTv 
+          ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=1&e=${epNum}`
+          : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
+        const vUrl = isTv
+          ? `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=1&episode=${epNum}`
+          : `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`;
+
+        multiEmbedData.push({
+          name: epName,
+          slug: epSlug,
+          link_embed: mUrl,
+          link_m3u8: ''
+        });
+        vidSrcData.push({
+          name: epName,
+          slug: epSlug,
+          link_embed: vUrl,
+          link_m3u8: ''
+        });
+      }
+
+      episodes.push({
+        server_name: 'Dự Phòng MultiEmbed',
+        server_data: multiEmbedData
+      });
+      episodes.push({
+        server_name: 'Dự Phòng VidSrc',
+        server_data: vidSrcData
+      });
+    }
+    return episodes;
+  }
+
   // Open Movie Detail Modal
   window.openMovieDetail = async function (slug, autoPlay = false) {
     if (!window.location.hash.startsWith('#detail-') && !window.location.hash.startsWith('#player-')) {
@@ -624,7 +680,8 @@
       }
 
       const movie = json.movie;
-      const episodes = json.episodes || [];
+      let episodes = json.episodes || [];
+      episodes = enrichEpisodesWithBackupServers(movie, episodes);
       currentDetailMovie = movie;
       currentDetailEpisodes = episodes;
       currentServerIndex = 0;
@@ -1130,6 +1187,23 @@
       streamWatchdogTimer = null;
     }
 
+    // Check if backup server is available (MultiEmbed / VidSrc)
+    const backupServer = (currentDetailEpisodes || []).find(
+      s => s !== currentDetailEpisodes[currentServerIndex] &&
+           s.server_data && s.server_data.length > 0 &&
+           (s.server_name.includes('Dự Phòng') || s.server_name.includes('MultiEmbed') || s.server_name.includes('VidSrc'))
+    );
+
+    // If direct stream failed and primary embed is also a phimapi wrapper that points to the same broken stream
+    if (backupServer && (!embedUrl || embedUrl.includes('player.phimapi.com'))) {
+      const matchEp = backupServer.server_data.find(e => e.slug === (currentPlayingEpisode ? currentPlayingEpisode.slug : '')) || backupServer.server_data[0];
+      if (matchEp && matchEp.link_embed) {
+        showPlayerToast(`Nguồn chính gặp sự cố (404). Đang tự động chuyển sang ${backupServer.server_name}...`);
+        fallbackToIframe(matchEp.link_embed, true);
+        return;
+      }
+    }
+
     // Auto-fallback to Web Embed if available
     if (embedUrl && currentPlayerMode === 'hls') {
       console.warn('Direct stream failed, automatically switching to Web Embed.');
@@ -1142,12 +1216,25 @@
       return;
     }
 
-    playerErrorText.textContent = 'Luồng phát trực tiếp gặp lỗi hoặc máy chủ quá tải.';
+    const is404 = streamUrl && (streamUrl.includes('kvp726.com') || streamUrl.includes('404'));
+    playerErrorText.textContent = is404
+      ? 'Máy chủ CDN gốc chưa tải xong tập này (Lỗi HTTP 404 từ nhà cung cấp nguồn). Bạn có thể đổi sang Server Dự Phòng hoặc xem lại sau ít phút.'
+      : 'Luồng phát trực tiếp gặp lỗi hoặc máy chủ quá tải.';
     playerErrorBanner.style.display = 'block';
 
     const embedBtn = document.getElementById('player-try-embed-btn');
-    if (embedUrl) {
+    if (backupServer) {
       embedBtn.style.display = 'inline-flex';
+      embedBtn.textContent = `Chuyển sang ${backupServer.server_name}`;
+      embedBtn.onclick = () => {
+        const matchEp = backupServer.server_data.find(e => e.slug === (currentPlayingEpisode ? currentPlayingEpisode.slug : '')) || backupServer.server_data[0];
+        if (matchEp) {
+          startVideoPlayback(currentPlayingMovie, matchEp, backupServer.server_data, backupServer.server_name);
+        }
+      };
+    } else if (embedUrl) {
+      embedBtn.style.display = 'inline-flex';
+      embedBtn.textContent = 'Thử Trình phát Dự phòng';
       embedBtn.onclick = () => {
         fallbackToIframe(embedUrl, false);
       };

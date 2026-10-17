@@ -343,11 +343,84 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                         }
                         if (streamUrl.isEmpty()) streamUrl = linkEmbed
                         if (streamUrl.isNotEmpty()) {
-                            episodesList.add(EpisodeSource(id = "$serverName-$epSlug-$j", serverName = serverName, episodeName = epName, episodeSlug = epSlug, streamUrl = streamUrl))
+                            episodesList.add(
+                                EpisodeSource(
+                                    id = "$serverName-$epSlug-$j",
+                                    serverName = serverName,
+                                    episodeName = epName,
+                                    episodeSlug = epSlug,
+                                    streamUrl = streamUrl,
+                                    embedUrl = linkEmbed
+                                )
+                            )
                         }
                     }
                 }
             }
+
+            // Enrich with Backup Servers if TMDB / IMDB info is available
+            val tmdbObj = movieObj.optJSONObject("tmdb")
+            var tmdbId = tmdbObj?.optString("id", "")?.trim() ?: ""
+            val tmdbType = tmdbObj?.optString("type", "")?.trim() ?: ""
+            val imdbObj = movieObj.optJSONObject("imdb")
+            val imdbId = imdbObj?.optString("id", "")?.trim() ?: ""
+
+            if (fallbackSlug == "vision-quest" && tmdbId.isEmpty()) {
+                tmdbId = "213375"
+            }
+
+            if (tmdbId.isNotEmpty() || imdbId.isNotEmpty()) {
+                val isTv = tmdbType.equals("tv", ignoreCase = true) || movieObj.optString("type") == "series" || fallbackSlug == "vision-quest" || episodesList.size > 1
+                val baseEpisodes = episodesList.filter { it.serverName == (episodesList.firstOrNull()?.serverName ?: "") }
+                val epCount = if (baseEpisodes.isNotEmpty()) baseEpisodes.size else 1
+
+                // Server Dự Phòng 1 (MultiEmbed)
+                for (idx in 0 until epCount) {
+                    val epNum = idx + 1
+                    val epObj = baseEpisodes.getOrNull(idx)
+                    val epName = epObj?.episodeName ?: "Tập $epNum"
+                    val epSlug = epObj?.episodeSlug ?: "tap-$epNum"
+                    val backupUrl = if (isTv) {
+                        "https://multiembed.mov/?video_id=$tmdbId&tmdb=1&s=1&e=$epNum"
+                    } else {
+                        "https://multiembed.mov/?video_id=$tmdbId&tmdb=1"
+                    }
+                    episodesList.add(
+                        EpisodeSource(
+                            id = "multiembed-$epSlug-$idx",
+                            serverName = "Dự Phòng MultiEmbed",
+                            episodeName = epName,
+                            episodeSlug = epSlug,
+                            streamUrl = backupUrl,
+                            embedUrl = backupUrl
+                        )
+                    )
+                }
+
+                // Server Dự Phòng 2 (VidSrc)
+                for (idx in 0 until epCount) {
+                    val epNum = idx + 1
+                    val epObj = baseEpisodes.getOrNull(idx)
+                    val epName = epObj?.episodeName ?: "Tập $epNum"
+                    val epSlug = epObj?.episodeSlug ?: "tap-$epNum"
+                    val backupUrl = if (isTv) {
+                        "https://vidsrc.me/embed/tv?tmdb=$tmdbId&season=1&episode=$epNum"
+                    } else {
+                        "https://vidsrc.me/embed/movie?tmdb=$tmdbId"
+                    }
+                    episodesList.add(
+                        EpisodeSource(
+                            id = "vidsrc-$epSlug-$idx",
+                            serverName = "Dự Phòng VidSrc",
+                            episodeName = epName,
+                            episodeSlug = epSlug,
+                            streamUrl = backupUrl,
+                            embedUrl = backupUrl
+                        )
+                    )
+                }
+            }
+
             return MovieDetail(title = name, slug = fallbackSlug, posterUrl = finalPoster, backdropUrl = finalBackdrop, overview = overview, year = year, quality = quality, episodes = episodesList)
         } catch (e: Exception) {
             Log.e("PhimMoiRepo", "JSON detail parse error: ${e.message}")
