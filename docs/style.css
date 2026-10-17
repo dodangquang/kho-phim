@@ -284,7 +284,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 16px 10px 16px;
+  padding: 0 20px 8px 20px;
 }
 
 .section-title {
@@ -304,7 +304,7 @@ button {
 .movie-row {
   display: flex;
   gap: 12px;
-  padding: 0 16px;
+  padding: 12px 20px 16px 20px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -321,7 +321,7 @@ button {
   width: 120px;
   cursor: pointer;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   transition: transform 0.2s ease;
 }
 
@@ -336,6 +336,9 @@ button {
   background-color: var(--bg-card);
   border-radius: 8px;
   overflow: hidden;
+  box-sizing: border-box;
+  border: 3.5px solid transparent;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .movie-poster-wrap img {
@@ -576,7 +579,7 @@ button {
   display: flex;
   gap: 12px;
   overflow-x: auto;
-  padding: 4px 16px 12px 16px;
+  padding: 12px 20px 16px 20px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -608,6 +611,9 @@ button {
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg-card);
+  box-sizing: border-box;
+  border: 3.5px solid transparent;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 @media (min-width: 768px) {
   .continue-thumb-wrap {
@@ -1169,7 +1175,7 @@ button {
    SMART TV OPTIMIZATION & REMOTE CONTROL SPATIAL NAVIGATION (Samsung & LG)
    ========================================================================== */
 
-/* TV Remote Focus State (Glowing ring with smooth scale) */
+/* TV Remote Focus State (Glowing ring with smooth scale for general interactive elements) */
 .tv-focused {
   outline: 3px solid var(--accent-red) !important;
   outline-offset: 3px !important;
@@ -1178,6 +1184,50 @@ button {
   z-index: 99 !important;
   position: relative !important;
   transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1), box-shadow 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+}
+
+/* Movie Card Focus: Netflix / Apple TV Style Focus (Tightly bound to poster artwork only) */
+.movie-card.tv-focused {
+  outline: none !important;
+  box-shadow: none !important;
+  transform: scale(1.06) !important;
+  z-index: 50 !important;
+  position: relative !important;
+  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+}
+
+.movie-card.tv-focused .movie-poster-wrap {
+  border-color: var(--accent-red) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 24px rgba(229, 9, 20, 0.95), 0 0 8px rgba(255, 255, 255, 0.5) !important;
+}
+
+.movie-card.tv-focused .movie-title {
+  color: #fff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* Continue Watching Card Focus: Bound to thumbnail container only */
+.continue-card.tv-focused {
+  outline: none !important;
+  box-shadow: none !important;
+  transform: scale(1.05) !important;
+  z-index: 50 !important;
+  position: relative !important;
+  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+}
+
+.continue-card.tv-focused .continue-thumb-wrap {
+  border-color: var(--accent-red) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 24px rgba(229, 9, 20, 0.95), 0 0 8px rgba(255, 255, 255, 0.5) !important;
+}
+
+.continue-card.tv-focused .continue-title {
+  color: #fff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
 /* Specific focus tweaks for rounded pills and tabs */
@@ -1211,12 +1261,28 @@ button {
   transform: scale(1.06) !important;
 }
 
-/* Ensure horizontal rows have enough padding so scaling cards don't get clipped */
+/* Ensure horizontal scroll rows have ample padding so scaling cards never get clipped */
 .movie-row,
-.continue-row,
+.continue-row {
+  position: relative !important;
+  padding: 16px 24px 20px 24px !important;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-behavior: smooth;
+}
+
+.movie-row::after,
+.continue-row::after {
+  content: "";
+  flex: 0 0 24px;
+  width: 24px;
+}
+
 .category-filter-bar {
-  padding-top: 10px !important;
-  padding-bottom: 14px !important;
+  position: relative !important;
+  padding: 8px 16px 12px 16px !important;
   scroll-behavior: smooth;
 }
 
@@ -1293,15 +1359,28 @@ body.tv-mode {
     border-radius: 10px;
   }
   .movie-section {
-    padding-left: 24px;
+    padding-left: 0 !important;
     margin-bottom: 32px;
+  }
+  .section-header {
+    padding: 0 36px 6px 36px !important;
   }
   .section-title {
     font-size: 22px;
   }
   .section-more {
     font-size: 14px;
-    margin-right: 24px;
+    margin-right: 0 !important;
+  }
+  .movie-row,
+  .continue-row {
+    padding: 22px 36px 26px 36px !important;
+    gap: 16px !important;
+  }
+  .movie-row::after,
+  .continue-row::after {
+    flex: 0 0 36px;
+    width: 36px;
   }
   .movie-card {
     flex: 0 0 170px;

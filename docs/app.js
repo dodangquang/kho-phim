@@ -1686,8 +1686,10 @@
     // 2. Horizontal centering inside horizontal rows
     const row = element.closest('.movie-row') || element.closest('.continue-row') || element.closest('.category-filter-bar') || element.closest('.server-tab-row');
     if (row) {
-      const itemLeft = element.offsetLeft;
-      const targetScrollLeft = Math.max(0, itemLeft - (row.clientWidth / 2) + (element.clientWidth / 2));
+      const rowRect = row.getBoundingClientRect();
+      const elRect = element.getBoundingClientRect();
+      const elOffsetInRow = elRect.left - rowRect.left + row.scrollLeft;
+      const targetScrollLeft = Math.max(0, elOffsetInRow - (row.clientWidth / 2) + (element.clientWidth / 2));
       try {
         row.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
       } catch (_) {
