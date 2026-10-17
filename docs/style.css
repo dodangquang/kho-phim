@@ -322,7 +322,9 @@ button {
   cursor: pointer;
   border-radius: 8px;
   overflow: visible;
-  transition: transform 0.2s ease;
+  transition: transform 0.1s ease-out;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .movie-card:active {
@@ -338,7 +340,7 @@ button {
   overflow: hidden;
   box-sizing: border-box;
   border: 3.5px solid transparent;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.1s ease-out;
 }
 
 .movie-poster-wrap img {
@@ -593,7 +595,9 @@ button {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease;
+  transition: transform 0.1s ease-out;
+  transform: translateZ(0);
+  will-change: transform;
 }
 @media (min-width: 768px) {
   .continue-card {
@@ -613,7 +617,7 @@ button {
   background: var(--bg-card);
   box-sizing: border-box;
   border: 3.5px solid transparent;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.1s ease-out;
 }
 @media (min-width: 768px) {
   .continue-thumb-wrap {
@@ -1179,55 +1183,55 @@ button {
 .tv-focused {
   outline: 3px solid var(--accent-red) !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 24px rgba(229, 9, 20, 0.9), 0 0 8px rgba(255, 255, 255, 0.6) !important;
-  transform: scale(1.08) !important;
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.85) !important;
+  transform: scale(1.05) translateZ(0) !important;
   z-index: 99 !important;
   position: relative !important;
-  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1), box-shadow 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+  transition: transform 0.1s ease-out !important;
 }
 
 /* Movie Card Focus: Netflix / Apple TV Style Focus (Tightly bound to poster artwork only) */
 .movie-card.tv-focused {
   outline: none !important;
   box-shadow: none !important;
-  transform: scale(1.06) !important;
+  transform: scale(1.05) translateZ(0) !important;
   z-index: 50 !important;
   position: relative !important;
-  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+  transition: transform 0.1s ease-out !important;
 }
 
 .movie-card.tv-focused .movie-poster-wrap {
   border-color: var(--accent-red) !important;
   border-radius: 8px !important;
-  box-shadow: 0 0 24px rgba(229, 9, 20, 0.95), 0 0 8px rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.9) !important;
 }
 
 .movie-card.tv-focused .movie-title {
   color: #fff !important;
   font-weight: 700 !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* Continue Watching Card Focus: Bound to thumbnail container only */
 .continue-card.tv-focused {
   outline: none !important;
   box-shadow: none !important;
-  transform: scale(1.05) !important;
+  transform: scale(1.04) translateZ(0) !important;
   z-index: 50 !important;
   position: relative !important;
-  transition: transform 0.16s cubic-bezier(0.2, 0, 0.1, 1) !important;
+  transition: transform 0.1s ease-out !important;
 }
 
 .continue-card.tv-focused .continue-thumb-wrap {
   border-color: var(--accent-red) !important;
   border-radius: 6px !important;
-  box-shadow: 0 0 24px rgba(229, 9, 20, 0.95), 0 0 8px rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.9) !important;
 }
 
 .continue-card.tv-focused .continue-title {
   color: #fff !important;
   font-weight: 700 !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* Specific focus tweaks for rounded pills and tabs */
@@ -1286,12 +1290,20 @@ button {
   scroll-behavior: smooth;
 }
 
-/* TV Mode Layout & Typography */
+/* TV Mode Layout & High-Performance Rendering */
 body.tv-mode,
 body.tv-mode * {
   user-select: none !important;
   -webkit-user-select: none !important;
   cursor: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.tv-mode .movie-row,
+body.tv-mode .continue-row,
+body.tv-mode .category-filter-bar {
+  scroll-behavior: auto !important;
 }
 
 /* TV Toast Notification */

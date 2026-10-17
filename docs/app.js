@@ -1672,29 +1672,24 @@
     tvModeActive = true;
     document.body.classList.add('tv-mode');
 
-    // 1. Vertical view alignment for TV
+    // 1. Vertical view alignment for TV (snappy 0ms scroll)
     const rect = element.getBoundingClientRect();
     const headerHeight = 70;
     if (rect.top < headerHeight + 20) {
       const scrollDiff = rect.top - headerHeight - 40;
-      window.scrollBy({ top: scrollDiff, behavior: 'smooth' });
+      window.scrollBy(0, scrollDiff);
     } else if (rect.bottom > window.innerHeight - 80) {
       const scrollDiff = rect.bottom - window.innerHeight + 100;
-      window.scrollBy({ top: scrollDiff, behavior: 'smooth' });
+      window.scrollBy(0, scrollDiff);
     }
 
-    // 2. Horizontal centering inside horizontal rows
+    // 2. Horizontal centering inside horizontal rows (snappy 0ms scroll)
     const row = element.closest('.movie-row') || element.closest('.continue-row') || element.closest('.category-filter-bar') || element.closest('.server-tab-row');
     if (row) {
       const rowRect = row.getBoundingClientRect();
-      const elRect = element.getBoundingClientRect();
-      const elOffsetInRow = elRect.left - rowRect.left + row.scrollLeft;
+      const elOffsetInRow = rect.left - rowRect.left + row.scrollLeft;
       const targetScrollLeft = Math.max(0, elOffsetInRow - (row.clientWidth / 2) + (element.clientWidth / 2));
-      try {
-        row.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-      } catch (_) {
-        row.scrollLeft = targetScrollLeft;
-      }
+      row.scrollLeft = targetScrollLeft;
     }
 
     if (element.tagName === 'INPUT') {
@@ -1711,13 +1706,7 @@
 
   function isElementVisible(el) {
     if (!el || !el.isConnected) return false;
-    const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-      return false;
-    }
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
-    return true;
+    return el.offsetParent !== null;
   }
 
   // Get logical horizontal bands (rows) on the Home Screen
@@ -1854,14 +1843,30 @@
   }
 
   function navigateHomeBands(direction) {
-    const bands = getHomeBands();
-    if (bands.length === 0) return;
-
     if (!currentTvFocusedEl || !isElementVisible(currentTvFocusedEl)) {
       const initial = findDefaultInitialFocus();
       if (initial) setTvFocus(initial);
       return;
     }
+
+    // Ultra-fast path for horizontal navigation (LEFT / RIGHT within the same row/container)
+    if (direction === 'LEFT' || direction === 'RIGHT') {
+      const container = currentTvFocusedEl.parentElement;
+      if (container && (container.classList.contains('movie-row') || container.classList.contains('continue-row') || container.classList.contains('category-filter-bar') || container.classList.contains('header-actions') || container.classList.contains('hero-buttons') || container.classList.contains('bottom-nav'))) {
+        let sibling = direction === 'LEFT' ? currentTvFocusedEl.previousElementSibling : currentTvFocusedEl.nextElementSibling;
+        while (sibling) {
+          if (isElementVisible(sibling) && (sibling.classList.contains('movie-card') || sibling.classList.contains('continue-card') || sibling.classList.contains('pill-chip') || sibling.classList.contains('icon-btn') || sibling.classList.contains('btn-primary') || sibling.classList.contains('btn-secondary') || sibling.classList.contains('nav-tab'))) {
+            setTvFocus(sibling);
+            return;
+          }
+          sibling = direction === 'LEFT' ? sibling.previousElementSibling : sibling.nextElementSibling;
+        }
+        return; // Reached end of row, don't wrap
+      }
+    }
+
+    const bands = getHomeBands();
+    if (bands.length === 0) return;
 
     // Find current band and item index
     let currentBandIdx = -1;
@@ -1894,7 +1899,7 @@
           if (closestItem) setTvFocus(closestItem);
         } else {
           // Already at top header -> scroll to absolute top
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          window.scrollTo(0, 0);
         }
         break;
 
@@ -2085,6 +2090,7 @@
   // Master Remote Control Event Handler
   let backPressCount = 0;
   let backPressResetTimer = null;
+  let lastNavTimestamp = 0;
 
   window.addEventListener('keydown', (e) => {
     // Auto-fullscreen on TV when remote key is pressed (hides browser search bar)
@@ -2190,6 +2196,9 @@
 
     if (dir) {
       e.preventDefault();
+      const now = Date.now();
+      if (now - lastNavTimestamp < 45) return;
+      lastNavTimestamp = now;
       navigateDirection(dir);
       return;
     }
