@@ -29,7 +29,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.6">
+  <link rel="stylesheet" href="style.css?v=1.0.7">
 
   <!-- HLS.js CDN for non-Safari browsers -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -42,12 +42,9 @@
       <div class="logo-area" onclick="window.selectCategoryById('all')">
         <img src="icon.png" alt="Kho Phim" class="logo-icon">
         <span class="logo-title">Kho Phim</span>
-        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.2</span>
+        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.3</span>
       </div>
       <div class="header-actions">
-        <button id="fullscreen-btn" class="icon-btn" onclick="window.toggleFullScreen()" title="Toàn màn hình (Ẩn thanh tìm kiếm)">
-          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-        </button>
         <button class="icon-btn" onclick="window.switchTabDirect('history')" title="Lịch sử xem">
           <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         </button>
@@ -85,7 +82,7 @@
       <div class="search-box-wrap">
         <div class="search-input-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-          <input id="search-input" type="search" placeholder="Tìm tên phim, diễn viên, đạo diễn..." autocomplete="off">
+          <input id="search-input" type="text" inputmode="search" placeholder="Tìm tên phim, diễn viên, đạo diễn..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
           <button id="search-clear-btn" class="clear-btn" style="display:none;">✕</button>
         </div>
       </div>
@@ -190,8 +187,7 @@
       </div>
     </main>
 
-    <!-- TV Toast Notification Feedback -->
-    <div id="tv-toast" class="tv-toast"></div>
+
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
@@ -262,6 +258,6 @@
   </div>
 
   <!-- JavaScript -->
-  <script src="app.js?v=1.0.6"></script>
+  <script src="app.js?v=1.0.7"></script>
 </body>
 </html>

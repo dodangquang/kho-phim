@@ -1290,50 +1290,7 @@ button {
   scroll-behavior: smooth;
 }
 
-/* TV Mode Layout & High-Performance Rendering */
-body.tv-mode,
-body.tv-mode * {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  cursor: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-body.tv-mode .movie-row,
-body.tv-mode .continue-row,
-body.tv-mode .category-filter-bar {
-  scroll-behavior: auto !important;
-}
-
-/* TV Toast Notification */
-.tv-toast {
-  position: fixed;
-  bottom: calc(var(--bottom-nav-height) + 24px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(18, 18, 18, 0.96);
-  color: #fff;
-  border: 1px solid rgba(229, 9, 20, 0.7);
-  padding: 12px 28px;
-  border-radius: 30px;
-  font-size: 14px;
-  font-weight: 600;
-  z-index: 10000;
-  display: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), 0 0 16px rgba(229, 9, 20, 0.5);
-  pointer-events: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: tvToastFadeIn 0.25s ease;
-}
-
-@keyframes tvToastFadeIn {
-  from { opacity: 0; transform: translate(-50%, 15px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* TV & Wide Desktop Viewport Scaling (10-Foot UI for 1080p / 4K) */
+/* Wide Desktop Viewport Scaling */
 @media (min-width: 960px) {
   .app-header {
     padding: 14px 40px;
