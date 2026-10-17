@@ -2,6 +2,54 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
+
+  <!-- Smart Device Auto-Router (TV -> /tv/, PC/Mac/Laptop/iPad -> /desktop/, Phone -> Mobile) -->
+  <script>
+    (function() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var forcedMode = (params.get('mode') || params.get('view') || params.get('device') || '').toLowerCase();
+        if (forcedMode === 'mobile' || forcedMode === 'phone' || params.get('nomo') === '1') {
+          return; // Stay on mobile web version
+        }
+        if (forcedMode === 'desktop' || forcedMode === 'pc') {
+          window.location.replace('./desktop/' + window.location.search + window.location.hash);
+          return;
+        }
+        if (forcedMode === 'tv') {
+          window.location.replace('./tv/' + window.location.search + window.location.hash);
+          return;
+        }
+
+        var ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+
+        // 1. Detect Smart TV (Samsung Tizen, LG webOS, Android TV, Google TV, Apple TV, Fire TV, MiTV, etc.)
+        var isTV = /smarttv|smart-tv|android tv|googletv|appletv|hbbtv|netcast|tizen|web0s|webos|pov_tv|bravia|sonydtv|viera|roku|aft[tmbk]|firetv|mitv|mibox|hisense|crkey|d-pad/i.test(ua);
+        if (isTV) {
+          window.location.replace('./tv/' + window.location.search + window.location.hash);
+          return;
+        }
+
+        // 2. Detect iPad & Tablets (iPadOS 13+ mimics Mac desktop but has touchpoints)
+        var isIPad = /ipad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var isTablet = isIPad || (/android/i.test(ua) && !/mobile/i.test(ua)) || /tablet/i.test(ua);
+
+        // 3. Detect Mobile Phones (iPhone, Android Phone, Windows Phone)
+        var isMobilePhone = !isTablet && (/iphone|ipod|windows phone|blackberry/i.test(ua) || (/android/i.test(ua) && /mobile/i.test(ua)));
+
+        // 4. Route PC, Mac, Laptop, iPad, Tablets to Desktop UI
+        if (isTablet || !isMobilePhone) {
+          window.location.replace('./desktop/' + window.location.search + window.location.hash);
+          return;
+        }
+
+        // 5. Mobile phones stay on this page (Mobile Web UI)
+      } catch (err) {
+        // Fallback: stay on current page
+      }
+    })();
+  </script>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kho Phim - Xem Phim Miễn Phí Full HD</title>
 
@@ -29,7 +77,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.10">
+  <link rel="stylesheet" href="style.css?v=1.0.11">
 
   <!-- HLS.js CDN for non-Safari browsers -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -258,6 +306,6 @@
   </div>
 
   <!-- JavaScript -->
-  <script src="app.js?v=1.0.10"></script>
+  <script src="app.js?v=1.0.11"></script>
 </body>
 </html>
