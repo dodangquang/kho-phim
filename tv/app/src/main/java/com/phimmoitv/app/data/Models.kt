@@ -33,7 +33,8 @@ data class EpisodeSource(
     val serverName: String,
     val episodeName: String,
     val episodeSlug: String,
-    val streamUrl: String
+    val streamUrl: String,
+    val embedUrl: String = ""
 )
 
 data class WatchProgress(

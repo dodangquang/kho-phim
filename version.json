@@ -2,6 +2,6 @@
   "versionCode": 3,
   "versionName": "1.0.2",
   "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_Mobile_v1.0.2.apk",
-  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.0/KhoPhim_TV_v1.0.0.apk",
-  "changelog": "Bản cập nhật v1.0.2: Cập nhật sắp xếp phim mới, thêm nút tải thêm category và tối ưu hiệu năng."
+  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_TV_v1.0.2.apk",
+  "changelog": "Bản cập nhật v1.0.2: Cập nhật sắp xếp phim mới, bổ sung server dự phòng MultiEmbed & VidSrc, tối ưu tiếp tục xem và hiệu năng."
 }
