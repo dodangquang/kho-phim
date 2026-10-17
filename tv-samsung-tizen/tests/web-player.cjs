@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-function setup(native) {
+function setup(native, agent) {
   const scripts = [];
   const instances = [];
   const errors = [];
@@ -14,6 +14,7 @@ function setup(native) {
     KhoCore: { safeUrl: url => /^https?:\/\//.test(url), time: String },
     setTimeout(callback) { const id = ++sequence; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); }
   };
+  if (agent) { context.navigator = { userAgent: agent }; context.MediaSource = { isTypeSupported: () => true }; }
   context.window = context;
   const web = path.resolve(__dirname, '../../docs/tv');
   vm.createContext(context);
@@ -33,6 +34,30 @@ function setup(native) {
 }
 module.exports = function () {
   const checks = [];
+  {
+    const { player, scripts, video, installHls, instances } = setup(true, 'Mozilla/5.0 Windows NT 10.0 Chrome/154.0 Safari/537.36 Edg/154.0');
+    player.open('https://media.example/edge-maybe.m3u8', 0);
+    assert.equal(scripts.length, 1, 'Desktop must select MSE even when native canPlayType claims support');
+    assert.equal(video.src, undefined);
+    installHls(); scripts[0].onload(); assert.equal(instances[0].url, 'https://media.example/edge-maybe.m3u8');
+    checks.push('Desktop Edge selects HLS.js despite a positive native canPlayType response');
+  }
+  {
+    const { player, scripts, video, installHls, instances, errors } = setup(true, 'Mozilla/5.0 SMART-TV Tizen 5.5 Chrome/69.0 Safari/537.36');
+    player.open('https://media.example/tizen-native.m3u8', 0);
+    assert.equal(scripts.length, 0); assert.equal(video.src, 'https://media.example/tizen-native.m3u8');
+    video.onerror(); assert.equal(scripts.length, 1); assert.equal(errors.length, 0);
+    installHls(); scripts[0].onload(); assert.equal(instances.length, 1);
+    instances[0].handlers.error(null, { fatal: true });
+    assert.equal(player.state, 'error'); assert.equal(errors.length, 1); assert.equal(scripts.length, 1);
+    checks.push('TV keeps native HLS first and switches once to MSE on native failure without retry loops');
+  }
+  {
+    const { player, scripts, video } = setup(true, 'Mozilla/5.0 Macintosh AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15');
+    player.open('https://media.example/safari.m3u8', 0);
+    assert.equal(scripts.length, 0); assert.equal(video.src, 'https://media.example/safari.m3u8');
+    checks.push('Safari retains native HLS even when MediaSource is available');
+  }
   {
     const { player, scripts, video } = setup(true);
     assert.equal(scripts.length, 0);

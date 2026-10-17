@@ -1,0 +1,27 @@
+{
+  "browser": "154.0.4258.62",
+  "passed": 12,
+  "tests": [
+    "Desktop Edge selects HLS.js despite a positive native canPlayType response",
+    "TV keeps native HLS first and switches once to MSE on native failure without retry loops",
+    "Safari retains native HLS even when MediaSource is available",
+    "Native web HLS starts without requesting HLS.js and releases video on stop",
+    "Web HLS lazy load is shared; stale opens cannot start playback and stop destroys the decoder",
+    "Leaving playback while HLS.js loads cannot restart video",
+    "Fatal HLS errors close the decoder and show a navigable source error",
+    "TV web boots with full-width posters, no remote scripts, no AVPlay SDK request and no HLS.js at startup",
+    "Web MSE fallback loads local HLS.js once and really decodes H.264/AAC video; pause, seek and resume work",
+    "Leaving real HLS playback releases the media source and restores movie card focus",
+    "Website links to the single current GitHub Release WGT; all old WGT copies are removed from the repository",
+    "No browser runtime exceptions in web browsing and real playback"
+  ],
+  "playback": {
+    "time": 1.010644,
+    "width": 320,
+    "height": 184,
+    "ready": 4,
+    "nativeHls": "maybe"
+  },
+  "wgts": [],
+  "note": "Web video fixture: public HLS test stream, served locally. Samsung hardware not tested."
+}

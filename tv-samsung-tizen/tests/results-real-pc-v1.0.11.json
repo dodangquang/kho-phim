@@ -1,0 +1,54 @@
+{
+  "version": "1.0.11",
+  "browser": "154.0.4258.62",
+  "localStaticAssets": true,
+  "forcedCapabilityOverrides": false,
+  "results": [
+    {
+      "title": "Phàm Nhân Tu Tiên",
+      "time": 1.008477,
+      "width": 1920,
+      "height": 1080,
+      "paused": false,
+      "ready": 4,
+      "hls": true,
+      "source": "mse",
+      "message": ""
+    },
+    {
+      "title": "Ngọc Điệm Thu",
+      "time": 1.006037,
+      "width": 1920,
+      "height": 1080,
+      "paused": false,
+      "ready": 4,
+      "hls": true,
+      "source": "mse",
+      "message": ""
+    },
+    {
+      "title": "Không Thể Thay Thế",
+      "time": 1.009032,
+      "width": 1920,
+      "height": 1080,
+      "paused": false,
+      "ready": 4,
+      "hls": true,
+      "source": "mse",
+      "message": ""
+    },
+    {
+      "title": "Mị Ảnh Thần Bộ (Phần 1)",
+      "time": 1.00859,
+      "width": 1920,
+      "height": 804,
+      "paused": false,
+      "ready": 4,
+      "hls": true,
+      "source": "mse",
+      "message": ""
+    }
+  ],
+  "exceptions": [],
+  "hlsScriptRequests": 1
+}

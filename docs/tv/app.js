@@ -231,7 +231,7 @@
     focus(menu[index]);
     if (path === 'settings') {
       text('platform-info', 'Nền tảng: ' + navigator.userAgent);
-      text('player-info', player.av ? 'Trình phát Samsung AVPlay sẵn sàng.' : 'Trình phát Web: ưu tiên HLS gốc; chỉ tải HLS.js khi cần.');
+      text('player-info', player.av ? 'Trình phát Samsung AVPlay sẵn sàng.' : 'Trình phát Web: HLS.js trên PC, HLS gốc trên TV/Safari.');
       text('diagnostic', global.KhoBoot.error ? 'Lỗi gần nhất: ' + global.KhoBoot.error : '');
       updateMainRows([]);
     } else loadList(false, false);

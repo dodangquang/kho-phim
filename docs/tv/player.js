@@ -1,4 +1,4 @@
-/* Web build: prefer native HLS; load the local HLS.js fallback only when needed. */
+/* Web build: lazy HLS.js on desktop MSE; native HLS on TV/Safari with fallback. */
 (function (global) {
   'use strict';
   function Player(callbacks) {
@@ -131,9 +131,11 @@
       } catch (ignoreOpen) { this.fail('AVPlay không mở được liên kết. Nhấn Return để đổi nguồn.'); }
       return;
     }
-    /* Native HLS first; the web-only fallback is loaded on playback. */
+    /* Desktop canPlayType('HLS') may say 'maybe' while rejecting real playlists. */
     this.mode = 'video';
-    var needsHls = /\.m3u8(?:[?#]|$)/i.test(url) && !this.video.canPlayType('application/vnd.apple.mpegurl') && !this.video.canPlayType('application/x-mpegURL');
+    var isHls = /\.m3u8(?:[?#]|$)/i.test(url);
+    var nativeHls = this.video.canPlayType('application/vnd.apple.mpegurl') || this.video.canPlayType('application/x-mpegURL');
+    var needsHls = isHls && (!nativeHls || global.KhoWebHls.preferMse());
     this.video.className = '';
     this.video.onloadedmetadata = function () {
       if (token !== self.token) return;
@@ -152,7 +154,20 @@
     this.video.onwaiting = function () { if (token === self.token) self.armWatchdog(token); };
     this.video.ontimeupdate = function () { if (token === self.token) self.tick(self.video.currentTime * 1000, false); };
     this.video.onended = function () { if (token === self.token) self.callbacks.ended(); };
-    this.video.onerror = function () { if (token === self.token) self.fail('Không thể phát video. Nhấn Return để đổi nguồn.'); };
+    this.video.onerror = function () {
+      if (token !== self.token) return;
+      if (isHls && !needsHls && global.KhoWebHls.canUseMse()) {
+        needsHls = true;
+        self.callbacks.message('Đang thử trình phát HLS...');
+        self.armWatchdog(token);
+        self.video.pause();
+        self.video.removeAttribute('src');
+        self.video.load();
+        global.KhoWebHls.open(self, url, token);
+        return;
+      }
+      self.fail('Không thể phát video. Nhấn Return để đổi nguồn.');
+    };
     if (needsHls) global.KhoWebHls.open(this, url, token);
     else { this.video.src = url; this.video.load(); }
   };

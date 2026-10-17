@@ -25,7 +25,18 @@
     timer = global.setTimeout(function () { complete(new Error('HLS download timeout')); }, 10000);
     document.head.appendChild(script);
   }
+  function canUseMse() {
+    var source = global.MediaSource || global.WebKitMediaSource;
+    return !!(source && typeof source.isTypeSupported === 'function');
+  }
   global.KhoWebHls = {
+    canUseMse: canUseMse,
+    preferMse: function () {
+      var agent = global.navigator ? global.navigator.userAgent : '';
+      var nativeDevice = /tizen|web0s|webos|netcast|smart[- ]?tv|hbbtv|android tv|ipad|iphone|ipod/i.test(agent);
+      var safari = /safari/i.test(agent) && !/chrome|chromium|crios|edg|opr/i.test(agent);
+      return canUseMse() && !nativeDevice && !safari;
+    },
     open: function (player, url, token) {
       load(function (error) {
         if (player.token !== token) return;
