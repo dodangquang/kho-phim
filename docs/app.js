@@ -120,7 +120,7 @@
   function isBlockedOrThirdPartyDomain(url) {
     if (!url) return true;
     const lower = url.toLowerCase();
-    return lower.includes('danviet') || lower.includes('kenh14') || lower.includes('soha.vn') || lower.includes('zingnews');
+    return lower.includes('danviet') || lower.includes('kenh14') || lower.includes('soha.vn') || lower.includes('zingnews') || lower.includes('i.ex-cdn.com');
   }
 
   function isReliableCdn(url) {

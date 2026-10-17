@@ -345,6 +345,9 @@ html, body {
 
 .tv-shelf-row {
   display: flex;
+  align-items: flex-start;
+  min-height: 304px;
+  height: 304px;
   gap: 14px;
   padding: 18px 52px 26px 52px;
   overflow-x: auto;
@@ -352,6 +355,7 @@ html, body {
   scrollbar-width: none;
   scroll-behavior: auto !important; /* Instant snap scroll */
   position: relative;
+  box-sizing: border-box;
 }
 
 .tv-shelf-row::-webkit-scrollbar {
@@ -368,6 +372,8 @@ html, body {
 .tv-card {
   flex: 0 0 152px;
   width: 152px;
+  height: 260px;
+  box-sizing: border-box;
   cursor: pointer;
   outline: none;
   transition: transform 0.12s ease-out, border 0.12s ease-out, box-shadow 0.12s ease-out;
@@ -376,7 +382,7 @@ html, body {
   position: relative;
   background-color: #1F1F1F;
   border-radius: 6px;
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   display: flex;
@@ -387,6 +393,7 @@ html, body {
   position: relative;
   width: 100%;
   height: 212px;
+  flex-shrink: 0;
   overflow: hidden;
   background-color: #141414;
 }
@@ -433,12 +440,15 @@ html, body {
 }
 
 .tv-card-info {
-  padding: 6px 8px 8px 8px;
+  padding: 6px 8px;
   background-color: #1F1F1F;
-  flex: 1;
+  height: 48px;
+  box-sizing: border-box;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 .tv-card-title {
@@ -494,9 +504,10 @@ html, body {
 .tv-card-more {
   flex: 0 0 152px;
   width: 152px;
-  min-height: 256px;
+  height: 260px;
+  box-sizing: border-box;
   background-color: #1E1E1E;
-  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   cursor: pointer;
   outline: none;

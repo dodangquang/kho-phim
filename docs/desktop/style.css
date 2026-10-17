@@ -436,6 +436,9 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
 
 .tv-shelf-row {
   display: flex;
+  align-items: flex-start;
+  min-height: 304px;
+  height: 304px;
   gap: 14px;
   padding: 18px 52px 26px 52px;
   overflow-x: auto;
@@ -446,6 +449,7 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  box-sizing: border-box;
 }
 
 .tv-shelf-row.is-dragging {
@@ -493,15 +497,17 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
 .tv-card {
   flex: 0 0 152px;
   width: 152px;
+  height: 260px;
+  box-sizing: border-box;
   cursor: pointer;
   outline: none;
-  transition: transform 0.12s ease-out, border 0.12s ease-out, box-shadow 0.12s ease-out;
+  transition: transform 0.12s ease-out, border-color 0.12s ease-out, box-shadow 0.12s ease-out;
   transform: translateZ(0);
   will-change: transform;
   position: relative;
   background-color: #1F1F1F;
   border-radius: 6px;
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   display: flex;
@@ -512,6 +518,7 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   position: relative;
   width: 100%;
   height: 212px;
+  flex-shrink: 0;
   overflow: hidden;
   background-color: #141414;
 }
@@ -558,12 +565,15 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
 }
 
 .tv-card-info {
-  padding: 6px 8px 8px 8px;
+  padding: 6px 8px;
   background-color: #1F1F1F;
-  flex: 1;
+  height: 48px;
+  box-sizing: border-box;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 .tv-card-title {
@@ -617,7 +627,7 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
 
 .tv-card:hover {
   transform: scale(1.08) translateZ(0);
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.9), 0 0 14px rgba(255, 255, 255, 0.25);
   z-index: 35;
 }
@@ -634,9 +644,10 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
 .tv-card-more {
   flex: 0 0 152px;
   width: 152px;
-  min-height: 256px;
+  height: 260px;
+  box-sizing: border-box;
   background-color: #1E1E1E;
-  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   cursor: pointer;
   outline: none;

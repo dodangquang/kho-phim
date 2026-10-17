@@ -24,10 +24,12 @@
     theater: { title: '🍿 Phim Chiếu Rạp', path: 'danh-sach/phim-chieu-rap' }
   };
 
+  const VN_FLAG_SVG = '<svg viewBox="0 0 30 20" width="20" height="13" style="display:inline-block; vertical-align:middle; border-radius:2px; margin-right:6px; box-shadow:0 1px 3px rgba(0,0,0,0.5);"><rect width="30" height="20" fill="#da251d"/><polygon points="15,4 16.35,8.15 20.71,8.15 17.18,10.71 18.53,14.85 15,12.29 11.47,14.85 12.82,10.71 9.29,8.15 13.65,8.15" fill="#ffff00"/></svg>';
+
   const HOME_SECTIONS = [
     { title: '🎙️ Phim Thuyết Minh', path: 'danh-sach/phim-thuyet-minh' },
     { title: '🎧 Phim Lồng Tiếng', path: 'danh-sach/phim-long-tieng' },
-    { title: '🇻🇳 Phim Việt Nam', path: 'quoc-gia/viet-nam' },
+    { title: `${VN_FLAG_SVG} Phim Việt Nam`, path: 'quoc-gia/viet-nam' },
     { title: '⚡ Mới Cập Nhật Tập Mới', path: 'danh-sach/phim-moi-cap-nhat' },
     { title: '🍿 Chiếu Rạp Đặc Sắc', path: 'danh-sach/phim-chieu-rap' },
     { title: '📺 Phim Bộ Hot', path: 'danh-sach/phim-bo' },
@@ -70,8 +72,14 @@
   const tvToast = document.getElementById('tv-toast');
 
   // ==========================================================================
-  // HELPERS & IMAGE URL RESOLVER
+  // HELPERS & IMAGE URL RESOLVER (WITH RELIABLE CDN FALLBACK E.G. PHÙ SA)
   // ==========================================================================
+  function isBlockedDomain(url) {
+    if (!url) return true;
+    const lower = String(url).toLowerCase();
+    return lower.includes('danviet') || lower.includes('kenh14') || lower.includes('soha.vn') || lower.includes('zingnews') || lower.includes('i.ex-cdn.com');
+  }
+
   function formatImageUrl(url) {
     if (!url) return 'icon.png';
     const trimmed = String(url).trim();
@@ -82,9 +90,41 @@
   }
 
   function resolveMovieImages(item) {
-    let poster = formatImageUrl(item.poster_url || item.posterUrl || item.thumb_url || item.thumbUrl);
-    let banner = formatImageUrl(item.thumb_url || item.thumbUrl || item.poster_url || item.posterUrl);
-    return { poster, banner };
+    if (!item) return { poster: 'icon.png', banner: 'icon.png', fallback: 'icon.png' };
+    const rawPoster = String(item.poster_url || item.posterUrl || '').trim();
+    const rawThumb = String(item.thumb_url || item.thumbUrl || '').trim();
+
+    const formattedPoster = formatImageUrl(rawPoster);
+    const formattedThumb = formatImageUrl(rawThumb);
+
+    const posterBlocked = isBlockedDomain(formattedPoster);
+    const thumbBlocked = isBlockedDomain(formattedThumb);
+    const posterIsCdn = formattedPoster.includes('phimimg.com') && !posterBlocked;
+    const thumbIsCdn = formattedThumb.includes('phimimg.com') && !thumbBlocked;
+
+    let poster = 'icon.png';
+    let banner = 'icon.png';
+
+    // If poster is blocked/unreliable (e.g. danviet.vn on "Phù Sa") but thumb is on reliable CDN
+    if (thumbIsCdn && (!posterIsCdn || posterBlocked)) {
+      poster = formattedThumb;
+      banner = formattedThumb;
+    } else if (posterIsCdn) {
+      poster = formattedPoster;
+      banner = thumbIsCdn ? formattedThumb : formattedPoster;
+    } else if (formattedThumb && !thumbBlocked) {
+      poster = formattedThumb;
+      banner = formattedThumb;
+    } else if (formattedPoster && !posterBlocked) {
+      poster = formattedPoster;
+      banner = formattedPoster;
+    } else {
+      poster = formattedThumb || formattedPoster || 'icon.png';
+      banner = formattedThumb || formattedPoster || 'icon.png';
+    }
+
+    const fallback = (formattedThumb && formattedThumb !== poster && !thumbBlocked) ? formattedThumb : 'icon.png';
+    return { poster, banner, fallback };
   }
 
   function sanitizeUrl(url) {
@@ -432,7 +472,7 @@
   }
 
   function createMovieCard(item) {
-    const { poster } = resolveMovieImages(item);
+    const { poster, fallback } = resolveMovieImages(item);
     const title = item.name || item.origin_name || item.title || item.slug;
     const quality = item.quality || item.year || 'HD';
     const ep = item.episode_current || '';
@@ -444,7 +484,7 @@
 
     card.innerHTML = `
       <div class="tv-card-poster-wrap">
-        <img src="${poster}" alt="${title}" loading="lazy">
+        <img src="${poster}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='${fallback}';">
         <div class="tv-badge-left">${quality}</div>
         ${ep ? `<div class="tv-badge-right">${ep}</div>` : ''}
       </div>
@@ -487,7 +527,7 @@
 
       card.innerHTML = `
         <div class="tv-continue-thumb-wrap">
-          <img src="${item.banner || item.poster}" alt="${item.title}" loading="lazy">
+          <img src="${item.banner || item.poster}" alt="${item.title}" loading="lazy" onerror="this.onerror=null; this.src='icon.png';">
           <div class="tv-continue-progress">
             <div class="tv-continue-progress-bar" style="width: ${progressPercent}%;"></div>
           </div>
