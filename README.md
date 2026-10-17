@@ -6,6 +6,8 @@
 
 | Nền tảng | Thư mục mã nguồn | File cài đặt sẵn có | Trạng thái |
 | :--- | :--- | :--- | :--- |
+| **Samsung TV / Apps2Samsung 1.0.10** | `/tv-samsung-tizen` | [Tải WGT 1.0.10](https://github.com/dodangquang/kho-phim/releases/download/v1.0.10/KhoPhim_Samsung_Tizen_v1.0.10.wgt) | ✅ Giao diện cục bộ, AVPlay, cache poster |
+| **TV Web 1.0.10** | `/docs/tv` | [Mở TV Web](https://dodangquang.github.io/kho-phim/tv/) | ✅ 6 phim/kệ, poster đủ khung, HLS gốc / HLS.js khi cần |
 | **Android TV (Vers 1)** | `/tv` | `releases/KhoPhim_TV_v1.0.0.apk` | ✅ Hoàn thành & Tối ưu remote D-pad |
 | **Android Mobile** | `/mobile-android` | `releases/KhoPhim_Mobile_v1.0.0.apk` | ✅ Màn dọc, xoay ngang khi phát |
 | **Web App (iPhone/iPad/Web)** | `/docs` | [Trang Web Kho Phim](https://dodangquang.github.io/kho-phim/) | ✅ Web App tối ưu iPhone, Safari PWA |
@@ -22,3 +24,9 @@
 Các file APK dựng sẵn nằm trong thư mục `releases/`:
 - `KhoPhim_TV_v1.0.0.apk`: Bản dành cho Smart TV / TV Box / Android TV.
 - `KhoPhim_Mobile_v1.0.0.apk`: Bản dành cho điện thoại Android.
+
+## Samsung TV và TV Web 1.0.10
+
+Bản Samsung đóng gói giao diện cục bộ, phát bằng AVPlay; bản web dùng cùng giao diện tối ưu tại `/tv/`. Giữ 6 phim mỗi kệ/trang, cache tối đa 48 thumbnail và sửa poster bị hẹp trên Chromium 69. Chi tiết kiểm tra và cách cài ở [tv-samsung-tizen/README.md](tv-samsung-tizen/README.md).
+
+Gói Samsung hiện hành duy nhất được phát hành trong GitHub Releases: `KhoPhim_Samsung_Tizen_v1.0.10.wgt` (UNSIGNED, dành cho Apps2Samsung ký/cài). Link tải trên website trỏ thẳng tới file này.

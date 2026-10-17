@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://khophim.tv/widget" version="1.0.5" viewmodes="maximized">
-    <tizen:application id="X84DodangQ.KhoPhim" package="X84DodangQ" exec="index.html" screen-orientation="landscape" required_version="3.0"/>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://khophim.tv/widget" version="1.0.10" viewmodes="maximized">
+    <tizen:application id="X84DodangQ.KhoPhim" package="X84DodangQ" required_version="5.5"/>
     <content src="index.html"/>
     <feature name="http://tizen.org/feature/screen.size.all"/>
-    <feature name="http://tizen.org/feature/network.internet"/>
     <icon src="icon.png"/>
     <name>Kho Phim</name>
+    <tizen:profile name="tv-samsung"/>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <access origin="*" subdomains="true"/>
-    <tizen:allow-navigation href="https://*"/>
-    <tizen:allow-navigation href="http://*"/>
-    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto"/>
+    <tizen:content-security-policy>default-src 'self' file:; script-src 'self' file:; style-src 'self'; img-src 'self' https: http: data:; connect-src https: http:; media-src https: http: blob:; object-src 'self'; frame-src 'none'; base-uri 'self'</tizen:content-security-policy>
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto"/>
 </widget>

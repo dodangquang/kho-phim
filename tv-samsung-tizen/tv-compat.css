@@ -1,0 +1,82 @@
+/* Original TV stylesheet is retained. These fixes target Chromium 69 and bound
+   painting/layers while preserving the original colors, sizing and layout. */
+.hidden { display: none !important; }
+.sidebar-logo, .sidebar-menu, .sidebar-item, .hero-content, .hero-badge-row, .hero-actions, .tv-btn, .shelf-title, .tv-shelf-row, .tv-card-meta, .search-input-wrap, .detail-meta-row, .detail-actions, .tv-server-tabs { gap: 0; }
+html, body { width: 1920px; height: 1080px; }
+html.playing, body.playing, body.playing #player { background: transparent; }
+#app { display: flex; width: 1920px; height: 1080px; overflow: hidden; position: relative; }
+button, input { font-family: inherit; }
+button { color: inherit; -webkit-appearance: none; appearance: none; }
+button:disabled { opacity: 0.4; }
+.tv-sidebar { flex-shrink: 0; transition: none; }
+.sidebar-version { font-size: 11px; color: #555; padding: 8px; }
+.sidebar-item { border: none; background: transparent; width: 100%; text-align: left; margin-bottom: 8px; }
+.sidebar-item > .sidebar-label { margin-left: 14px; }
+.sidebar-logo-text { margin-left: 12px; }
+.tv-main-content { min-width: 0; }
+.tv-view { padding-bottom: 50px; }
+.tv-hero-banner::before, .tv-card-poster-wrap::after, .tv-detail-modal, .tv-player-overlay, .tv-player-hud { top: 0; right: 0; bottom: 0; left: 0; }
+.hero-image { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.tv-hero-banner::before { z-index: 1; }
+.hero-content > * + * { margin-top: 12px; }
+.hero-badge-row > * + * { margin-left: 10px; }
+.hero-actions > * + *, .detail-actions > * + * { margin-left: 16px; }
+.tv-btn > svg { margin-right: 8px; }
+.tv-btn, .sidebar-item { transition: transform 0.08s ease-out, background-color 0.08s ease-out; }
+.tv-card, .tv-card-more, .tv-continue-card { will-change: auto; transform: none; }
+.tv-card { display: block; height: 398px; width: 248px; flex: 0 0 248px; text-align: left; padding: 0; border-width: 1px; }
+.tv-card-poster-wrap { display: block; position: relative; height: 346px; min-height: 346px; max-height: 346px; flex: 0 0 346px; }
+.tv-card-title { font-size: 16px; }
+.tv-card-info { display: block; height: 50px; min-height: 50px; flex: none; }
+.tv-card-meta { display: flex; visibility: hidden; height: 13px; }
+.tv-card.tv-focused .tv-card-meta { visibility: visible; }
+.tv-card-meta > * + * { margin-left: 6px; }
+.tv-shelf-section { height: 540px; margin-bottom: 0; }
+#continue-section { height: 311px; }
+.tv-shelf-row > * { margin-right: 14px; }
+.tv-shelf-row::after { height: 1px; }
+.shelf-title > * + * { margin-left: 8px; }
+.shelf-placeholder { width: 248px; height: 398px; flex: 0 0 248px; background: #181818; border: 1px solid #333; border-radius: 6px; color: #888; font-size: 15px; }
+.shelf-placeholder.tv-focused { outline: 3px solid white; color: white; }
+.tv-card-more { height: 398px; }
+.tv-continue-card { padding: 0; text-align: left; }
+.tv-continue-thumb-wrap { display: block; position: relative; height: 156px; min-height: 156px; max-height: 156px; flex: 0 0 156px; }
+.tv-continue-info { display: block; }
+.tv-card-title, .tv-continue-title, .tv-continue-sub { display: block; }
+.tv-card-poster-wrap canvas, .tv-continue-thumb-wrap canvas { position: absolute; top: 0; left: 0; display: block; width: 100%; height: 100%; }
+.tv-movie-grid, .tv-history-grid { grid-gap: 20px; }
+#grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.tv-card, .tv-card-more, .tv-continue-card { transition: none; box-shadow: none; }
+.tv-card.tv-focused, .tv-card-more.tv-focused, .tv-continue-card.tv-focused { transform: none !important; box-shadow: none !important; border-width: 1px !important; outline: 2px solid white; outline-offset: 2px; }
+#grid .tv-continue-card { width: 100%; }
+#grid.history-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+#search-bar { width: 700px; margin: 0 52px 10px; }
+#search-bar > * + * { margin-left: 12px; }
+#search-input { min-width: 0; }
+#search-input.tv-focused { outline: none; }
+#search-bar .tv-btn { font-size: 14px; padding: 7px 14px; flex-shrink: 0; }
+#page-label { font-size: 14px; color: #888; }
+#pager > * + * { margin-left: 16px; }
+#settings { padding-top: 0; }
+#settings .tv-btn { margin: 16px 12px 0 0; }
+.tv-detail-modal:not(.hidden), .tv-player-overlay:not(.hidden) { display: block; }
+.tv-detail-backdrop { object-fit: cover; object-position: center top; }
+.detail-meta-row > * + * { margin-left: 12px; }
+.detail-overview { max-height: 120px; overflow: hidden; }
+.tv-server-tabs > * { margin-right: 12px; flex-shrink: 0; white-space: nowrap; }
+.tv-server-pill, .tv-ep-btn { border: none; color: white; }
+.tv-episode-grid { grid-template-columns: repeat(6, 1fr); grid-gap: 12px; }
+.episode-heading, .detail-status { font-size: 13px; color: #888; margin: 10px 0; }
+.episode-pager { margin-top: 18px; }
+.episode-pager > * + * { margin-left: 12px; }
+.episode-pager button { padding: 8px 14px; font-size: 13px; }
+#av-player, #video { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; }
+#hud { z-index: 3; transition: none; }
+.player-progress-fill { transition: none; }
+#player-controls { display: flex; justify-content: center; margin-top: 16px; }
+#player-controls button { font-size: 13px; padding: 7px 18px; margin-right: 12px; }
+#player-message { position: absolute; top: 320px; left: 450px; right: 450px; background: rgba(18,18,18,0.94); border: 1px solid #555; padding: 30px; border-radius: 10px; text-align: center; font-size: 22px; z-index: 6; }
+#player-message:empty { display: none; }
+#subtitle { position: absolute; bottom: 110px; left: 160px; right: 160px; text-align: center; white-space: pre-line; font-size: 40px; text-shadow: 2px 2px 3px black, -2px -2px 3px black; z-index: 2; }
+#toast:not(.hidden) { display: block; }
+#boot-error { position: absolute; top: 300px; left: 300px; width: 1300px; padding: 40px; color: white; background: #612533; font-size: 24px; z-index: 20000; }

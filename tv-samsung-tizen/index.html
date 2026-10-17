@@ -1,72 +1,75 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kho Phim - Samsung Smart TV</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      background-color: #121212;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      cursor: none !important;
-    }
-    .splash {
-      position: absolute;
-      inset: 0;
-      background: #121212;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      z-index: 10;
-    }
-    .splash img {
-      width: 96px;
-      height: 96px;
-      border-radius: 16px;
-      margin-bottom: 20px;
-    }
-    .splash h1 {
-      font-size: 28px;
-      color: #E50914;
-      font-weight: 800;
-      letter-spacing: 1px;
-    }
-    .splash p {
-      font-size: 14px;
-      color: #888;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-  <div id="splash" class="splash">
-    <img src="icon.png" alt="Kho Phim">
-    <h1>KHO PHIM</h1>
-    <p>Đang kết nối kho phim...</p>
+<html lang="vi"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+  <meta name="theme-color" content="#0F0F0F"><title>Kho Phim TV</title>
+  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="tv-compat.css">
+  <script src="boot.js"></script>
+</head><body class="tv-mode">
+  <div id="app">
+    <nav id="sidebar" class="tv-sidebar" aria-label="Điều hướng">
+      <div class="sidebar-top"><div class="sidebar-logo"><img src="icon.png" alt="Kho Phim" class="sidebar-logo-icon"><span class="sidebar-logo-text">KHO PHIM</span></div>
+      <div id="menu" class="sidebar-menu"><button type="button" class="sidebar-item" data-tab="search">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <span class="sidebar-label">Tìm Kiếm</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="home">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="sidebar-label">Trang Chủ</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="single">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+            <span class="sidebar-label">Phim Lẻ</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="series">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+            <span class="sidebar-label">Phim Bộ</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="theater">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>
+            <span class="sidebar-label">Chiếu Rạp</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="history">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            <span class="sidebar-label">Đã Xem</span>
+          </button>
+<button type="button" class="sidebar-item" data-tab="settings">
+            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            <span class="sidebar-label">Cài Đặt</span>
+          </button></div></div>
+      <span class="sidebar-version">1.0.10</span>
+    </nav>
+    <main id="main" class="tv-main-content">
+      <section id="home" class="tv-view active">
+        <div id="hero" class="tv-hero-banner">
+          <img id="hero-image" class="hero-image" alt="">
+          <div class="hero-content"><div class="hero-badge-row"><span id="hero-year" class="hero-badge">KHO PHIM TV</span><span id="hero-quality" class="hero-badge red">HD</span></div>
+          <h1 id="hero-title" class="hero-title">Kho Phim</h1><p id="hero-overview" class="hero-overview">Đang tải phim nổi bật...</p>
+          <div class="hero-actions"><button id="hero-play" class="tv-btn tv-btn-primary" disabled><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Xem Ngay</button><button id="hero-detail" class="tv-btn tv-btn-secondary" disabled>Thông Tin</button></div></div>
+        </div>
+        <div id="continue-section" class="tv-shelf-section hidden"><h2 class="shelf-title">🕒 Tiếp tục xem</h2><div id="continue-row" class="tv-shelf-row"></div></div>
+        <div id="shelves"></div><p id="home-status" class="tv-status-msg" role="status"></p>
+      </section>
+      <section id="browse" class="tv-view">
+        <div class="category-header"><h1 id="heading" class="view-title">Phim Lẻ</h1><span id="page-label"></span><button id="history-clear" class="tv-btn tv-btn-secondary hidden">Xóa tất cả</button></div>
+        <div id="search-bar" class="search-input-wrap hidden"><svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l5 5 1.5-1.5zM9.5 14A4.5 4.5 0 1 1 9.5 5a4.5 4.5 0 0 1 0 9z"/></svg><input id="search-input" type="text" maxlength="80" placeholder="Nhập tên phim cần tìm..." aria-label="Tên phim" autocomplete="off"><button id="search-button" class="tv-btn tv-btn-secondary">Tìm kiếm</button></div>
+        <p id="status" class="tv-status-msg" role="status"></p><div id="grid" class="tv-movie-grid"></div>
+        <div id="pager" class="load-more-wrap"><button id="previous" class="tv-btn tv-btn-secondary">Trang trước</button><button id="retry" class="tv-btn tv-btn-secondary">Tải lại</button><button id="next" class="tv-btn tv-btn-secondary">Tải thêm phim</button></div>
+        <div id="settings" class="settings-wrap hidden"><div class="settings-card"><h3>Máy chủ kết nối</h3><p>Kho phim: KKPhim. Thông tin phim tự thử nguồn OPhim khi cần.</p><p id="player-info"></p></div><div class="settings-card"><h3>Thông tin phiên bản</h3><p>Smart TV: <strong>v1.0.10 (TV Edition)</strong></p><p id="platform-info"></p><p id="diagnostic"></p><button id="clear-cache" class="tv-btn tv-btn-secondary">Xóa bộ nhớ đệm (Clear Cache)</button><button id="clear-history" class="tv-btn tv-btn-secondary">Xóa lịch sử xem</button></div></div>
+        <footer id="footer" class="tv-status-msg"></footer>
+      </section>
+    </main>
   </div>
-
-  <script>
-    // Register Samsung Tizen TV remote keys
-    if (typeof tizen !== 'undefined' && tizen.tvinputdevice) {
-      var keys = [
-        'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop',
-        'MediaFastForward', 'MediaRewind', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
-      ];
-      keys.forEach(function(k) {
-        try { tizen.tvinputdevice.registerKey(k); } catch (e) {}
-      });
-    }
-
-    // Direct launch into the dedicated Kho Phim Smart TV web app
-    setTimeout(function() {
-      window.location.replace('https://dodangquang.github.io/kho-phim/tv/');
-    }, 150);
-  </script>
-</body>
-</html>
+  <section id="detail" class="tv-detail-modal hidden" aria-label="Thông tin phim"><img id="detail-backdrop" class="tv-detail-backdrop" alt=""><div class="tv-detail-gradient"></div><div class="tv-detail-content">
+    <h1 id="detail-title" class="detail-title"></h1><div class="detail-meta-row"><span id="detail-year" class="detail-badge"></span><span id="detail-quality" class="detail-badge detail-badge-red"></span><span id="detail-meta" class="detail-meta-text"></span></div>
+    <p id="overview" class="detail-overview"></p><div class="detail-actions"><button id="play" class="tv-btn tv-btn-primary">▶ Xem Phim</button><button id="detail-back" class="tv-btn tv-btn-secondary">Quay Lại (Back)</button></div>
+    <div class="tv-episodes-section"><div id="servers" class="tv-server-tabs"></div><p id="episode-heading" class="episode-heading"></p><div id="episodes" class="tv-episode-grid"></div><div class="episode-pager"><button id="episode-previous" class="tv-btn tv-btn-secondary">Nhóm tập trước</button><button id="episode-next" class="tv-btn tv-btn-secondary">Nhóm tập sau</button></div></div><p id="detail-status" class="detail-status" role="status"></p>
+  </div></section>
+  <section id="player" class="tv-player-overlay hidden" aria-label="Trình phát video"><object id="av-player" type="application/avplayer"></object><video id="video" class="hidden"></video><div id="subtitle"></div><div id="player-message" role="status"></div>
+    <div id="hud" class="tv-player-hud visible"><div class="player-top-bar"><div class="player-title-box"><span id="now-playing" class="player-movie-title"></span></div><button id="player-back" class="player-source-badge">⚡ Nguồn: Samsung AVPlay</button></div>
+      <div class="player-bottom-bar"><div id="progress" class="player-progress-bar-wrap"><div id="progress-fill" class="player-progress-fill"></div></div><div id="clock" class="player-time-row">00:00 / 00:00</div>
+      <div id="player-controls"><button id="rewind" class="tv-btn tv-btn-secondary">−10 giây</button><button id="pause" class="tv-btn tv-btn-secondary">Tạm dừng</button><button id="forward" class="tv-btn tv-btn-secondary">+10 giây</button><button id="next-episode" class="tv-btn tv-btn-secondary">Tập tiếp</button></div><p class="player-help-hint">OK: Chọn / Tạm dừng khi ẩn điều khiển | Trái/Phải: Tua 10s | Back: Chọn tập/nguồn</p></div>
+    </div>
+  </section>
+  <div id="toast" class="tv-toast hidden" role="status"></div><div id="boot-error" class="hidden" role="alert">Không thể khởi động. Hãy đóng và mở lại ứng dụng hoặc cài lại gói đúng chứng chỉ TV.</div>
+  <script src="$WEBAPIS/webapis/webapis.js"></script><script src="core.js"></script><script src="player.js"></script><script src="posters.js"></script><script src="home.js"></script><script src="app.js"></script>
+</body></html>
