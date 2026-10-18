@@ -337,7 +337,7 @@
     var saved = detailCache.get(slug);
     if (saved) { displayDetail(saved); return; }
     var encoded = encodeURIComponent(slug);
-    detailRequest.get(['https://phimapi.com/phim/' + encoded, 'https://ophim1.com/phim/' + encoded], function (error, data) {
+    detailRequest.get(['https://phimapi.com/phim/' + encoded], function (error, data) {
       if (error || !data.movie) {
         text('detail-title', 'Chưa tải được thông tin phim');
         text('detail-status', error ? error.message : 'Nguồn dữ liệu không trả về thông tin phim.');

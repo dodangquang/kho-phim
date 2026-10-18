@@ -12,6 +12,7 @@ build/
 *.pyc
 __pycache__
 xcuserdata/
+**/.build/
 
 # Keep releases
 !releases/*.apk

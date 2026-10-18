@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   var C = {};
-  C.VERSION = '1.0.10';
+  C.VERSION = '1.0.11';
   C.PAGE_SIZE = 6;
   C.SHELF_HEIGHT = 540;
   C.EPISODE_PAGE_SIZE = 24;

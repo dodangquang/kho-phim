@@ -1,0 +1,38 @@
+name: Playback regression tests
+
+on:
+  push:
+    paths: ['docs/**', 'tv-samsung-tizen/**', '.github/workflows/playback-tests.yml']
+  pull_request:
+    paths: ['docs/**', 'tv-samsung-tizen/**', '.github/workflows/playback-tests.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-players:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test dependencies
+        working-directory: tv-samsung-tizen
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Check player lifecycle and TV compatibility
+        run: |
+          node --test docs/tests/mobile-player.test.cjs
+          node tv-samsung-tizen/tests/player-timing.cjs
+          node tv-samsung-tizen/tests/web-player.cjs
+        env:
+          NODE_PATH: ${{ github.workspace }}/tv-samsung-tizen/node_modules
+      - name: Browser integration tests
+        run: |
+          node docs/tests/mobile-browser.cjs
+          node docs/tests/desktop-browser.cjs
+          node tv-samsung-tizen/tests/regression.cjs
+        env:
+          NODE_PATH: ${{ github.workspace }}/tv-samsung-tizen/node_modules
+          KHOPHIM_TEST_OUTPUT: ${{ runner.temp }}

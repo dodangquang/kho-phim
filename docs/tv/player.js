@@ -12,6 +12,7 @@
     this.duration = 0;
     this.seeking = false;
     this.seekTarget = null;
+    this.videoSeekTarget = null;
     this.seekTimer = null;
     this.watchdog = null;
     this.lastTick = 0;
@@ -30,12 +31,13 @@
     clearTimeout(this.seekTimer);
     this.seeking = false;
     this.seekTarget = null;
+    this.videoSeekTarget = null;
     if (this.mode === 'avplay') {
       try { this.av.stop(); } catch (ignoreStop) {}
       try { this.av.close(); } catch (ignoreClose) {}
     }
     if (this.mode === 'video') {
-      this.video.onloadedmetadata = this.video.ontimeupdate = this.video.onerror = this.video.onended = this.video.onwaiting = this.video.onplaying = null;
+      this.video.onloadedmetadata = this.video.ontimeupdate = this.video.onerror = this.video.onended = this.video.onwaiting = this.video.onplaying = this.video.oncanplay = this.video.onprogress = this.video.onloadeddata = this.video.ondurationchange = null;
       this.video.pause();
       this.video.removeAttribute('src');
       this.video.load();
@@ -52,9 +54,12 @@
   };
   Player.prototype.armWatchdog = function (token) {
     var self = this;
+    if (token !== this.token) return;
     clearTimeout(this.watchdog);
+    this.watchdog = null;
+    if (this.state !== 'preparing' && this.state !== 'playing') return;
     this.watchdog = setTimeout(function () {
-      if (token === self.token) self.fail('Nguồn phát không phản hồi trong 25 giây. Nhấn Return và chọn nguồn hoặc tập khác.');
+      if (token === self.token && (self.state === 'preparing' || self.state === 'playing')) self.fail('Nguồn phát không phản hồi trong 25 giây. Nhấn Return và chọn nguồn hoặc tập khác.');
     }, 25000);
   };
   Player.prototype.tick = function (position, force) {
@@ -83,13 +88,13 @@
         this.av.setListener({
           onbufferingstart: function () {
             if (token !== self.token) return;
-            self.callbacks.message('Đang tải video...');
+            if (self.state !== 'paused') self.callbacks.message('Đang tải video...');
             self.armWatchdog(token);
           },
           onbufferingprogress: function () {},
           onbufferingcomplete: function () {
             if (token !== self.token) return;
-            if (self.state !== 'paused') self.armWatchdog(token);
+            self.armWatchdog(token);
             self.callbacks.message('');
           },
           oncurrentplaytime: function (ms) { if (token === self.token) self.tick(ms, false); },
@@ -137,17 +142,28 @@
     var nativeHls = this.video.canPlayType('application/vnd.apple.mpegurl') || this.video.canPlayType('application/x-mpegURL');
     var needsHls = isHls && (!nativeHls || global.KhoWebHls.preferMse());
     this.video.className = '';
+    var resumePosition = this.clamp(resume);
+    this.videoSeekTarget = resumePosition > 0 ? resumePosition : null;
+    function ready() {
+      if (token !== self.token) return;
+      var seconds = Number(self.video.duration);
+      self.duration = isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+      self.applyVideoSeek();
+    }
     this.video.onloadedmetadata = function () {
       if (token !== self.token) return;
-      self.duration = (Number(self.video.duration) || 0) * 1000;
-      self.video.currentTime = self.clamp(resume) / 1000;
+      ready();
+      if (self.state === 'paused') return;
       var result = self.video.play();
-      if (result && result.catch) result.catch(function () { if (token === self.token) self.fail('Không thể tự phát video.'); });
+      if (result && result.catch) result.catch(function () { if (token === self.token && self.state !== 'paused') self.fail('Không thể tự phát video.'); });
     };
+    this.video.oncanplay = this.video.onprogress = this.video.onloadeddata = this.video.ondurationchange = ready;
     this.video.onplaying = function () {
       if (token !== self.token) return;
+      if (self.state === 'paused') { self.video.pause(); return; }
       self.state = 'playing';
-      clearTimeout(self.watchdog);
+      self.applyVideoSeek();
+      self.armWatchdog(token);
       self.callbacks.message('');
       self.callbacks.state('playing');
     };
@@ -158,6 +174,7 @@
       if (token !== self.token) return;
       if (isHls && !needsHls && global.KhoWebHls.canUseMse()) {
         needsHls = true;
+        self.videoSeekTarget = self.videoSeekTarget === null ? Math.max(self.position, Number(self.video.currentTime) * 1000 || 0) : self.videoSeekTarget;
         self.callbacks.message('Đang thử trình phát HLS...');
         self.armWatchdog(token);
         self.video.pause();
@@ -175,24 +192,45 @@
     var value = Math.max(0, Math.round(Number(position) || 0));
     return this.duration > 0 ? Math.min(value, Math.max(0, this.duration - 1000)) : value;
   };
+  Player.prototype.applyVideoSeek = function () {
+    if (this.mode !== 'video' || this.videoSeekTarget === null) return;
+    var ranges = this.video.seekable;
+    if (!ranges || !ranges.length) return;
+    var requested = this.clamp(this.videoSeekTarget) / 1000;
+    var target = null;
+    try {
+      for (var i = 0; i < ranges.length; i++) {
+        var start = ranges.start(i);
+        var end = ranges.end(i);
+        if (!isFinite(start) || !isFinite(end) || end <= start) continue;
+        target = Math.max(start, Math.min(requested, Math.max(start, end - 0.05)));
+        if (requested <= end) break;
+      }
+      if (target === null) return;
+      this.video.currentTime = target;
+      this.videoSeekTarget = null;
+      this.tick(target * 1000, true);
+    } catch (ignoreSeek) { /* Native HLS may expose ranges before accepting seeks. Retry on readiness. */ }
+  };
   Player.prototype.setPaused = function (paused) {
     if (this.state !== 'playing' && this.state !== 'paused') return;
+    var previous = this.state;
     try {
+      this.state = paused ? 'paused' : 'playing';
       if (this.mode === 'avplay') {
         if (paused) this.av.pause(); else this.av.play();
       } else {
         if (paused) this.video.pause(); else this.video.play();
       }
-      this.state = paused ? 'paused' : 'playing';
       if (paused) clearTimeout(this.watchdog);
       else this.armWatchdog(this.token);
       this.screenSaver(paused);
       this.callbacks.state(this.state);
-    } catch (ignore) { this.callbacks.message('TV chưa sẵn sàng. Vui lòng thử lại.'); }
+    } catch (ignore) { this.state = previous; this.callbacks.message('TV chưa sẵn sàng. Vui lòng thử lại.'); }
   };
   Player.prototype.seek = function (delta) {
     if (this.state !== 'playing' && this.state !== 'paused') return;
-    this.seekTarget = this.clamp((this.seekTarget === null ? this.position : this.seekTarget) + delta);
+    this.seekTarget = this.clamp((this.seekTarget === null ? (this.videoSeekTarget === null ? this.position : this.videoSeekTarget) : this.seekTarget) + delta);
     this.callbacks.message('Tua đến ' + global.KhoCore.time(this.seekTarget));
     clearTimeout(this.seekTimer);
     var self = this;
@@ -206,6 +244,7 @@
     var target = this.seekTarget;
     this.seekTarget = null;
     this.seeking = true;
+    this.armWatchdog(token);
     function done() {
       if (token !== self.token) return;
       self.seeking = false;
@@ -214,7 +253,7 @@
     }
     try {
       if (this.mode === 'avplay') this.av.seekTo(target, function () { if (token === self.token) self.tick(target, true); done(); }, done);
-      else { this.video.currentTime = target / 1000; self.tick(target, true); done(); }
+      else { this.videoSeekTarget = target; this.applyVideoSeek(); done(); }
     } catch (ignore) { done(); }
   };
   global.KhoPlayer = Player;

@@ -32,6 +32,8 @@
   let currentPlayingServerName = 'Server VIP';
   let currentPlayerMode = 'hls';
   let searchDebounceTimer = null;
+  let detailGeneration = 0;
+  let directWasPaused = false;
 
   // DOM Elements
   const views = {
@@ -611,6 +613,7 @@
 
   // Open Movie Detail Modal
   window.openMovieDetail = async function (slug, autoPlay = false) {
+    const generation = ++detailGeneration;
     if (!window.location.hash.startsWith('#detail-') && !window.location.hash.startsWith('#player-')) {
       try {
         history.pushState({ modal: 'detail', slug }, '', '#detail-' + slug);
@@ -629,15 +632,18 @@
     `;
 
     try {
-      let resp = await fetch(`${API_BASE}/phim/${slug}`);
-      let json = await resp.json();
-
-      if (!json || !json.movie) {
-        resp = await fetch(`https://ophim1.com/phim/${slug}`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      let json;
+      try {
+        const resp = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}`, { signal: controller.signal });
+        if (!resp.ok) throw new Error('Máy chủ dữ liệu chưa phản hồi. Hãy thử lại.');
         json = await resp.json();
-      }
+      } finally { clearTimeout(timeout); }
+      if (generation !== detailGeneration) return;
+      if (!json || !json.movie) throw new Error('Chưa tải được thông tin phim. Hãy thử lại.');
 
-      if (!json || !json.movie || isBrokenMovie(slug) || isBrokenMovie(json.movie.slug)) {
+      if (isBrokenMovie(slug) || isBrokenMovie(json.movie.slug)) {
         detailModal.innerHTML = `
           <div class="detail-modal" style="padding:40px; text-align:center;">
             <p style="font-size:16px; margin-bottom:12px; color:var(--accent-red); font-weight:bold;">Phim này đã bị gỡ khỏi kho</p>
@@ -660,6 +666,7 @@
         playFirstOrResumeEpisode(movie, episodes);
       }
     } catch (e) {
+      if (generation !== detailGeneration) return;
       console.error('Detail fetch error:', e);
       detailModal.innerHTML = `
         <div class="detail-modal" style="padding:40px; text-align:center;">
@@ -671,6 +678,7 @@
   };
 
   window.closeMovieDetail = function (fromPopState = false) {
+    ++detailGeneration;
     detailModal.classList.remove('open');
     if (!fromPopState && window.history.length > 1 && window.location.hash.startsWith('#detail-')) {
       try { history.back(); } catch (_) {}
@@ -927,7 +935,7 @@
     showPlayerToast('Đang chuyển sang Trình phát Trực tiếp (HLS)...');
 
     const saved = getWatchHistory().find(item => item.movieSlug === currentPlayingMovie.slug && item.episodeSlug === currentPlayingEpisode.slug);
-    startHlsStream(streamUrl, embedUrl, saved ? saved.currentTime || 0 : 0);
+    startHlsStream(streamUrl, embedUrl, saved ? saved.currentTime || 0 : 0, !directWasPaused);
   }
 
   // Video Playback Engine (Native iOS HLS + hls.js + Auto Web Embed fallback)
@@ -937,6 +945,7 @@
     currentPlayingEpisode = episode;
     currentPlayingEpisodesList = allServerEpisodes;
     currentPlayingServerName = serverName || 'Server VIP';
+    directWasPaused = false;
 
     if (!window.location.hash.startsWith('#player-')) {
       try {
@@ -989,10 +998,10 @@
     startHlsStream(streamUrl, embedUrl, resumePosition);
   }
 
-  function startHlsStream(streamUrl, embedUrl, resumePosition = 0) {
+  function startHlsStream(streamUrl, embedUrl, resumePosition = 0, autoplay = true) {
     const normalize = url => url.replace(/^http:\/\//, 'https://').replace(/^\/\//, 'https://');
     streamUrl = normalize(streamUrl || '');
-    if (streamUrl) mobilePlayer.open(streamUrl, resumePosition);
+    if (streamUrl) mobilePlayer.open(streamUrl, resumePosition, { autoplay });
     else if (embedUrl) fallbackToIframe(normalize(embedUrl));
     else handlePlaybackError('', '');
   }
@@ -1010,10 +1019,7 @@
       return;
     }
 
-    const is404 = streamUrl && (streamUrl.includes('kvp726.com') || streamUrl.includes('404'));
-    playerErrorText.textContent = is404
-      ? 'Máy chủ CDN gốc chưa tải xong tập này (Lỗi HTTP 404 từ nhà cung cấp nguồn).'
-      : 'Luồng phát trực tiếp gặp lỗi hoặc máy chủ quá tải.';
+    playerErrorText.textContent = 'Chưa tải được luồng phim. Hãy thử lại hoặc chọn server khác.';
     playerErrorBanner.style.display = 'block';
 
     const embedBtn = document.getElementById('player-try-embed-btn');
@@ -1034,6 +1040,7 @@
       handlePlaybackError('', '');
       return;
     }
+    if (currentPlayerMode === 'hls' && videoPlayer.readyState >= 1) directWasPaused = videoPlayer.paused;
     trackAndSaveHistory();
     // Update player mode before releasing media so pause events cannot overwrite history.
     currentPlayerMode = 'embed';

@@ -1633,3 +1633,7 @@ button, a, .tv-card, .sidebar-item, .tv-btn, .tv-server-pill, .tv-ep-btn, .domai
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
   pointer-events: none;
 }
+
+/* Let the embedded player receive its own play/seek gestures. */
+.tv-player-overlay.embed-mode .player-click-layer,
+.tv-player-overlay.embed-mode .player-bottom-bar { display: none; }

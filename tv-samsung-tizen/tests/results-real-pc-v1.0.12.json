@@ -1,0 +1,143 @@
+{
+  "version": "TV Web 1.0.12",
+  "checkedAt": "2026-10-18T16:54:09.428Z",
+  "browser": "154.0.4258.62",
+  "actualRuntimeScripts": true,
+  "capabilityOverrides": false,
+  "mockedMedia": false,
+  "samples": [
+    {
+      "slug": "muc-than-ky",
+      "server": "Vietsub",
+      "episode": "Tập 01",
+      "hls": "https://s5.phim1280.tv/20241030/TKCwTAxb/index.m3u8",
+      "resume": {
+        "state": "playing",
+        "time": 30.006979,
+        "duration": 1158.2800000000002,
+        "width": 1920,
+        "height": 1080,
+        "decoder": "hls.js"
+      },
+      "pausedForwardSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 40
+      },
+      "pausedBackSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 30
+      },
+      "resumed": {
+        "state": "playing",
+        "time": 30.508455,
+        "errors": []
+      },
+      "closed": {
+        "state": "closed",
+        "hlsDestroyed": true,
+        "srcRemoved": true,
+        "oncanplay": true
+      }
+    },
+    {
+      "slug": "muc-than-ky",
+      "server": "Thuyết Minh",
+      "episode": "Tập 91",
+      "hls": "https://v7.kkphimplayer7.com/20260712/IMZi1oCd/index.m3u8",
+      "resume": {
+        "state": "playing",
+        "time": 30.006228,
+        "duration": 1034.8400000000004,
+        "width": 1920,
+        "height": 1080,
+        "decoder": "hls.js"
+      },
+      "pausedForwardSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 40
+      },
+      "pausedBackSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 30
+      },
+      "resumed": {
+        "state": "playing",
+        "time": 30.579753,
+        "errors": []
+      },
+      "closed": {
+        "state": "closed",
+        "hlsDestroyed": true,
+        "srcRemoved": true,
+        "oncanplay": true
+      }
+    },
+    {
+      "slug": "sat-thu-ve-vuon-2026",
+      "server": "Vietsub",
+      "episode": "Full",
+      "hls": "https://a.kvp726.com/20261018/oDmeMCLC/index.m3u8",
+      "resume": {
+        "state": "playing",
+        "time": 30.012028,
+        "duration": 7736.760000000007,
+        "width": 1920,
+        "height": 1038,
+        "decoder": "hls.js"
+      },
+      "pausedForwardSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 40.007
+      },
+      "pausedBackSeek": {
+        "state": "paused",
+        "paused": true,
+        "time": 30.007
+      },
+      "resumed": {
+        "state": "playing",
+        "time": 30.515381,
+        "errors": []
+      },
+      "closed": {
+        "state": "closed",
+        "hlsDestroyed": true,
+        "srcRemoved": true,
+        "oncanplay": true
+      }
+    }
+  ],
+  "exceptions": [],
+  "note": "Actual HLS media decoded by Microsoft Edge on Windows. Native Safari and physical TV are not tested.",
+  "failedRequests": [
+    {
+      "url": "https://s5.phim1280.tv/20241030/TKCwTAxb/2000kb/hls/xHdIISQa.ts",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://s5.phim1280.tv/20241030/TKCwTAxb/2000kb/hls/wHhWL6xR.ts",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://v7.kkphimplayer7.com/20260712/IMZi1oCd/3500kb/hls/y8qFr6RH.ts",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://v7.kkphimplayer7.com/20260712/IMZi1oCd/3500kb/hls/9SUi4x69.ts",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://v7.kkphimplayer7.com/20260712/IMZi1oCd/3500kb/hls/y8qFr6RH.ts",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://a.kvp726.com/20261018/oDmeMCLC/3500kb/hls/beSyUEWj.ts",
+      "error": "net::ERR_ABORTED"
+    }
+  ]
+}

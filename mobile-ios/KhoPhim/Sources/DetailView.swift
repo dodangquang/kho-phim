@@ -66,11 +66,12 @@ struct DetailView: View {
                             // Big Play Button
                             let lastProgress = watchHistoryManager.getProgress(for: movie.slug)
                             let currentEpisodes = detail.episodes.filter { $0.serverName == selectedServer }
-                            let resumeEp = detail.episodes.first { $0.episodeSlug == lastProgress?.episodeSlug } ?? currentEpisodes.first ?? detail.episodes.first
+                            let resumeEp = PlaybackPolicy.resumeEpisode(in: currentEpisodes, progress: lastProgress, server: selectedServer)
 
                             if let playEp = resumeEp {
                                 Button {
                                     activeEpisode = playEp
+                                    selectedServer = playEp.serverName
                                     showPlayer = true
                                 } label: {
                                     HStack {
@@ -84,6 +85,10 @@ struct DetailView: View {
                                     .background(Color.red)
                                     .cornerRadius(8)
                                 }
+                            } else {
+                                Text("Phim chưa có nguồn HLS phát trực tiếp. Hãy thử lại sau.")
+                                    .font(.system(size: 13)).foregroundColor(.gray)
+                                Button("Tải lại nguồn phát") { Task { await loadDetail() } }.tint(.red)
                             }
 
                             // Synopsis
@@ -136,7 +141,7 @@ struct DetailView: View {
 
                                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                                     ForEach(filtered) { ep in
-                                        let isWatched = lastProgress?.episodeSlug == ep.episodeSlug
+                                        let isWatched = lastProgress.map { PlaybackPolicy.matches($0, episode: ep) } ?? false
                                         Button {
                                             activeEpisode = ep
                                             showPlayer = true
@@ -157,16 +162,15 @@ struct DetailView: View {
                         .padding(.bottom, 32)
                     }
                 }
+            } else {
+                VStack(spacing: 16) {
+                    Text("Không tải được thông tin hoặc nguồn phát.").foregroundColor(.white)
+                    Button("Thử lại") { Task { await loadDetail() } }.tint(.red)
+                }
             }
         }
         .task {
-            if let detail = await PhimRepository.shared.getMovieDetail(slug: movie.slug) {
-                self.movieDetail = detail
-                if let first = detail.episodes.first {
-                    self.selectedServer = first.serverName
-                }
-            }
-            self.isLoading = false
+            await loadDetail()
         }
         .fullScreenCover(isPresented: $showPlayer) {
             if let ep = activeEpisode, let detail = movieDetail {
@@ -181,6 +185,22 @@ struct DetailView: View {
             }
         }
     }
+
+    @MainActor
+    private func loadDetail() async {
+        isLoading = true
+        let detail = await PhimRepository.shared.getMovieDetail(slug: movie.slug)
+        guard !Task.isCancelled else { return }
+        movieDetail = detail
+        if let detail = detail {
+            selectedServer = PlaybackPolicy.resumeEpisode(
+                in: detail.episodes,
+                progress: watchHistoryManager.getProgress(for: movie.slug),
+                server: selectedServer
+            )?.serverName ?? ""
+        }
+        isLoading = false
+    }
 }
 
 // FULLSCREEN LANDSCAPE VIDEO PLAYER FOR IOS
@@ -191,21 +211,17 @@ struct IOSPlayerView: View {
     let watchHistoryManager: WatchHistoryManager
     let onClose: () -> Void
 
-    @State private var player: AVPlayer?
-    @State private var isPlaying = true
+    @StateObject private var playback = IOSPlaybackController()
     @State private var showControls = true
-    @State private var currentTime: Double = 0
-    @State private var duration: Double = 0
     @State private var isSeeking = false
     @State private var seekSliderValue: Double = 0
-    @State private var timeObserverToken: Any?
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             // Native Video Player
-            if let p = player {
+            if let p = playback.player {
                 VideoPlayer(player: p)
                     .ignoresSafeArea()
                     .onTapGesture {
@@ -219,12 +235,13 @@ struct IOSPlayerView: View {
             if showControls {
                 ZStack {
                     Color.black.opacity(0.55).ignoresSafeArea()
+                        .onTapGesture { withAnimation { showControls = false } }
 
                     // Top Bar
                     VStack {
                         HStack {
                             Button(action: {
-                                saveProgress()
+                                playback.stop()
                                 onClose()
                             }) {
                                 Image(systemName: "chevron.left")
@@ -252,34 +269,31 @@ struct IOSPlayerView: View {
                         // Center Controls (Rewind 10s, Play/Pause, Forward 10s)
                         HStack(spacing: 50) {
                             Button {
-                                seekBy(-10)
+                                playback.seekBy(-10)
                             } label: {
                                 Image(systemName: "gobackward.10")
                                     .font(.system(size: 30))
                                     .foregroundColor(.white)
                             }
+                            .disabled(!playback.canSeek)
 
                             Button {
-                                if isPlaying {
-                                    player?.pause()
-                                    isPlaying = false
-                                } else {
-                                    player?.play()
-                                    isPlaying = true
-                                }
+                                playback.togglePlayback()
                             } label: {
-                                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                Image(systemName: playback.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                     .font(.system(size: 60))
                                     .foregroundColor(.red)
                             }
+                            .disabled(!playback.isReady)
 
                             Button {
-                                seekBy(10)
+                                playback.seekBy(10)
                             } label: {
                                 Image(systemName: "goforward.10")
                                     .font(.system(size: 30))
                                     .foregroundColor(.white)
                             }
+                            .disabled(!playback.canSeek)
                         }
 
                         Spacer()
@@ -287,7 +301,7 @@ struct IOSPlayerView: View {
                         // Bottom Scrub Bar
                         VStack(spacing: 4) {
                             HStack {
-                                Text(formatTime(isSeeking ? seekSliderValue : currentTime))
+                                Text(formatTime(isSeeking ? seekSliderValue : playback.currentTime))
                                     .font(.system(size: 12))
                                     .foregroundColor(.white)
 
@@ -308,107 +322,73 @@ struct IOSPlayerView: View {
 
                                 Spacer()
 
-                                Text(formatTime(duration))
+                                Text(formatTime(playback.duration))
                                     .font(.system(size: 12))
                                     .foregroundColor(.gray)
                             }
 
                             Slider(
                                 value: Binding(
-                                    get: { isSeeking ? seekSliderValue : currentTime },
+                                    get: { min(max(isSeeking ? seekSliderValue : playback.currentTime, 0), max(playback.duration, 1)) },
                                     set: { newVal in
                                         isSeeking = true
                                         seekSliderValue = newVal
                                     }
                                 ),
-                                in: 0...max(duration, 1),
+                                in: 0...max(playback.duration, 1),
                                 onEditingChanged: { editing in
                                     if !editing {
                                         isSeeking = false
-                                        player?.seek(to: CMTime(seconds: seekSliderValue, preferredTimescale: 600))
-                                        currentTime = seekSliderValue
+                                        playback.seek(to: seekSliderValue)
                                     }
                                 }
                             )
                             .tint(.red)
+                            .disabled(!playback.canSeek || playback.duration <= 0)
                         }
                         .padding(.horizontal, 24)
                         .padding(.bottom, 20)
                     }
                 }
             }
+            if let error = playback.errorMessage {
+                VStack(spacing: 16) {
+                    Text(error).multilineTextAlignment(.center).foregroundColor(.white)
+                    Button("Thử lại") { retryPlayback() }.tint(.red)
+                    Button("Chọn nguồn hoặc tập khác") { playback.stop(); onClose() }.foregroundColor(.white)
+                }
+                .padding(24)
+                .background(Color.black.opacity(0.9))
+                .cornerRadius(12)
+            } else if playback.isLoading {
+                VStack(spacing: 12) {
+                    ProgressView("Đang tải video...").tint(.red).foregroundColor(.white)
+                    Button("Tải lại nguồn phát") { retryPlayback() }.tint(.red)
+                }
+                .padding().background(Color.black.opacity(0.75)).cornerRadius(10)
+            }
         }
         .onAppear {
             setOrientation(.landscape)
-            setupPlayer()
+            playback.load(movie: movie, episode: currentEpisode, history: watchHistoryManager)
         }
         .onDisappear {
-            saveProgress()
-            if let token = timeObserverToken {
-                player?.removeTimeObserver(token)
-            }
-            player?.pause()
-            player = nil
+            playback.stop()
             setOrientation(.portrait)
         }
     }
 
-    private func setupPlayer() {
-        guard let url = URL(string: currentEpisode.streamUrl) else { return }
-        let p = AVPlayer(url: url)
-        self.player = p
-
-        // Check if previous progress exists
-        let lastProgress = watchHistoryManager.getProgress(for: movie.slug)
-        if let pos = lastProgress?.positionMs, pos > 2000, lastProgress?.episodeSlug == currentEpisode.episodeSlug {
-            p.seek(to: CMTime(seconds: Double(pos) / 1000.0, preferredTimescale: 600))
-        }
-
-        p.play()
-        isPlaying = true
-
-        let interval = CMTime(seconds: 1, preferredTimescale: 600)
-        timeObserverToken = p.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
-            if !isSeeking {
-                currentTime = time.seconds
-                if let dur = p.currentItem?.duration.seconds, !dur.isNaN {
-                    duration = dur
-                }
-                saveProgress()
-            }
-        }
-    }
-
     private func switchEpisode(_ ep: EpisodeSource) {
-        saveProgress()
+        isSeeking = false
+        seekSliderValue = 0
         currentEpisode = ep
-        setupPlayer()
+        playback.load(movie: movie, episode: ep, history: watchHistoryManager)
     }
 
-    private func seekBy(_ seconds: Double) {
-        guard let p = player else { return }
-        let target = max(0, min(duration, currentTime + seconds))
-        p.seek(to: CMTime(seconds: target, preferredTimescale: 600))
-        currentTime = target
-    }
-
-    private func saveProgress() {
-        guard currentTime > 2, duration > 0 else { return }
-        watchHistoryManager.saveProgress(
-            WatchProgress(
-                movieSlug: movie.slug,
-                movieTitle: movie.title,
-                posterUrl: movie.posterUrl,
-                bannerUrl: movie.bannerUrl,
-                episodeSlug: currentEpisode.episodeSlug,
-                episodeName: currentEpisode.episodeName,
-                serverName: currentEpisode.serverName,
-                streamUrl: currentEpisode.streamUrl,
-                positionMs: Int64(currentTime * 1000),
-                durationMs: Int64(duration * 1000),
-                timestamp: Int64(Date().timeIntervalSince1970 * 1000)
-            )
-        )
+    private func retryPlayback() {
+        isSeeking = false
+        seekSliderValue = 0
+        playback.retry()
     }
 
     private func setOrientation(_ orientation: UIInterfaceOrientationMask) {
@@ -422,7 +402,7 @@ struct IOSPlayerView: View {
     }
 
     private func formatTime(_ seconds: Double) -> String {
-        guard !seconds.isNaN && seconds > 0 else { return "00:00" }
+        guard seconds.isFinite && seconds > 0 && seconds < Double(Int.max) else { return "00:00" }
         let s = Int(seconds)
         let hours = s / 3600
         let minutes = (s % 3600) / 60

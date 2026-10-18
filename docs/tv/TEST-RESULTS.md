@@ -1,3 +1,11 @@
+# TV Web 1.0.12 — 18/10/2026
+
+11/11 kiểm tra player web đã qua. Bốn tình huống mới kiểm tra xem tiếp khi vùng seekable chưa sẵn sàng, nhiều lần tua lúc tạm dừng, callback sẵn sàng của nguồn cũ và đổi từ HLS gốc sang HLS.js mà vẫn giữ vị trí/trạng thái tạm dừng. Bộ watchdog dùng mã runtime của cả Samsung và TV Web cũng qua tám tình huống; bộ tích hợp Samsung qua 36/36 kiểm tra trên Edge 154.0.4258.62. Tất cả bảy file JavaScript runtime của TV Web phân tích cú pháp ES5.
+
+Dữ liệu: `../../tv-samsung-tizen/tests/results-web-v1.0.12.json`. Các kiểm tra native HLS và AVPlay ở trên dùng môi trường mô phỏng để điều khiển chính xác thứ tự sự kiện; chưa thử trên Safari/iPhone hay TV thật.
+
+Đã chạy thêm ba nguồn phim thật qua player runtime 1.0.12 trên Edge, không sửa capability, playlist hay video: Mục Thần Ký Vietsub tập 01, Mục Thần Ký Thuyết Minh tập 91 và Sát Thủ Về Vườn 2026. Cả ba giải mã video, xem tiếp từ 30 giây, tạm dừng, tua +10/-10 giây, phát tiếp và giải phóng HLS/source khi thoát đều đạt; không có runtime exception hoặc lỗi player. Yêu cầu phân đoạn bị hủy khi tua/thoát là hành vi bình thường. Dữ liệu: `../../tv-samsung-tizen/tests/results-real-pc-v1.0.12.json`. Kiểm tra này dùng trang tối giản tải nguyên các file runtime player/HLS để cô lập phát video; không thay thế kiểm tra toàn bộ giao diện trên thiết bị thật. Kết quả phim thật của 1.0.11 phía dưới là dữ liệu lịch sử.
+
 # TV Web 1.0.11 — sửa phát HLS trên PC
 
 17/10/2026. Edge 154.0.4258.62 trên Windows.

@@ -1,44 +1,5 @@
 import Foundation
-
-class DomainManager: ObservableObject {
-    @Published var activeDomain: String = "https://phimmoic.info"
-
-    let fallbackDomains = [
-        "https://phimmoichill.net",
-        "https://phimmoichill.com",
-        "https://phimmoic.info",
-        "https://phimmoic.net",
-        "https://phimmoivip.org"
-    ]
-
-    private let key = "active_domain"
-
-    init() {
-        if let saved = UserDefaults.standard.string(forKey: key) {
-            self.activeDomain = saved
-        }
-    }
-
-    func setActiveDomain(_ domain: String) {
-        let clean = domain.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        self.activeDomain = clean
-        UserDefaults.standard.set(clean, forKey: key)
-    }
-
-    func fetchLatestDomain() async {
-        guard let url = URL(string: "https://raw.githubusercontent.com/phimmoi-config/domains/main/active_domain.txt") else { return }
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200,
-               let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-               text.starts(with: "http") {
-                DispatchQueue.main.async {
-                    self.setActiveDomain(text)
-                }
-            }
-        } catch {}
-    }
-}
+import Combine
 
 class WatchHistoryManager: ObservableObject {
     @Published var historyList: [WatchProgress] = []

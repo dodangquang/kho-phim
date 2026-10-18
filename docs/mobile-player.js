@@ -2,13 +2,15 @@
 (function (global) {
   'use strict';
   let hlsDownload = null;
+  const scriptSource = document.currentScript && document.currentScript.src;
+  const hlsSource = scriptSource ? new URL('tv/vendor/hls.light-1.7.3.min.js', scriptSource).href : 'tv/vendor/hls.light-1.7.3.min.js';
 
   function loadHls() {
     if (global.Hls) return Promise.resolve(global.Hls);
     if (hlsDownload) return hlsDownload;
     hlsDownload = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'tv/vendor/hls.light-1.7.3.min.js';
+      script.src = hlsSource;
       script.async = true;
       const timer = global.setTimeout(() => finish(new Error('HLS download timeout')), 10000);
       function finish(error) {
@@ -107,13 +109,13 @@
         recover(s);
       }, delay);
     }
-    function nativeStart(s, shouldPlay = true) {
+    function nativeStart(s) {
       s.engine = 'native';
       video.disableRemotePlayback = false;
       video.src = s.url;
       video.load();
       watch(s);
-      if (shouldPlay) play(s);
+      if (s.autoplay) play(s);
     }
     function mseStart(s) {
       s.engine = 'loading-hls';
@@ -121,6 +123,7 @@
       loadHls().then(Hls => {
         if (!live(s)) return;
         if (!Hls.isSupported()) { fail(s); return; }
+        s.internalReset = true;
         video.pause();
         video.removeAttribute('src');
         video.load();
@@ -143,9 +146,9 @@
         });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (!live(s) || s.hls !== hls) return;
+          s.internalReset = false;
           applySeek(s);
-          watch(s);
-          play(s);
+          if (s.autoplay) { watch(s); play(s); }
         });
         hls.on(Hls.Events.ERROR, (_, data) => {
           if (!live(s) || s.hls !== hls || !data.fatal) return;
@@ -172,24 +175,31 @@
         mseStart(s);
       } else fail(s);
     }
-    function open(url, position = 0) {
+    function open(url, position = 0, options = {}) {
       stop();
       const s = session = {
         url, engine: '', pendingSeek: Number.isFinite(position) && position > 0 ? position : null,
         lastTime: 0, nativeRetries: 0, networkRetries: 0, mediaRetries: 0,
-        timer: null, listeners: [], hls: null, failed: false
+        timer: null, listeners: [], hls: null, failed: false,
+        autoplay: options.autoplay !== false, internalReset: false
       };
-      video.muted = false;
+      if (options.unmute !== false) video.muted = false;
       ['loadedmetadata', 'durationchange', 'canplay', 'progress'].forEach(event => listen(s, event, () => applySeek(s)));
       listen(s, 'timeupdate', () => {
         if (!video.seeking && video.readyState >= 2) s.lastTime = video.currentTime;
       });
       listen(s, 'playing', () => clearWatchdog(s));
+      listen(s, 'play', () => { s.autoplay = true; });
       ['waiting', 'stalled', 'seeking'].forEach(event => listen(s, event, () => watch(s, 15000)));
       listen(s, 'seeked', () => {
         if (video.paused || video.readyState >= 3) clearWatchdog(s);
       });
-      listen(s, 'pause', () => { if (video.paused && !video.error) clearWatchdog(s); });
+      listen(s, 'pause', () => {
+        if (video.paused && !video.error) {
+          clearWatchdog(s);
+          if (!s.internalReset) s.autoplay = false;
+        }
+      });
       listen(s, 'error', () => {
         if (s.engine === 'native' && video.error) recover(s);
       });
@@ -202,6 +212,12 @@
     }
     return {
       open, stop,
+      seekTo(seconds) {
+        if (!session || session.failed || !Number.isFinite(seconds)) return false;
+        session.pendingSeek = Math.max(0, seconds);
+        applySeek(session);
+        return session.pendingSeek === null;
+      },
       seekBy(seconds) {
         if (!session || session.failed || !Number.isFinite(seconds)) return false;
         session.pendingSeek = Math.max(0, (session.pendingSeek === null ? video.currentTime || 0 : session.pendingSeek) + seconds);
@@ -210,4 +226,5 @@
       }
     };
   };
+  global.KhoVideoPlayer = global.KhoMobilePlayer;
 }(window));

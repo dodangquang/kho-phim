@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../mobile-player.js'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function setup({ native = true, agent = 'iPhone Safari', rejectPlay } = {}) {
+function setup({ native = true, agent = 'iPhone Safari', rejectPlay, scriptSource } = {}) {
   const listeners = new Map(), timers = new Map(), scripts = [], instances = [], calls = [];
   let timerId = 0, ranges = [], position = 0;
   const video = {
@@ -25,10 +25,10 @@ function setup({ native = true, agent = 'iPhone Safari', rejectPlay } = {}) {
   };
   const context = {
     navigator: { userAgent: agent },
-    document: { hidden: false, createElement: () => ({ remove() {} }), head: { appendChild(script) { scripts.push(script); } } },
+    document: { hidden: false, currentScript: scriptSource ? { src: scriptSource } : null, createElement: () => ({ remove() {} }), head: { appendChild(script) { scripts.push(script); } } },
     setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
     clearTimeout(id) { timers.delete(id); },
-    MediaSource: {}, console
+    MediaSource: {}, console, URL
   };
   context.window = context;
   vm.runInNewContext(source, context);
@@ -156,4 +156,31 @@ test('a failed lazy library download reports an error and can be retried', async
   const s = setup({ native: false }); s.player.open('one.m3u8'); s.scripts[0].onerror(); await flush();
   assert.equal(s.calls.filter(x => x === 'onError').length, 1);
   s.player.open('two.m3u8'); assert.equal(s.scripts.length, 2);
+});
+
+test('desktop resolves the local pinned decoder from the shared script URL', () => {
+  const s = setup({ native: false, scriptSource: 'https://example.test/mobile-player.js?v=1' });
+  assert.equal(s.context.KhoVideoPlayer, s.context.KhoMobilePlayer);
+  s.player.open('one.m3u8');
+  assert.equal(s.scripts[0].src, 'https://example.test/tv/vendor/hls.light-1.7.3.min.js');
+});
+
+test('paused restore seeks after readiness without autoplay or unmuting (native and MSE)', async () => {
+  for (const native of [true, false]) {
+    const s = setup({ native }); s.installHls();
+    s.player.open('one.m3u8', 65, { autoplay: false, unmute: false });
+    await flush();
+    if (!native) s.instances[0].handlers.manifest();
+    s.ready(120); s.emit('progress');
+    assert.equal(s.video.currentTime, 65);
+    assert.equal(s.video.playCalls, 0); assert.equal(s.video.paused, true); assert.equal(s.video.muted, true);
+    s.player.seekTo(95); assert.equal(s.video.currentTime, 95); assert.equal(s.video.paused, true);
+  }
+});
+
+test('native recovery preserves an intentional pause', () => {
+  const s = setup(); s.player.open('one.m3u8'); s.ready(); s.video.currentTime = 40;
+  s.video.paused = true; s.emit('pause');
+  s.video.error = { code: 3 }; s.emit('error'); s.ready(); s.emit('progress');
+  assert.equal(s.video.currentTime, 40); assert.equal(s.video.playCalls, 1); assert.equal(s.video.paused, true);
 });

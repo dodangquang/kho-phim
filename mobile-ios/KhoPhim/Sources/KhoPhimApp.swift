@@ -2,13 +2,11 @@ import SwiftUI
 
 @main
 struct KhoPhimApp: App {
-    @StateObject private var domainManager = DomainManager()
     @StateObject private var watchHistoryManager = WatchHistoryManager()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(domainManager)
                 .environmentObject(watchHistoryManager)
                 .preferredColorScheme(.dark)
         }
@@ -16,7 +14,6 @@ struct KhoPhimApp: App {
 }
 
 struct ContentView: View {
-    @EnvironmentObject var domainManager: DomainManager
     @EnvironmentObject var watchHistoryManager: WatchHistoryManager
     @State private var selectedTab: TabItem = .home
 

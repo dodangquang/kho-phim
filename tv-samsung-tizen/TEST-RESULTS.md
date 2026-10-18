@@ -1,3 +1,12 @@
+# Kiểm tra Samsung 1.0.11 — 18/10/2026
+
+- 36/36 kiểm tra tích hợp trên Microsoft Edge 154.0.4258.62: ES5, điều hướng, danh mục/tìm kiếm, lịch sử, cache, phân trang và AVPlay mô phỏng.
+- `tests/player-timing.cjs`: tám tình huống trên mã runtime Samsung và TV Web AVPlay. Tái hiện chuỗi `open → pause → bufferingstart → bufferingcomplete`; không có watchdog khi tạm dừng, callback timeout đã xếp hàng không thể đóng video. Tua khi tạm dừng giữ trạng thái, phát tiếp bật lại timeout; nguồn cũ và trạng thái closed/error không thể bật timer.
+- Lỗi API chính vẫn cho phép thử lại/quay về danh mục; không gọi endpoint OPhim đã hỏng.
+- Gói UNSIGNED mới chỉ chứa 11 file runtime. Chưa ký bằng chứng chỉ Samsung, chưa cài trên TV thật; kiểm tra AVPlay dùng mô phỏng.
+
+Dữ liệu: `tests/results-v1.0.11.json`. Kết quả dưới đây của bản 1.0.10 được giữ nguyên làm lịch sử.
+
 # Kiểm tra Kho Phim 1.0.10 — 17/10/2026
 
 ## Chromium 69 thật
