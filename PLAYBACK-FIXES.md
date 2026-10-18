@@ -10,9 +10,9 @@ Kiểm chứng: 15 ca unit lifecycle; kiểm thử giao diện Safari mô phỏn
 
 Giữ nguyên slug có năm/số phần, không bỏ hậu tố số gây mở nhầm phim. Chỉ chuyển URL HLS hợp lệ cho player; giải mã HLS trong embed, từ chối HTML. Resume khớp server và tập. Đổi tập lưu tiến trình cũ, reset thời gian và retry dùng thời gian tập mới. TV không tua tới sentinel âm khi duration chưa biết; bổ sung thử lại/chọn server khác.
 
-## iOS native
+## iOS native 1.0.1/build2
 
-Controller mới sở hữu AVPlayer và observer, gỡ observer theo đúng player, giải phóng player trước khi đổi tập và chặn callback cũ. Timeline reset theo tập; resume/tua kiểm tra thời gian hữu hạn, tải sẵn và server. Có báo lỗi/thử lại. Chính sách URL giữ đúng phim và giải mã HLS trong embed. Năm XCTest Foundation và build iOS được chạy qua workflow macOS; Windows không có công cụ build iOS.
+Controller mới sở hữu AVPlayer và observer, gỡ observer theo đúng player, giải phóng player trước khi đổi tập và chặn callback cũ. Timeline reset theo tập; resume/tua kiểm tra thời gian hữu hạn, tải sẵn và server. Có báo lỗi/thử lại. Chính sách URL giữ đúng phim và giải mã HLS trong embed. Năm XCTest Foundation và build IPA đã đạt trên macOS GitHub Actions. IPA ký ad-hoc là artifact để kiểm chứng build, không chứa provisioning cho cài App Store/TestFlight.
 
 ## Samsung 1.0.11, TV Web 1.0.12 và LG
 

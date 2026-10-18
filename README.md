@@ -11,7 +11,7 @@
 | **Android TV 1.0.3** | `/tv` | Bản sửa cần build từ source | Giữ đúng phim/server; tua an toàn |
 | **Android Mobile 1.0.3** | `/mobile-android` | Bản sửa cần build từ source | Không dùng thời gian tập cũ khi thử lại |
 | **Web Mobile 1.0.13 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | ✅ HLS gốc Safari, tua ±10s, khôi phục luồng |
-| **iOS (iPhone/iPad Xcode)** | `/mobile-ios` | SwiftUI Xcode Project | ✅ Native SwiftUI & AVPlayer |
+| **iOS 1.0.1/build2** | `/mobile-ios` | IPA trong artifact workflow macOS | Quản lý player/observer; tải lại khi lỗi |
 | **Web Desktop 1.0.6** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Giữ vị trí/pause khi đổi nguồn; HLS.js cục bộ tải khi cần |
 
 ## 🌟 Tính Năng Chính
@@ -30,7 +30,7 @@ Hai ZIP LG 1.0.2/1.0.3 cũ có cùng nội dung launcher 1.0.3, mở TV Web trê
 
 Chi tiết thay đổi và phạm vi kiểm chứng: [PLAYBACK-FIXES.md](PLAYBACK-FIXES.md). Các số phiên bản ở bảng trên mô tả source trong nhánh hiện tại; link website chỉ có thay đổi sau khi nhánh được triển khai.
 
-## Samsung TV 1.0.10 và TV Web 1.0.11
+## Bản phát hành cũ Samsung 1.0.10 và TV Web 1.0.11
 
 Bản Samsung đóng gói giao diện cục bộ, phát bằng AVPlay; bản web dùng cùng giao diện tối ưu tại `/tv/`. Giữ 6 phim mỗi kệ/trang, cache tối đa 48 thumbnail và sửa poster bị hẹp trên Chromium 69. Chi tiết kiểm tra và cách cài ở [tv-samsung-tizen/README.md](tv-samsung-tizen/README.md).
 
