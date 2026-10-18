@@ -49,6 +49,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import com.phimmoi.mobile.data.PlaybackSupport
 import com.phimmoi.mobile.data.EpisodeSource
 import com.phimmoi.mobile.data.WatchHistoryManager
 import com.phimmoi.mobile.data.WatchProgress
@@ -118,7 +119,9 @@ fun MobilePlayerScreen(
     var currentEp by remember { mutableStateOf(initialEpisode) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
-    var currentPos by remember { mutableStateOf(0L) }
+    var currentPos by remember { mutableStateOf(initialPositionMs.coerceAtLeast(0L)) }
+    var episodeStartPosition by remember { mutableStateOf(initialPositionMs.coerceAtLeast(0L)) }
+    var episodePlayWhenReady by remember { mutableStateOf(true) }
     var totalDuration by remember { mutableStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -173,6 +176,7 @@ fun MobilePlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                isBuffering = false
                 errorMessage = "Lỗi phát video: ${error.localizedMessage}"
             }
         }
@@ -204,9 +208,38 @@ fun MobilePlayerScreen(
         }
     }
 
+    fun saveCurrentProgress() {
+        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+        val duration = exoPlayer.duration
+        if (watchHistoryManager != null && movieSlug.isNotEmpty() && position > 2000L && duration > 0L) {
+            watchHistoryManager.saveProgress(WatchProgress(
+                movieSlug = movieSlug, movieTitle = movieTitle, posterUrl = posterUrl, bannerUrl = bannerUrl,
+                episodeSlug = currentEp.episodeSlug, episodeName = currentEp.episodeName,
+                serverName = currentEp.serverName, streamUrl = currentEp.streamUrl,
+                positionMs = position, durationMs = duration
+            ))
+        }
+    }
+
+    fun switchEpisode(episode: EpisodeSource) {
+        if (episode.id == currentEp.id) return
+        saveCurrentProgress()
+        val position = if (episode.episodeSlug == currentEp.episodeSlug) exoPlayer.currentPosition.coerceAtLeast(0L) else 0L
+        episodePlayWhenReady = if (episode.episodeSlug == currentEp.episodeSlug) exoPlayer.playWhenReady else true
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        episodeStartPosition = position
+        currentPos = position
+        totalDuration = 0L
+        isSeeking = false
+        seekSliderPos = 0f
+        isBuffering = true
+        currentEp = episode
+    }
+
     LaunchedEffect(currentEp) {
         errorMessage = null
-        val rawUrl = currentEp.streamUrl.trim()
+        val rawUrl = PlaybackSupport.nativeStream(currentEp.streamUrl).orEmpty()
         if (rawUrl.isNotBlank()) {
             try {
                 val sanitized = rawUrl.replace(" ", "%20")
@@ -218,25 +251,28 @@ fun MobilePlayerScreen(
                         }
                     }
                     .build()
-                val startPos = if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                val startPos = episodeStartPosition
                 exoPlayer.setMediaItem(mediaItem, startPos)
                 exoPlayer.prepare()
-                exoPlayer.play()
+                exoPlayer.playWhenReady = episodePlayWhenReady
             } catch (e: Exception) {
                 errorMessage = "Không thể tải luồng phát: ${e.localizedMessage ?: "Lỗi"}"
             }
         } else {
-            errorMessage = "Đang lấy link phát trực tiếp..."
+            isBuffering = false
+            errorMessage = "Nguồn này không có video trực tiếp hợp lệ. Hãy chọn nguồn hoặc tập khác."
         }
     }
 
     // Auto-save history every 3s
     LaunchedEffect(Unit) {
+        var saveTicks = 0
         while (true) {
-            if (exoPlayer.isPlaying && !isSeeking) {
+            if (!isSeeking) {
                 currentPos = exoPlayer.currentPosition.coerceAtLeast(0L)
                 totalDuration = exoPlayer.duration.coerceAtLeast(0L)
-                if (watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
+                if (++saveTicks >= 6 && exoPlayer.isPlaying && watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
+                    saveTicks = 0
                     watchHistoryManager.saveProgress(
                         WatchProgress(
                             movieSlug = movieSlug,
@@ -253,7 +289,7 @@ fun MobilePlayerScreen(
                     )
                 }
             }
-            delay(3000)
+            delay(500)
         }
     }
 
@@ -317,7 +353,7 @@ fun MobilePlayerScreen(
                     Button(
                         onClick = {
                             errorMessage = null
-                            val rawUrl = currentEp.streamUrl.trim()
+                            val rawUrl = PlaybackSupport.nativeStream(currentEp.streamUrl).orEmpty()
                             if (rawUrl.isNotBlank()) {
                                 try {
                                     val sanitized = rawUrl.replace(" ", "%20")
@@ -329,13 +365,16 @@ fun MobilePlayerScreen(
                                             }
                                         }
                                         .build()
-                                    val retryPos = if (currentPos > 1000L) currentPos else if (currentEp.id == initialEpisode.id && initialPositionMs > 1000L) initialPositionMs else 0L
+                                    val retryPos = exoPlayer.currentPosition.coerceAtLeast(0L)
                                     exoPlayer.setMediaItem(mediaItem, retryPos)
                                     exoPlayer.prepare()
                                     exoPlayer.play()
                                 } catch (e: Exception) {
                                     errorMessage = "Lỗi phát: ${e.localizedMessage}"
                                 }
+                            } else {
+                                isBuffering = false
+                                errorMessage = "Nguồn này không có video trực tiếp hợp lệ. Hãy chọn nguồn hoặc tập khác."
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
@@ -357,7 +396,7 @@ fun MobilePlayerScreen(
 
         // TOUCH CONTROLS OVERLAY
         AnimatedVisibility(
-            visible = showControls,
+            visible = showControls && errorMessage == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize()
@@ -430,7 +469,7 @@ fun MobilePlayerScreen(
                     IconButton(
                         onClick = {
                             val current = exoPlayer.currentPosition
-                            val target = (current - 10_000L).coerceAtLeast(0L)
+                            val target = PlaybackSupport.seekTarget(current, exoPlayer.duration, -10_000L)
                             exoPlayer.seekTo(target)
                             currentPos = target
                         },
@@ -466,8 +505,7 @@ fun MobilePlayerScreen(
                         onClick = {
                             val current = exoPlayer.currentPosition
                             val dur = exoPlayer.duration
-                            val maxLimit = if (dur > 0L) dur else Long.MAX_VALUE
-                            val target = (current + 10_000L).coerceIn(0L, maxLimit)
+                            val target = PlaybackSupport.seekTarget(current, dur, 10_000L)
                             exoPlayer.seekTo(target)
                             currentPos = target
                         },
@@ -505,7 +543,7 @@ fun MobilePlayerScreen(
 
                         if (nextEp != null) {
                             TextButton(
-                                onClick = { currentEp = nextEp },
+                                onClick = { switchEpisode(nextEp) },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
@@ -621,7 +659,7 @@ fun MobilePlayerScreen(
                                                 .clip(RoundedCornerShape(6.dp))
                                                 .background(if (isCurrent) NetflixRed else Color(0xFF333333))
                                                 .clickable {
-                                                    currentEp = ep
+                                                    switchEpisode(ep)
                                                     showEpisodeSheet = false
                                                 },
                                             contentAlignment = Alignment.Center

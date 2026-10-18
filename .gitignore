@@ -13,6 +13,7 @@ build/
 __pycache__
 xcuserdata/
 **/.build/
+**/.kotlin/
 
 # Keep releases
 !releases/*.apk

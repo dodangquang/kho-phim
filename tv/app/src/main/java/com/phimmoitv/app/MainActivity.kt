@@ -41,8 +41,6 @@ import com.phimmoitv.app.ui.theme.NetflixCard
 import com.phimmoitv.app.ui.theme.NetflixRed
 import com.phimmoitv.app.ui.theme.PhimMoiTvTheme
 import com.phimmoitv.app.ui.theme.TextMuted
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -94,10 +92,6 @@ class MainActivity : ComponentActivity() {
         repository = PhimMoiRepository(domainManager)
         watchHistoryManager = WatchHistoryManager(applicationContext)
         appUpdateManager = AppUpdateManager(applicationContext)
-
-        CoroutineScope(Dispatchers.IO).launch {
-            domainManager.fetchLatestDomainFromRemote()
-        }
 
         setContent {
             PhimMoiTvTheme {

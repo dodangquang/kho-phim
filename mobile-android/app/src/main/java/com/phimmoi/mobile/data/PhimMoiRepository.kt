@@ -263,7 +263,8 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
     }
 
     suspend fun getMovieDetail(movieSlug: String): MovieDetail = withContext(Dispatchers.IO) {
-        val cleanSlug = movieSlug.trim().trimStart('/').trimEnd('/').substringAfterLast('/').replace(Regex("-\\d+$"), "")
+        val slugCandidates = PlaybackSupport.movieSlugCandidates(movieSlug)
+        val cleanSlug = slugCandidates.firstOrNull() ?: movieSlug
         if (isBrokenMovie(movieSlug) || isBrokenMovie(cleanSlug)) {
             return@withContext MovieDetail(
                 title = movieSlug,
@@ -273,11 +274,10 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                 episodes = emptyList()
             )
         }
-        var detail = fetchDetailFromApi(cleanSlug, movieSlug)
-        if ((detail == null || detail.episodes.isEmpty()) && cleanSlug != movieSlug) {
-            detail = fetchDetailFromApi(movieSlug, movieSlug)
+        for (candidate in slugCandidates) {
+            val detail = fetchDetailFromApi(candidate, movieSlug)
+            if (detail != null && detail.episodes.isNotEmpty()) return@withContext detail
         }
-        if (detail != null && detail.episodes.isNotEmpty()) return@withContext detail
         val baseUrl = getBaseUrl()
         val url = "$baseUrl/phim/$movieSlug"
         try {
@@ -311,15 +311,16 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
     }
 
     private fun fetchDetailFromApi(slug: String, fallbackSlug: String): MovieDetail? {
-        val providers = listOf("https://phimapi.com/phim/$slug", "https://ophim1.com/phim/$slug")
+        val providers = listOf("https://phimapi.com/phim/$slug")
         for (url in providers) {
             try {
                 val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").build()
-                val resp = client.newCall(req).execute()
-                if (resp.isSuccessful) {
-                    val body = resp.body?.string() ?: continue
-                    val detail = parseDetailFromJson(body, fallbackSlug)
-                    if (detail != null && detail.episodes.isNotEmpty()) return detail
+                client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string() ?: return@use
+                        val detail = parseDetailFromJson(body, fallbackSlug)
+                        if (detail != null && detail.episodes.isNotEmpty()) return detail
+                    }
                 }
             } catch (e: Exception) {
                 Log.w("PhimMoiRepo", "API error $url: ${e.message}")
@@ -359,12 +360,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                         val epSlug = epObj.optString("slug", "tap-${j + 1}").trim()
                         val linkM3u8 = epObj.optString("link_m3u8", "").trim()
                         val linkEmbed = epObj.optString("link_embed", "").trim()
-                        var streamUrl = linkM3u8
-                        if (streamUrl.isEmpty() && linkEmbed.contains("url=")) {
-                            val extracted = linkEmbed.substringAfter("url=").substringBefore("&")
-                            streamUrl = try { URLDecoder.decode(extracted, "UTF-8") } catch (_: Exception) { extracted }
-                        }
-                        if (streamUrl.isEmpty()) streamUrl = linkEmbed
+                        val streamUrl = PlaybackSupport.nativeStream(linkM3u8, linkEmbed).orEmpty()
                         if (streamUrl.isNotEmpty()) {
                             episodesList.add(EpisodeSource(id = "$serverName-$epSlug-$j", serverName = serverName, episodeName = epName, episodeSlug = epSlug, streamUrl = streamUrl))
                         }
@@ -398,7 +394,8 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                 val extracted = link.substringAfter("url=").substringBefore("&")
                 link = try { URLDecoder.decode(extracted, "UTF-8") } catch (_: Exception) { extracted }
             }
-            if (link.endsWith(".m3u8") || link.contains("m3u8")) {
+            link = PlaybackSupport.nativeStream(link).orEmpty()
+            if (link.isNotEmpty()) {
                 list.add(EpisodeSource(id = id, serverName = server, episodeName = name, episodeSlug = slug, streamUrl = link))
             }
         }
