@@ -13,10 +13,6 @@ class DomainManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("phimmoi_config", Context.MODE_PRIVATE)
 
-    // Remote config URL: Có thể là GitHub Raw, Gist, Pastebin hoặc Cloudflare Worker
-    // Khi web đổi tên miền, bạn chỉ cần sửa 1 dòng trong file text này trên GitHub mà KHÔNG cần build lại app!
-    private val remoteConfigUrl = "https://raw.githubusercontent.com/phimmoi-config/domains/main/active_domain.txt"
-
     // Danh sách các domain dự phòng có sẵn
     private val fallbackDomains = listOf(
         "https://phimmoichill.net",
@@ -40,31 +36,7 @@ class DomainManager(context: Context) {
         prefs.edit().putString("active_domain", clean).apply()
     }
 
-    /**
-     * Tự động cập nhật tên miền mới nhất từ Remote Server (GitHub/Gist)
-     */
-    suspend fun fetchLatestDomainFromRemote(): String? = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder().url(remoteConfigUrl).build()
-            val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val newDomain = response.body?.string()?.trim()?.trimEnd('/')
-                if (!newDomain.isNullOrBlank() && newDomain.startsWith("http")) {
-                    setActiveDomain(newDomain)
-                    return@withContext newDomain
-                }
-            }
-        } catch (_: Exception) {
-            // Nếu không fetch được remote config (offline hoặc chưa tạo gist), giữ domain hiện tại
-        }
-        null
-    }
-
-    /**
-     * Tự động kiểm tra sức khỏe domain (Health Check)
-     * Nếu domain hiện tại chết hoặc bị nhà mạng chặn, tự động chuyển sang domain dự phòng tiếp theo
-     */
-    suspend fun resolveWorkingDomain(): String = withContext(Dispatchers.IO) {
+    suspend fun resolveWorkingDomain(): String? = withContext(Dispatchers.IO) {
         val current = getActiveDomain()
         if (isDomainAlive(current)) {
             return@withContext current
@@ -79,7 +51,7 @@ class DomainManager(context: Context) {
         }
 
         // Mặc định trả về domain hiện tại nếu tất cả đều không phản hồi
-        current
+        null
     }
 
     private fun isDomainAlive(domain: String): Boolean {
@@ -89,8 +61,9 @@ class DomainManager(context: Context) {
                 .header("User-Agent", "Mozilla/5.0")
                 .head()
                 .build()
-            val response = httpClient.newCall(request).execute()
-            response.isSuccessful || response.code in 200..399
+            httpClient.newCall(request).execute().use { response ->
+                response.isSuccessful || response.code in 200..399
+            }
         } catch (_: Exception) {
             false
         }

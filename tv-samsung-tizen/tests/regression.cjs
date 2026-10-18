@@ -335,7 +335,8 @@ function mockPlatform() {
     await page.waitForFunction(() => document.querySelector('#detail-title').textContent === 'Chưa tải được thông tin phim');
     await page.locator('#detail-back').click();
     assert.equal(await page.locator('#detail').isVisible(), false);
-    pass('Both detail API failures show retry and allow returning to catalog');
+    assert.equal(apiRequests.some(url => url.indexOf('ophim1.com') !== -1), false);
+    pass('Primary detail API failure shows retry and permits returning without a request to the dead backup');
     mode.failDetail = false;
     await page.evaluate(() => localStorage.setItem('khophim_tv_watch_history', JSON.stringify([{ slug: 'phim-0', name: 'Phim xem tiếp', poster_url: 'https://images.example/poster.png', banner: 'https://images.example/banner.png', episodeSlug: 'tap-1', episodeName: 'Tập 1', serverName: 'Vietsub', positionMs: 90000, durationMs: 3600000 }])));
     await page.locator('#menu [data-tab="home"]').click();

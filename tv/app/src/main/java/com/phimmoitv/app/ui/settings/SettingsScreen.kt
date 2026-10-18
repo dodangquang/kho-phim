@@ -268,27 +268,13 @@ fun SettingsScreen(
                             scope.launch {
                                 statusMessage = "Đang kiểm tra các server..."
                                 val working = domainManager.resolveWorkingDomain()
-                                currentDomain = working
-                                statusMessage = "Đã kết nối thành công: $working"
+                                if (working != null) currentDomain = working
+                                statusMessage = working?.let { "Đã kết nối thành công: $it" } ?: "Không kết nối được tên miền nào. Hãy kiểm tra mạng hoặc nhập tên miền khác."
                             }
                         }
                     )
 
-                    TvButton(
-                        text = "☁ Lấy Domain Mới Từ Cloud",
-                        onClick = {
-                            scope.launch {
-                                statusMessage = "Đang tải cấu hình mới từ Remote..."
-                                val remote = domainManager.fetchLatestDomainFromRemote()
-                                if (remote != null) {
-                                    currentDomain = remote
-                                    statusMessage = "Cập nhật thành công: $remote"
-                                } else {
-                                    statusMessage = "Đang dùng domain tối ưu nhất."
-                                }
-                            }
-                        }
-                    )
+
                 }
             }
         }

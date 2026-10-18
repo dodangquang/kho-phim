@@ -149,9 +149,10 @@ class PhimRepository {
 
     func search(query: String) async -> [MovieItem] {
         let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, let encoded = clean.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return [] }
-        let apiUrl = "https://phimapi.com/v1/api/tim-kiem?keyword=\(encoded)&limit=50&page=1"
-        guard let url = URL(string: apiUrl) else { return [] }
+        guard !clean.isEmpty else { return [] }
+        var components = URLComponents(string: "https://phimapi.com/v1/api/tim-kiem")
+        components?.queryItems = [URLQueryItem(name: "keyword", value: clean), URLQueryItem(name: "limit", value: "50"), URLQueryItem(name: "page", value: "1")]
+        guard let url = components?.url else { return [] }
 
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
@@ -164,16 +165,16 @@ class PhimRepository {
     }
 
     func getMovieDetail(slug: String) async -> MovieDetail? {
-        let clean = slug.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        let providers = [
-            "https://phimapi.com/phim/\(clean)",
-            "https://ophim1.com/phim/\(clean)"
-        ]
+        guard let clean = PlaybackPolicy.movieSlug(slug) else { return nil }
+        // Preserve the provider's exact slug, including years and sequel numbers.
+        // The former ophim1.com route returns 404; no unverified replacement is used.
+        let providers = [URL(string: "https://phimapi.com/phim/")!.appendingPathComponent(clean)]
 
-        for p in providers {
-            guard let url = URL(string: p) else { continue }
+        for url in providers {
             do {
-                let (data, response) = try await URLSession.shared.data(from: url)
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 20
+                let (data, response) = try await URLSession.shared.data(for: request)
                 if let http = response as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let movieObj = json["movie"] as? [String: Any] {
@@ -186,7 +187,7 @@ class PhimRepository {
                     let isThumbCdn = thumb.contains("phimimg.com") && !thumb.contains("danviet") && !thumb.contains("kenh14")
                     let finalPoster = (!isPosterCdn && isThumbCdn) ? thumb : (!poster.isEmpty ? poster : thumb)
                     let finalBanner = isThumbCdn ? thumb : (!thumb.isEmpty ? thumb : poster)
-                    let year = (movieObj["year"] as? String) ?? ""
+                    let year = movieObj["year"].map { String(describing: $0) } ?? ""
                     let quality = (movieObj["quality"] as? String) ?? ""
 
                     var episodesList: [EpisodeSource] = []
@@ -197,18 +198,17 @@ class PhimRepository {
                                 for (idx, ep) in srvData.enumerated() {
                                     let epName = (ep["name"] as? String) ?? "Tập \(idx + 1)"
                                     let epSlug = (ep["slug"] as? String) ?? "tap-\(idx + 1)"
-                                    var stream = (ep["link_m3u8"] as? String) ?? ""
-                                    if stream.isEmpty, let embed = ep["link_embed"] as? String, embed.contains("url=") {
-                                        stream = embed.components(separatedBy: "url=").last?.components(separatedBy: "&").first ?? embed
-                                    }
-                                    if !stream.isEmpty {
+                                    if let stream = PlaybackPolicy.streamURL(
+                                        m3u8: (ep["link_m3u8"] as? String) ?? "",
+                                        embed: (ep["link_embed"] as? String) ?? ""
+                                    ) {
                                         episodesList.append(
                                             EpisodeSource(
                                                 id: "\(srvName)-\(epSlug)-\(idx)",
                                                 serverName: srvName,
                                                 episodeName: epName,
                                                 episodeSlug: epSlug,
-                                                streamUrl: stream
+                                                streamUrl: stream.absoluteString
                                             )
                                         )
                                     }

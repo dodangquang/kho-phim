@@ -27,6 +27,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.phimmoitv.app.data.EpisodeSource
 import com.phimmoitv.app.data.MovieDetail
+import com.phimmoitv.app.data.PlaybackSupport
 import com.phimmoitv.app.data.MovieItem
 import com.phimmoitv.app.data.PhimMoiRepository
 import com.phimmoitv.app.data.WatchHistoryManager
@@ -57,7 +58,7 @@ fun DetailScreen(
             val d = repository.getMovieDetail(movie.slug)
             detail = d
             val servers = d.episodes.map { it.serverName }.distinct()
-            selectedServer = servers.firstOrNull()
+            selectedServer = watchHistoryManager?.getProgress(movie.slug)?.serverName?.takeIf { it in servers } ?: servers.firstOrNull()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
@@ -170,9 +171,7 @@ fun DetailScreen(
                     val firstEp = episodesForServer.firstOrNull() ?: currentDetail.episodes.firstOrNull()
 
                     if (savedProgress != null) {
-                        val resumeEp = currentDetail.episodes.find {
-                            it.episodeSlug == savedProgress.episodeSlug || it.streamUrl == savedProgress.streamUrl
-                        } ?: firstEp
+                        val resumeEp = PlaybackSupport.resumeEpisode(episodesForServer, savedProgress) ?: firstEp
 
                         val posMin = (savedProgress.positionMs / 60000).coerceAtLeast(0)
                         val durMin = (savedProgress.durationMs / 60000).coerceAtLeast(0)
@@ -184,7 +183,7 @@ fun DetailScreen(
                                     isPrimary = true,
                                     modifier = Modifier.focusRequester(playFocusRequester),
                                     onClick = {
-                                        onPlayEpisode(ep, currentDetail.episodes, savedProgress.positionMs)
+                                        onPlayEpisode(ep, currentDetail.episodes, if (ep.episodeSlug == savedProgress.episodeSlug) savedProgress.positionMs else 0L)
                                     }
                                 )
                             }

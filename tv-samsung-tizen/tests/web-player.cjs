@@ -8,11 +8,11 @@ function setup(native, agent) {
   const instances = [];
   const errors = [];
   const timers = new Map(); let sequence = 0;
-  const video = { canPlayType: () => native ? 'probably' : '', pause() {}, load() {}, play() { return { catch() {} }; }, removeAttribute(name) { delete this[name]; }, duration: 100, currentTime: 0 };
+  const video = { canPlayType: () => native ? 'probably' : '', pause() { this.pauseCount = (this.pauseCount || 0) + 1; }, load() {}, play() { this.playCount = (this.playCount || 0) + 1; return { catch() {} }; }, removeAttribute(name) { delete this[name]; }, duration: 100, currentTime: 0, seekable: { length: 0 } };
   const context = {
     document: { getElementById: () => video, createElement: () => ({}), head: { appendChild(script) { scripts.push(script); } } },
     KhoCore: { safeUrl: url => /^https?:\/\//.test(url), time: String },
-    setTimeout(callback) { const id = ++sequence; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); }
+    setTimeout(callback, delay) { const id = ++sequence; timers.set(id, { callback, delay }); return id; }, clearTimeout(id) { timers.delete(id); }
   };
   if (agent) { context.navigator = { userAgent: agent }; context.MediaSource = { isTypeSupported: () => true }; }
   context.window = context;
@@ -30,7 +30,12 @@ function setup(native, agent) {
     context.Hls = Hls;
   }
   const player = new context.KhoPlayer({ error: message => errors.push(message), message() {}, state() {}, time() {} });
-  return { context, player, scripts, instances, errors, video, installHls };
+  function fire(delay) {
+    const entry = [...timers.entries()].find(([, item]) => item.delay === delay);
+    assert.ok(entry, 'Expected pending ' + delay + 'ms timer');
+    timers.delete(entry[0]); entry[1].callback();
+  }
+  return { context, player, scripts, instances, errors, video, installHls, timers, fire };
 }
 module.exports = function () {
   const checks = [];
@@ -93,6 +98,62 @@ module.exports = function () {
     instances[0].handlers.error(null, { fatal: true });
     assert.equal(player.state, 'error'); assert.equal(instances[0].destroyed, true); assert.equal(errors.length, 1);
     checks.push('Fatal HLS errors close the decoder and show a navigable source error');
+  }
+  {
+    const { player, video, errors } = setup(true);
+    let currentTime = 0;
+    Object.defineProperty(video, 'currentTime', {
+      get() { return currentTime; },
+      set(value) { if (!video.seekable.length) throw new Error('Native HLS is not seekable yet'); currentTime = value; }
+    });
+    player.open('https://media.example/resume.m3u8', 30000);
+    video.onloadedmetadata();
+    assert.equal(video.playCount, 1); assert.equal(currentTime, 0); assert.equal(errors.length, 0);
+    video.seekable = { length: 1, start: () => 0, end: () => 100 };
+    video.oncanplay();
+    assert.equal(currentTime, 30); assert.equal(player.position, 30000); assert.equal(player.videoSeekTarget, null);
+    checks.push('Native resume waits for seekable ranges and cannot prevent initial playback');
+  }
+  {
+    const { player, video, timers, fire } = setup(true);
+    player.open('https://media.example/skip.m3u8', 0); video.onloadedmetadata(); video.onplaying();
+    player.setPaused(true);
+    video.onwaiting(); assert.equal(timers.size, 0);
+    player.seek(10000); fire(180);
+    player.seek(10000); fire(180);
+    assert.equal(player.videoSeekTarget, 20000); assert.equal(video.currentTime, 0);
+    video.seekable = { length: 1, start: () => 0, end: () => 100 };
+    video.onprogress();
+    assert.equal(video.currentTime, 20); assert.equal(player.state, 'paused'); assert.equal(timers.size, 0);
+    const before = video.pauseCount; video.onplaying();
+    assert.equal(player.state, 'paused'); assert.equal(video.pauseCount, before + 1);
+    player.setPaused(false); assert.equal(player.state, 'playing'); assert.equal(timers.size, 1);
+    checks.push('Paused web buffering stays paused; delayed skips accumulate and resume restores timeout');
+  }
+  {
+    const { player, video } = setup(true);
+    player.open('https://media.example/old-resume.m3u8', 50000);
+    const oldReady = video.oncanplay;
+    player.open('https://media.example/new-resume.m3u8', 0);
+    video.seekable = { length: 1, start: () => 0, end: () => 100 };
+    oldReady();
+    assert.equal(video.currentTime, 0); assert.equal(player.videoSeekTarget, null);
+    player.stop();
+    assert.equal(video.oncanplay, null); assert.equal(video.onprogress, null); assert.equal(video.ondurationchange, null);
+    checks.push('Obsolete native readiness callbacks cannot seek a new episode and stop removes all handlers');
+  }
+  {
+    const { player, video, scripts, instances, installHls } = setup(true, 'Mozilla/5.0 SMART-TV Tizen 5.5 Chrome/69.0 Safari/537.36');
+    player.open('https://media.example/native-late-error.m3u8', 10000);
+    video.seekable = { length: 1, start: () => 0, end: () => 100 };
+    video.onloadedmetadata(); video.onplaying();
+    video.currentTime = 45; video.ontimeupdate(); player.setPaused(true);
+    video.onerror();
+    installHls(); scripts[0].onload();
+    assert.equal(instances.length, 1);
+    const before = video.playCount; video.currentTime = 0; video.onloadedmetadata();
+    assert.equal(video.currentTime, 45); assert.equal(video.playCount, before); assert.equal(player.state, 'paused');
+    checks.push('Native-to-HLS fallback retains the current position and pause state');
   }
   return checks;
 };

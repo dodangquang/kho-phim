@@ -36,6 +36,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.phimmoitv.app.data.PlaybackSupport
 import com.phimmoitv.app.data.EpisodeSource
 import com.phimmoitv.app.data.WatchHistoryManager
 import com.phimmoitv.app.data.WatchProgress
@@ -63,11 +64,13 @@ fun PlayerScreen(
     var currentEpisode by remember { mutableStateOf(initialEpisode) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
-    var currentPos by remember { mutableStateOf(0L) }
+    var currentPos by remember { mutableStateOf(initialPositionMs.coerceAtLeast(0L)) }
+    var episodeStartPosition by remember { mutableStateOf(initialPositionMs.coerceAtLeast(0L)) }
+    var episodePlayWhenReady by remember { mutableStateOf(true) }
     var totalDuration by remember { mutableStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var hasSeekedInitial by remember { mutableStateOf(false) }
+    var retryAttempt by remember { mutableStateOf(0) }
 
     BackHandler {
         onBackPress()
@@ -102,10 +105,6 @@ fun PlayerScreen(
                 if (state == Player.STATE_READY) {
                     totalDuration = exoPlayer.duration.coerceAtLeast(0L)
                     errorMessage = null
-                    if (!hasSeekedInitial && initialPositionMs > 1000L) {
-                        exoPlayer.seekTo(initialPositionMs)
-                        hasSeekedInitial = true
-                    }
                 }
             }
 
@@ -114,6 +113,7 @@ fun PlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                isBuffering = false
                 errorMessage = "Lỗi phát video: ${error.localizedMessage}"
             }
         }
@@ -146,21 +146,55 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(currentEpisode) {
+    fun saveCurrentProgress() {
+        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+        val duration = exoPlayer.duration
+        if (watchHistoryManager != null && movieSlug.isNotEmpty() && position > 2000L && duration > 0L) {
+            watchHistoryManager.saveProgress(WatchProgress(
+                movieSlug = movieSlug, movieTitle = movieTitle, posterUrl = posterUrl, bannerUrl = bannerUrl,
+                episodeSlug = currentEpisode.episodeSlug, episodeName = currentEpisode.episodeName,
+                serverName = currentEpisode.serverName, streamUrl = currentEpisode.streamUrl,
+                positionMs = position, durationMs = duration
+            ))
+        }
+    }
+
+    fun switchEpisode(episode: EpisodeSource) {
+        if (episode.id == currentEpisode.id) return
+        saveCurrentProgress()
+        val position = if (episode.episodeSlug == currentEpisode.episodeSlug) exoPlayer.currentPosition.coerceAtLeast(0L) else 0L
+        episodePlayWhenReady = if (episode.episodeSlug == currentEpisode.episodeSlug) exoPlayer.playWhenReady else true
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        episodeStartPosition = position
+        currentPos = position
+        totalDuration = 0L
+        isBuffering = true
+        currentEpisode = episode
+    }
+
+    LaunchedEffect(currentEpisode, retryAttempt) {
         errorMessage = null
-        val mediaItem = MediaItem.fromUri(currentEpisode.streamUrl)
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.play()
+        val streamUrl = PlaybackSupport.nativeStream(currentEpisode.streamUrl)
+        if (streamUrl == null) {
+            isBuffering = false
+            errorMessage = "Nguồn này không có video trực tiếp hợp lệ. Hãy chọn nguồn khác."
+        } else {
+            exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl), episodeStartPosition)
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = episodePlayWhenReady
+        }
     }
 
     // Định kỳ lưu tiến trình mỗi 2.5s khi đang phát
     LaunchedEffect(Unit) {
+        var saveTicks = 0
         while (true) {
-            if (exoPlayer.isPlaying) {
+            run {
                 currentPos = exoPlayer.currentPosition.coerceAtLeast(0L)
                 totalDuration = exoPlayer.duration.coerceAtLeast(0L)
-                if (watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
+                if (++saveTicks >= 5 && exoPlayer.isPlaying && watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
+                    saveTicks = 0
                     watchHistoryManager.saveProgress(
                         WatchProgress(
                             movieSlug = movieSlug,
@@ -177,7 +211,7 @@ fun PlayerScreen(
                     )
                 }
             }
-            delay(2500)
+            delay(500)
         }
     }
 
@@ -207,14 +241,14 @@ fun PlayerScreen(
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_LEFT -> {
-                            val target = (exoPlayer.currentPosition - 10_000).coerceAtLeast(0)
+                            val target = PlaybackSupport.seekTarget(exoPlayer.currentPosition, exoPlayer.duration, -10_000L)
                             exoPlayer.seekTo(target)
                             currentPos = target
                             showControls = true
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                            val target = (exoPlayer.currentPosition + 10_000).coerceAtMost(exoPlayer.duration)
+                            val target = PlaybackSupport.seekTarget(exoPlayer.currentPosition, exoPlayer.duration, 10_000L)
                             exoPlayer.seekTo(target)
                             currentPos = target
                             showControls = true
@@ -247,18 +281,29 @@ fun PlayerScreen(
         }
 
         errorMessage?.let { err ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
+            Column(
+                modifier = Modifier.align(Alignment.Center)
                     .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
-                    .padding(16.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(text = err, color = Color.Red, fontSize = 14.sp)
+                TvButton(text = "Thử lại", isPrimary = true, onClick = {
+                    episodeStartPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
+                    episodePlayWhenReady = exoPlayer.playWhenReady
+                    currentPos = episodeStartPosition
+                    retryAttempt++
+                })
+                allEpisodes.firstOrNull {
+                    it.episodeSlug == currentEpisode.episodeSlug && it.serverName != currentEpisode.serverName
+                }?.let { alternative ->
+                    TvButton(text = "Đổi nguồn: ${alternative.serverName}", onClick = { switchEpisode(alternative) })
+                }
             }
         }
 
         AnimatedVisibility(
-            visible = showControls,
+            visible = showControls && errorMessage == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize()
@@ -355,7 +400,7 @@ fun PlayerScreen(
                             TvButton(
                                 text = "Tập Tiếp Theo (${next.episodeName}) ▶",
                                 isPrimary = true,
-                                onClick = { currentEpisode = next }
+                                onClick = { switchEpisode(next) }
                             )
                         }
 

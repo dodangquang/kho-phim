@@ -1,4 +1,10 @@
-# Kho Phim Samsung TV 1.0.10 — poster phủ đủ chiều ngang thẻ
+# Kho Phim Samsung TV 1.0.11
+
+Bản 1.0.11 sửa lỗi tự đóng video sau 25 giây khi đang tạm dừng mà AVPlay gửi sự kiện buffering. Watchdog chỉ theo dõi lúc chuẩn bị/phát, được bật lại khi phát tiếp; tua lúc tạm dừng vẫn giữ trạng thái tạm dừng. Callback của video cũ không thể thay đổi bộ đếm nguồn mới. Đã bỏ yêu cầu dự phòng đến endpoint OPhim trả 404, tránh chờ nguồn đã hỏng khi tải thông tin phim thất bại.
+
+36/36 kiểm tra tích hợp trên Edge đã qua; bài kiểm tra watchdog chứa tám tình huống cho Samsung và nhánh AVPlay của TV Web. JavaScript runtime giữ cú pháp ES5. Gói mới tạo bằng `tools/package.ps1 -Unsigned` có tên `KhoPhim_Samsung_Tizen_v1.0.11_UNSIGNED.wgt`, chỉ chứa 11 file runtime; chưa ký, chưa phát hành lên GitHub và chưa thử trên TV thật. Chi tiết lần kiểm tra mới ở đầu `TEST-RESULTS.md`.
+
+## Ghi chú và hướng dẫn của bản đã phát hành 1.0.10
 
 Bản sửa tiếp từ 1.0.9 dành cho Samsung UA55TU8100KXXV / Tizen 5.5. Người dùng đã xác nhận 1.0.9 chạy mượt nhưng gửi ảnh chụp cho thấy poster bị hẹp, để trống một dải bên phải trong thẻ phim.
 

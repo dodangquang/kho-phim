@@ -1041,6 +1041,32 @@ button {
   display: none;
 }
 
+.player-seek-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 86px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 18px;
+  z-index: 2;
+}
+
+.player-seek-controls[hidden] {
+  display: none;
+}
+
+.player-seek-controls button {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 22px;
+  background: rgba(18, 18, 18, 0.8);
+  color: #fff;
+  font-size: 14px;
+  touch-action: manipulation;
+}
+
 .player-error-banner {
   position: absolute;
   background: rgba(20, 20, 20, 0.95);

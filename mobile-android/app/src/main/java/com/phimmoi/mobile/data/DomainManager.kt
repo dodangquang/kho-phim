@@ -13,8 +13,6 @@ class DomainManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("phimmoi_config", Context.MODE_PRIVATE)
 
-    private val remoteConfigUrl = "https://raw.githubusercontent.com/phimmoi-config/domains/main/active_domain.txt"
-
     private val fallbackDomains = listOf(
         "https://phimmoichill.net",
         "https://phimmoichill.com",
@@ -37,22 +35,7 @@ class DomainManager(context: Context) {
         prefs.edit().putString("active_domain", clean).apply()
     }
 
-    suspend fun fetchLatestDomainFromRemote(): String? = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder().url(remoteConfigUrl).build()
-            val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val newDomain = response.body?.string()?.trim()?.trimEnd('/')
-                if (!newDomain.isNullOrBlank() && newDomain.startsWith("http")) {
-                    setActiveDomain(newDomain)
-                    return@withContext newDomain
-                }
-            }
-        } catch (_: Exception) {}
-        null
-    }
-
-    suspend fun resolveWorkingDomain(): String = withContext(Dispatchers.IO) {
+    suspend fun resolveWorkingDomain(): String? = withContext(Dispatchers.IO) {
         val current = getActiveDomain()
         if (isDomainAlive(current)) {
             return@withContext current
@@ -63,7 +46,7 @@ class DomainManager(context: Context) {
                 return@withContext domain
             }
         }
-        current
+        null
     }
 
     private fun isDomainAlive(domain: String): Boolean {
@@ -73,8 +56,9 @@ class DomainManager(context: Context) {
                 .header("User-Agent", "Mozilla/5.0")
                 .head()
                 .build()
-            val response = httpClient.newCall(request).execute()
-            response.isSuccessful || response.code in 200..399
+            httpClient.newCall(request).execute().use { response ->
+                response.isSuccessful || response.code in 200..399
+            }
         } catch (_: Exception) {
             false
         }

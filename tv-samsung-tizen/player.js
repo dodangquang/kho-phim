@@ -51,9 +51,12 @@
   };
   Player.prototype.armWatchdog = function (token) {
     var self = this;
+    if (token !== this.token) return;
     clearTimeout(this.watchdog);
+    this.watchdog = null;
+    if (this.state !== 'preparing' && this.state !== 'playing') return;
     this.watchdog = setTimeout(function () {
-      if (token === self.token) self.fail('Nguồn phát không phản hồi trong 25 giây. Nhấn Return và chọn nguồn hoặc tập khác.');
+      if (token === self.token && (self.state === 'preparing' || self.state === 'playing')) self.fail('Nguồn phát không phản hồi trong 25 giây. Nhấn Return và chọn nguồn hoặc tập khác.');
     }, 25000);
   };
   Player.prototype.tick = function (position, force) {
@@ -82,13 +85,13 @@
         this.av.setListener({
           onbufferingstart: function () {
             if (token !== self.token) return;
-            self.callbacks.message('Đang tải video...');
+            if (self.state !== 'paused') self.callbacks.message('Đang tải video...');
             self.armWatchdog(token);
           },
           onbufferingprogress: function () {},
           onbufferingcomplete: function () {
             if (token !== self.token) return;
-            if (self.state !== 'paused') self.armWatchdog(token);
+            self.armWatchdog(token);
             self.callbacks.message('');
           },
           oncurrentplaytime: function (ms) { if (token === self.token) self.tick(ms, false); },
@@ -193,6 +196,7 @@
     var target = this.seekTarget;
     this.seekTarget = null;
     this.seeking = true;
+    this.armWatchdog(token);
     function done() {
       if (token !== self.token) return;
       self.seeking = false;

@@ -191,8 +191,8 @@ fun SettingsScreen(
                                 scope.launch {
                                     statusMessage = "Đang kiểm tra server..."
                                     val working = domainManager.resolveWorkingDomain()
-                                    currentDomain = working
-                                    statusMessage = "Đã kết nối: $working"
+                                    if (working != null) currentDomain = working
+                                    statusMessage = working?.let { "Đã kết nối: $it" } ?: "Không kết nối được tên miền nào. Hãy kiểm tra mạng hoặc nhập tên miền khác."
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
@@ -201,21 +201,7 @@ fun SettingsScreen(
                             Text("Kiểm tra domain", fontSize = 12.sp)
                         }
 
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    val remote = domainManager.fetchLatestDomainFromRemote()
-                                    if (remote != null) {
-                                        currentDomain = remote
-                                        statusMessage = "Cập nhật từ cloud: $remote"
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Tải từ cloud", fontSize = 12.sp)
-                        }
+
                     }
                 }
             }

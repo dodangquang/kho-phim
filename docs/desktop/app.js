@@ -51,9 +51,12 @@
   let currentEpisodeList = [];
   let currentEpisode = null;
   let currentServerIndex = 0;
-  let hlsInstance = null;
+  let detailGeneration = 0;
+  let detailAutoplayTimer = null;
+  let directSnapshot = null;
+  let lastProgressSave = 0;
+  let playbackMovie = null;
   let currentPlayerMode = 'hls'; // 'hls' or 'embed'
-  let streamWatchdogTimer = null;
   let hudTimer = null;
 
   // DOM Elements
@@ -70,6 +73,16 @@
   const iframePlayer = document.getElementById('tv-iframe-player');
   const playerHud = document.getElementById('tv-player-hud');
   const tvToast = document.getElementById('tv-toast');
+  const playback = new window.KhoVideoPlayer(videoPlayer, {
+    onBeforeError: () => { captureDirectState(); persistPlaybackProgress(); },
+    onError: () => {
+      if (!currentEpisode || !playerOverlay.classList.contains('open')) return;
+      const embed = sanitizeUrl(currentEpisode.linkEmbed);
+      if (embed) startEmbedPlayback(embed, true);
+      else showPlaybackError('Không thể tải luồng phim. Hãy thử lại hoặc chọn server khác.');
+    },
+    onTapRequired: () => { updatePlayPauseUI(false); showPlayerHud(0); showToast('Nhấn Phát để tiếp tục'); }
+  });
 
   // ==========================================================================
   // HELPERS & IMAGE URL RESOLVER (WITH RELIABLE CDN FALLBACK E.G. PHÙ SA)
@@ -262,7 +275,7 @@
   }
 
   // ==========================================================================
-  // DATA FETCHING (PHIMAPI & OPHIM)
+  // DATA FETCHING (PHIMAPI)
   // ==========================================================================
   async function fetchCategoryMovies(categoryPath, page = 1) {
     const clean = categoryPath.replace(/^\/+|\/+$/g, '');
@@ -291,22 +304,15 @@
   }
 
   async function fetchMovieDetail(slug) {
-    const urls = [
-      `https://phimapi.com/phim/${slug}`,
-      `https://ophim1.com/phim/${slug}`
-    ];
-    for (const url of urls) {
-      try {
-        const res = await fetch(url);
-        if (res.ok) {
-          const json = await res.json();
-          if (json && (json.status === true || json.movie)) {
-            return json;
-          }
-        }
-      } catch (_) {}
-    }
-    return null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch('https://phimapi.com/phim/' + encodeURIComponent(slug), { signal: controller.signal });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json && json.movie ? json : null;
+    } catch (_) { return null; }
+    finally { clearTimeout(timeout); }
   }
 
   async function searchMovies(keyword) {
@@ -749,8 +755,11 @@
   // MOVIE DETAIL MODAL
   // ==========================================================================
   async function openMovieDetail(slug, autoPlay = false) {
+    const generation = ++detailGeneration;
+    clearTimeout(detailAutoplayTimer);
     showToast('Đang tải thông tin phim...');
     const data = await fetchMovieDetail(slug);
+    if (generation !== detailGeneration) return;
     if (!data || !data.movie) {
       showToast('Không thể tải thông tin phim này');
       return;
@@ -778,10 +787,13 @@
     enableDragScroll(serverTabsEl);
 
     const episodesArr = data.episodes || [];
+    const history = getWatchHistory().find(x => x.slug === slug);
+    const savedServer = history && episodesArr.findIndex(srv => srv.server_name === history.serverName);
+    currentServerIndex = savedServer >= 0 ? savedServer : 0;
     if (episodesArr.length > 0) {
       episodesArr.forEach((srv, sIdx) => {
         const srvPill = document.createElement('div');
-        srvPill.className = `tv-server-pill ${sIdx === 0 ? 'active' : ''}`;
+        srvPill.className = `tv-server-pill ${sIdx === currentServerIndex ? 'active' : ''}`;
         srvPill.setAttribute('tabindex', '0');
         srvPill.textContent = srv.server_name || `Server VIP #${sIdx + 1}`;
         srvPill.onclick = () => {
@@ -794,11 +806,10 @@
         serverTabsEl.appendChild(srvPill);
       });
 
-      renderEpisodesForServer(episodesArr[0]);
+      renderEpisodesForServer(episodesArr[currentServerIndex]);
     }
 
     // Check watch history progress
-    const history = getWatchHistory().find(x => x.slug === slug);
     const playBtn = document.getElementById('tv-detail-play-btn');
     const playText = document.getElementById('tv-detail-play-text');
     if (history && history.episodeName) {
@@ -810,7 +821,7 @@
     playBtn.onclick = () => {
       const epToPlay = (history && currentEpisodeList.find(e => e.slug === history.episodeSlug)) || currentEpisodeList[0];
       if (epToPlay) {
-        startVideoPlayback(epToPlay, history ? history.positionMs : 0);
+        startVideoPlayback(epToPlay, history && epToPlay.slug === history.episodeSlug && (!history.serverName || epToPlay.serverName === history.serverName) ? history.positionMs : 0);
       } else {
         showToast('Chưa có nguồn phát tập này');
       }
@@ -826,7 +837,9 @@
     if (autoPlay && currentEpisodeList.length > 0) {
       const epToPlay = (history && currentEpisodeList.find(e => e.slug === history.episodeSlug)) || currentEpisodeList[0];
       if (epToPlay) {
-        setTimeout(() => startVideoPlayback(epToPlay, history ? history.positionMs : 0), 200);
+        detailAutoplayTimer = setTimeout(() => {
+          if (generation === detailGeneration && detailModal.classList.contains('open')) playBtn.onclick();
+        }, 200);
       }
     }
   }
@@ -842,7 +855,8 @@
         name: ep.name || `Tập ${idx + 1}`,
         slug: ep.slug || `tap-${idx + 1}`,
         linkM3u8: sanitizeUrl(ep.link_m3u8),
-        linkEmbed: sanitizeUrl(ep.link_embed)
+        linkEmbed: sanitizeUrl(ep.link_embed),
+        serverName: serverObj.server_name || ''
       };
       currentEpisodeList.push(epData);
 
@@ -856,6 +870,8 @@
   }
 
   function closeMovieDetail() {
+    ++detailGeneration;
+    clearTimeout(detailAutoplayTimer);
     detailModal.classList.remove('open');
   }
 
@@ -863,7 +879,12 @@
   // FULLSCREEN VIDEO PLAYER WITH HLS & AUTO EMBED FALLBACK
   // ==========================================================================
   function startVideoPlayback(episode, resumePositionMs = 0) {
+    persistPlaybackProgress();
+    playback.stop();
     currentEpisode = episode;
+    playbackMovie = currentMovieDetail;
+    directSnapshot = { position: Math.max(0, resumePositionMs / 1000), duration: 0, paused: false };
+    lastProgressSave = 0;
     showToast(`Đang mở: ${episode.name}`);
 
     document.getElementById('tv-player-movie-title').textContent = currentMovieDetail ? (currentMovieDetail.name || currentMovieDetail.origin_name) : 'Kho Phim';
@@ -877,11 +898,6 @@
 
     if (!streamUrl && embedUrl) {
       streamUrl = extractM3u8FromEmbed(embedUrl);
-    }
-
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
     }
 
     document.getElementById('tv-player-error').style.display = 'none';
@@ -906,151 +922,72 @@
     if (closeBtn) closeBtn.onclick = closeVideoPlayer;
   }
 
-  function startHlsPlayback(streamUrl, embedUrl, resumePositionMs = 0) {
-    currentPlayerMode = 'hls';
-    updateSourceBadge('⚡ Nguồn: Trực tiếp (HLS)');
+  function captureDirectState() {
+    if (currentPlayerMode !== 'hls') return;
+    const previous = directSnapshot || { position: 0, duration: 0, paused: false };
+    directSnapshot = {
+      position: videoPlayer.readyState >= 1 && Number.isFinite(videoPlayer.currentTime) ? videoPlayer.currentTime : previous.position,
+      duration: Number.isFinite(videoPlayer.duration) && videoPlayer.duration > 0 ? videoPlayer.duration : previous.duration,
+      paused: videoPlayer.readyState >= 1 ? videoPlayer.paused : previous.paused
+    };
+  }
 
+  function persistPlaybackProgress() {
+    if (!currentEpisode || !playbackMovie) return;
+    captureDirectState();
+    if (!directSnapshot || directSnapshot.position <= 0) return;
+    const { poster, banner } = resolveMovieImages(playbackMovie);
+    saveWatchProgress({
+      title: playbackMovie.name || playbackMovie.origin_name, slug: playbackMovie.slug, poster, banner,
+      episodeName: currentEpisode.name, episodeSlug: currentEpisode.slug, serverName: currentEpisode.serverName,
+      positionMs: Math.round(directSnapshot.position * 1000), durationMs: Math.round(directSnapshot.duration * 1000), timestamp: Date.now()
+    });
+  }
+
+  function startHlsPlayback(streamUrl, embedUrl, resumePositionMs = 0, autoplay = true) {
+    currentPlayerMode = 'hls';
+    playerOverlay.classList.remove('embed-mode');
+    updateSourceBadge('⚡ Nguồn: Trực tiếp (HLS)');
     iframePlayer.style.display = 'none';
     iframePlayer.src = 'about:blank';
     videoPlayer.style.display = 'block';
-
-    const resumeSeconds = resumePositionMs > 0 ? resumePositionMs / 1000 : 0;
-    const savedVol = localStorage.getItem('khophim_desktop_vol');
-    if (savedVol !== null) {
-      const v = parseFloat(savedVol);
-      if (!isNaN(v)) {
-        videoPlayer.volume = Math.max(0, Math.min(1, v));
-        videoPlayer.muted = (v === 0);
-      }
+    directSnapshot = { position: Math.max(0, resumePositionMs / 1000), duration: directSnapshot ? directSnapshot.duration : 0, paused: !autoplay };
+    const savedVol = Number.parseFloat(localStorage.getItem('khophim_desktop_vol'));
+    if (Number.isFinite(savedVol)) {
+      videoPlayer.volume = Math.max(0, Math.min(1, savedVol));
+      videoPlayer.muted = savedVol === 0;
     }
-    videoPlayer.playbackRate = 1.0;
-    const btnSpeedEl = document.getElementById('tv-btn-speed');
-    if (btnSpeedEl) btnSpeedEl.textContent = '1.0x';
-    const speedMenuEl = document.getElementById('tv-speed-menu');
-    if (speedMenuEl) {
-      speedMenuEl.querySelectorAll('.speed-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.speed === '1.0');
-      });
-    }
-    try { updateVolumeUI(); } catch (_) {}
-    try { updatePlayPauseUI(true); } catch (_) {}
-
-    if (window.Hls && Hls.isSupported()) {
-      if (hlsInstance) {
-        try { hlsInstance.destroy(); } catch (_) {}
-        hlsInstance = null;
-      }
-
-      hlsInstance = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        manifestLoadingTimeOut: 10000,
-        manifestLoadingMaxRetry: 2,
-        fragLoadingTimeOut: 15000,
-        fragLoadingMaxRetry: 3
-      });
-
-      hlsInstance.loadSource(streamUrl);
-      hlsInstance.attachMedia(videoPlayer);
-
-      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (resumeSeconds > 0) {
-          try { videoPlayer.currentTime = resumeSeconds; } catch (_) {}
-        }
-        videoPlayer.play().catch(e => console.warn('HLS play error:', e));
-      });
-
-      hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          console.warn('HLS fatal error:', data.type, data.details);
-          if (embedUrl && currentPlayerMode === 'hls') {
-            console.log('Auto-fallback to web embed...');
-            startEmbedPlayback(embedUrl, true);
-          } else {
-            showPlaybackError('Máy chủ trực tiếp bị lỗi hoặc chặn kết nối.');
-          }
-        }
-      });
-    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-      videoPlayer.src = streamUrl;
-      videoPlayer.addEventListener('loadedmetadata', () => {
-        if (resumeSeconds > 0) {
-          try { videoPlayer.currentTime = resumeSeconds; } catch (_) {}
-        }
-        videoPlayer.play().catch(() => {});
-      }, { once: true });
-      videoPlayer.onerror = () => {
-        if (embedUrl && currentPlayerMode === 'hls') {
-          startEmbedPlayback(embedUrl, true);
-        }
-      };
-    } else if (embedUrl) {
-      startEmbedPlayback(embedUrl, true);
-      return;
-    }
-
-    // Stream Watchdog: If stalled at 0s for >8s, auto fallback to embed!
-    streamWatchdogTimer = setTimeout(() => {
-      if (currentPlayerMode === 'hls' && embedUrl && videoPlayer.currentTime === 0 && !videoPlayer.paused) {
-        console.warn('Stream stalled, switching to embed');
-        startEmbedPlayback(embedUrl, true);
-      }
-    }, 8000);
+    document.getElementById('tv-player-error').style.display = 'none';
+    playback.open(streamUrl, directSnapshot.position, { autoplay, unmute: false });
+    updateVolumeUI();
+    updatePlayPauseUI(autoplay);
   }
 
   function startEmbedPlayback(embedUrl, isAuto = false) {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-
+    if (currentPlayerMode === 'hls') { captureDirectState(); persistPlaybackProgress(); }
     currentPlayerMode = 'embed';
+    playback.stop();
+    playerOverlay.classList.add('embed-mode');
     updateSourceBadge('🌐 Nguồn: Dự phòng (Embed)');
-
-    if (hlsInstance) {
-      try { hlsInstance.destroy(); } catch (_) {}
-      hlsInstance = null;
-    }
-    videoPlayer.pause();
-    videoPlayer.removeAttribute('src');
-    videoPlayer.load();
     videoPlayer.style.display = 'none';
-
     iframePlayer.style.display = 'block';
-    if (iframePlayer.src !== embedUrl) {
-      iframePlayer.src = embedUrl;
-    }
-
+    if (iframePlayer.src !== embedUrl) iframePlayer.src = embedUrl;
     document.getElementById('tv-player-error').style.display = 'none';
-
-    if (isAuto) {
-      showToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)', 3000);
-    }
+    if (isAuto) showToast('Đang mở trình phát dự phòng. Dùng nút phát/tua trong video.', 3500);
   }
 
   function togglePlayerSource() {
     if (!currentEpisode) return;
-    let streamUrl = sanitizeUrl(currentEpisode.linkM3u8);
-    let embedUrl = sanitizeUrl(currentEpisode.linkEmbed);
-    if (!streamUrl && embedUrl) streamUrl = extractM3u8FromEmbed(embedUrl);
-
+    const embedUrl = sanitizeUrl(currentEpisode.linkEmbed);
+    const streamUrl = sanitizeUrl(currentEpisode.linkM3u8) || extractM3u8FromEmbed(embedUrl);
     if (currentPlayerMode === 'hls') {
-      if (embedUrl) {
-        startEmbedPlayback(embedUrl, false);
-        showToast('Đã đổi sang Trình phát Dự phòng (Web Embed)');
-      } else {
-        showToast('Tập này không có nguồn dự phòng');
-      }
-    } else {
-      if (streamUrl) {
-        startHlsPlayback(streamUrl, embedUrl, Math.round((videoPlayer.currentTime || 0) * 1000));
-        showToast('Đang chuyển sang Trực tiếp (HLS)...');
-      } else {
-        showToast('Tập này không có luồng HLS trực tiếp');
-      }
-    }
+      if (embedUrl) startEmbedPlayback(embedUrl);
+      else showToast('Tập này không có nguồn dự phòng');
+    } else if (streamUrl && streamUrl.includes('.m3u8')) {
+      const saved = directSnapshot || { position: 0, paused: false };
+      startHlsPlayback(streamUrl, embedUrl, saved.position * 1000, !saved.paused);
+    } else showToast('Tập này không có luồng HLS trực tiếp');
+    showPlayerHud(3500);
   }
 
   function updateSourceBadge(text) {
@@ -1066,6 +1003,7 @@
       errModal.style.display = 'flex';
       const tryEmbedBtn = document.getElementById('tv-player-btn-embed');
       const backBtn = document.getElementById('tv-player-btn-back');
+      backBtn.onclick = closeVideoPlayer;
       if (currentEpisode && currentEpisode.linkEmbed) {
         tryEmbedBtn.style.display = 'inline-flex';
         tryEmbedBtn.onclick = () => startEmbedPlayback(sanitizeUrl(currentEpisode.linkEmbed), false);
@@ -1077,45 +1015,22 @@
   }
 
   function closeVideoPlayer() {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-
-    // 1. Save progress before closing
-    if (videoPlayer && !isNaN(videoPlayer.currentTime) && currentMovieDetail && currentEpisode) {
-      const { poster, banner } = resolveMovieImages(currentMovieDetail);
-      saveWatchProgress({
-        title: currentMovieDetail.name || currentMovieDetail.origin_name,
-        slug: currentMovieDetail.slug,
-        poster,
-        banner,
-        episodeName: currentEpisode.name,
-        episodeSlug: currentEpisode.slug,
-        positionMs: Math.round(videoPlayer.currentTime * 1000),
-        durationMs: Math.round((videoPlayer.duration || 0) * 1000),
-        timestamp: Date.now()
-      });
-    }
-
-    // 2. Teardown player
-    if (hlsInstance) {
-      hlsInstance.destroy();
-      hlsInstance = null;
-    }
-    videoPlayer.pause();
-    videoPlayer.removeAttribute('src');
-    videoPlayer.load();
-
+    persistPlaybackProgress();
+    currentEpisode = null;
+    playbackMovie = null;
+    playback.stop();
+    directSnapshot = null;
     iframePlayer.src = 'about:blank';
     iframePlayer.style.display = 'none';
-    playerOverlay.classList.remove('open');
-
-    // Exit fullscreen if active
+    playerOverlay.classList.remove('open', 'embed-mode');
+    clearTimeout(hudTimer);
+    renderContinueWatchingRow();
     if (document.fullscreenElement) {
       try { document.exitFullscreen(); } catch (_) {}
     }
   }
+
+  window.addEventListener('pagehide', persistPlaybackProgress);
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
@@ -1208,7 +1123,7 @@
   }
 
   function togglePlayPause() {
-    if (!videoPlayer) return;
+    if (!videoPlayer || currentPlayerMode !== 'hls') return;
     if (videoPlayer.paused) {
       videoPlayer.play().then(() => {
         updatePlayPauseUI(true);
@@ -1228,6 +1143,8 @@
 
   // Update HUD progress bar during playback
   videoPlayer.ontimeupdate = () => {
+    if (currentPlayerMode !== 'hls' || !currentEpisode) return;
+    if (Date.now() - lastProgressSave >= 5000) { persistPlaybackProgress(); lastProgressSave = Date.now(); }
     if (videoPlayer.duration && !isNaN(videoPlayer.duration) && videoPlayer.duration > 0) {
       const pct = (videoPlayer.currentTime / videoPlayer.duration) * 100;
       const fill = document.getElementById('tv-player-progress-fill');
@@ -1251,7 +1168,7 @@
       const rect = progressWrap.getBoundingClientRect();
       const pos = (e.clientX - rect.left) / rect.width;
       if (videoPlayer.duration && !isNaN(videoPlayer.duration)) {
-        videoPlayer.currentTime = Math.max(0, Math.min(videoPlayer.duration, pos * videoPlayer.duration));
+        if (currentPlayerMode === 'hls') playback.seekTo(pos * videoPlayer.duration);
         showPlayerHud(2500);
       }
     };
@@ -1297,8 +1214,8 @@
   if (btnRewind) {
     btnRewind.onclick = (e) => {
       e.stopPropagation();
-      if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
-        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+      if (currentPlayerMode === 'hls') {
+        playback.seekBy(-10);
         showToast('⏪ -10 giây');
         showPlayerHud(2500);
       }
@@ -1309,8 +1226,8 @@
   if (btnForward) {
     btnForward.onclick = (e) => {
       e.stopPropagation();
-      if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
-        videoPlayer.currentTime = Math.min(videoPlayer.duration || 99999, videoPlayer.currentTime + 10);
+      if (currentPlayerMode === 'hls') {
+        playback.seekBy(10);
         showToast('⏩ +10 giây');
         showPlayerHud(2500);
       }
@@ -1456,6 +1373,7 @@
 
     // 2. Video Player Shortcuts
     if (playerOverlay.classList.contains('open')) {
+      if (currentPlayerMode !== 'hls') return;
       // Space: Play / Pause
       if (e.key === ' ' || e.keyCode === 32) {
         e.preventDefault();
@@ -1496,8 +1414,8 @@
       // Left Arrow: Seek back 10s
       if (e.key === 'ArrowLeft' || e.keyCode === 37) {
         e.preventDefault();
-        if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
-          videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+        if (currentPlayerMode === 'hls') {
+          playback.seekBy(-10);
           showToast('⏪ -10 giây');
           showPlayerHud(2500);
         }
@@ -1507,8 +1425,8 @@
       // Right Arrow: Seek forward 10s
       if (e.key === 'ArrowRight' || e.keyCode === 39) {
         e.preventDefault();
-        if (videoPlayer && !isNaN(videoPlayer.currentTime)) {
-          videoPlayer.currentTime = Math.min(videoPlayer.duration || 99999, videoPlayer.currentTime + 10);
+        if (currentPlayerMode === 'hls') {
+          playback.seekBy(10);
           showToast('⏩ +10 giây');
           showPlayerHud(2500);
         }
@@ -1549,4 +1467,7 @@
   setupSearch();
   initHomeScreen();
 
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    window.__desktopTest = { openMovieDetail, closeMovieDetail, startVideoPlayback, closeVideoPlayer, togglePlayerSource, getWatchHistory };
+  }
 })();

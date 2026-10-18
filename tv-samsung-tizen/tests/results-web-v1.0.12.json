@@ -1,0 +1,28 @@
+{
+  "version": "1.0.12",
+  "passed": 11,
+  "tests": [
+    "Desktop Edge selects HLS.js despite a positive native canPlayType response",
+    "TV keeps native HLS first and switches once to MSE on native failure without retry loops",
+    "Safari retains native HLS even when MediaSource is available",
+    "Native web HLS starts without requesting HLS.js and releases video on stop",
+    "Web HLS lazy load is shared; stale opens cannot start playback and stop destroys the decoder",
+    "Leaving playback while HLS.js loads cannot restart video",
+    "Fatal HLS errors close the decoder and show a navigable source error",
+    "Native resume waits for seekable ranges and cannot prevent initial playback",
+    "Paused web buffering stays paused; delayed skips accumulate and resume restores timeout",
+    "Obsolete native readiness callbacks cannot seek a new episode and stop removes all handlers",
+    "Native-to-HLS fallback retains the current position and pause state"
+  ],
+  "watchdogScenarios": [
+    "Samsung: progress refreshes timeout; pause clears it; resumed stalls fail once",
+    "Samsung: buffering and an already queued timeout cannot fail paused playback",
+    "Samsung: seeking while paused preserves pause and resume restores stall detection",
+    "Samsung: obsolete callbacks cannot alter the current stream or arm closed/error timeouts",
+    "TV Web AVPlay: progress refreshes timeout; pause clears it; resumed stalls fail once",
+    "TV Web AVPlay: buffering and an already queued timeout cannot fail paused playback",
+    "TV Web AVPlay: seeking while paused preserves pause and resume restores stall detection",
+    "TV Web AVPlay: obsolete callbacks cannot alter the current stream or arm closed/error timeouts"
+  ],
+  "note": "Actual runtime JavaScript in VM; simulated media events/native capabilities/AVPlay. Physical Safari/iPhone/TV not tested."
+}

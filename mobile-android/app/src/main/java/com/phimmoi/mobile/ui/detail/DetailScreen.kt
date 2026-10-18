@@ -180,11 +180,7 @@ fun DetailScreen(
 
                         // Big Play / Resume Button
                         val firstEp = filteredEpisodes.firstOrNull() ?: episodes.firstOrNull()
-                        val resumeEp = if (lastProgress != null) {
-                            episodes.find { it.episodeSlug == lastProgress.episodeSlug && it.serverName == lastProgress.serverName }
-                                ?: episodes.find { it.episodeSlug == lastProgress.episodeSlug }
-                                ?: firstEp
-                        } else firstEp
+                        val resumeEp = PlaybackSupport.resumeEpisode(filteredEpisodes, lastProgress) ?: firstEp
 
                         if (resumeEp != null) {
                             Button(
