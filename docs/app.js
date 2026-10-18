@@ -29,12 +29,9 @@
   let currentPlayingMovie = null;
   let currentPlayingEpisode = null;
   let currentPlayingEpisodesList = [];
-  let hlsInstance = null;
+  let currentPlayingServerName = 'Server VIP';
   let currentPlayerMode = 'hls';
-  let hlsRecoveryAttempts = 0;
-  let streamWatchdogTimer = null;
   let searchDebounceTimer = null;
-  let historySaveTimer = null;
 
   // DOM Elements
   const views = {
@@ -66,6 +63,12 @@
   const playerErrorText = document.getElementById('player-error-text');
   const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
   const playerToast = document.getElementById('player-toast');
+  const mobilePlayer = new window.KhoMobilePlayer(videoPlayer, {
+    onBeforeError: () => trackAndSaveHistory(),
+    onError: () => handlePlaybackError('', currentPlayingEpisode ? currentPlayingEpisode.link_embed : ''),
+    onTapRequired: () => showPlayerToast('Chạm nút phát trên video để tiếp tục.'),
+    onRecover: () => showPlayerToast('Đang kết nối lại tại vị trí đang xem…')
+  });
 
   const VN_FLAG_HTML = '<span class="vn-flag-icon" aria-label="Việt Nam"><svg viewBox="0 0 30 20" width="18" height="12"><rect width="30" height="20" fill="#da251d"/><polygon points="15,4 16.35,8.15 20.71,8.15 17.18,10.71 18.53,14.85 15,12.29 11.47,14.85 12.82,10.71 9.29,8.15 13.65,8.15" fill="#ffff00"/></svg></span>';
 
@@ -201,9 +204,6 @@
         if ((!item.duration || item.duration <= 0) && existing.duration > 0 && (!item.episodeSlug || item.episodeSlug === existing.episodeSlug)) {
           item.duration = existing.duration;
         }
-        if ((!item.currentTime || item.currentTime <= 0) && existing.currentTime > 0 && item.episodeSlug === existing.episodeSlug) {
-          item.currentTime = existing.currentTime;
-        }
         if (!item.posterUrl || item.posterUrl === 'icon.png') {
           if (existing.posterUrl && existing.posterUrl !== 'icon.png') {
             item.posterUrl = existing.posterUrl;
@@ -215,7 +215,7 @@
       if (list.length > 60) list = list.slice(0, 60);
       localStorage.setItem('khophim_history', JSON.stringify(list));
       localStorage.setItem('khophim_watch_history', JSON.stringify(list));
-      renderContinueWatchingHome();
+      if (!playerOverlay.classList.contains('open')) renderContinueWatchingHome();
     } catch (e) {
       console.warn('Failed to save watch history:', e);
     }
@@ -840,33 +840,27 @@
   };
 
   // Fullscreen & orientation handler
-  function requestPlayerFullscreen() {
+  window.requestPlayerFullscreen = function () {
     try {
+      if (currentPlayerMode === 'embed') return;
       if (videoPlayer.webkitEnterFullscreen) {
-        if (videoPlayer.readyState >= 1) {
-          videoPlayer.webkitEnterFullscreen();
-        } else {
-          const onMeta = () => {
-            try { videoPlayer.webkitEnterFullscreen(); } catch (_) {}
-            videoPlayer.removeEventListener('loadedmetadata', onMeta);
-          };
-          videoPlayer.addEventListener('loadedmetadata', onMeta);
+        if (videoPlayer.readyState < 1) {
+          showPlayerToast('Video đang tải, hãy thử toàn màn hình khi video sẵn sàng.');
+          return;
         }
+        videoPlayer.webkitEnterFullscreen();
       } else if (playerOverlay.requestFullscreen) {
-        playerOverlay.requestFullscreen().catch(() => {});
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
-      } else if (videoPlayer.requestFullscreen) {
-        videoPlayer.requestFullscreen().catch(() => {});
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
+        playerOverlay.requestFullscreen().then(() => {
+          if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+        }).catch(() => {});
       }
-    } catch (e) {
-      console.warn('Auto fullscreen request suppressed:', e);
-    }
-  }
+    } catch (_) {}
+  };
+
+  window.seekVideoBy = function (seconds) {
+    if (currentPlayerMode !== 'hls') return;
+    if (!mobilePlayer.seekBy(seconds)) showPlayerToast('Đang chuẩn bị video để tua…');
+  };
 
   // Player Source & Toast Helpers
   function showPlayerToast(text, duration = 3500) {
@@ -882,6 +876,7 @@
   function updatePlayerModeButton() {
     const btn = document.getElementById('player-switch-mode-btn');
     if (!btn) return;
+    document.getElementById('player-seek-controls').hidden = currentPlayerMode === 'embed';
     if (currentPlayerMode === 'embed') {
       btn.textContent = 'Nguồn: Dự phòng';
       btn.classList.add('embed-active');
@@ -931,26 +926,23 @@
     updatePlayerModeButton();
     showPlayerToast('Đang chuyển sang Trình phát Trực tiếp (HLS)...');
 
-    startHlsStream(streamUrl, embedUrl, Math.floor(videoPlayer.currentTime || 0));
+    const saved = getWatchHistory().find(item => item.movieSlug === currentPlayingMovie.slug && item.episodeSlug === currentPlayingEpisode.slug);
+    startHlsStream(streamUrl, embedUrl, saved ? saved.currentTime || 0 : 0);
   }
 
   // Video Playback Engine (Native iOS HLS + hls.js + Auto Web Embed fallback)
   function startVideoPlayback(movie, episode, allServerEpisodes, serverName, resumePosition = 0) {
+    if (currentPlayingMovie) trackAndSaveHistory();
     currentPlayingMovie = movie;
     currentPlayingEpisode = episode;
     currentPlayingEpisodesList = allServerEpisodes;
+    currentPlayingServerName = serverName || 'Server VIP';
 
     if (!window.location.hash.startsWith('#player-')) {
       try {
         history.pushState({ modal: 'player', slug: movie.slug }, '', '#player-' + movie.slug);
       } catch (_) {}
     }
-
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-
     playerErrorBanner.style.display = 'none';
     iframePlayer.style.display = 'none';
     iframePlayer.src = 'about:blank';
@@ -993,168 +985,19 @@
       timestamp: Date.now()
     });
 
+    lastRecordedHistorySec = resumePosition || 0;
     startHlsStream(streamUrl, embedUrl, resumePosition);
-
-    // User gesture fullscreen
-    requestPlayerFullscreen();
-
-    // Start auto-save history timer
-    if (historySaveTimer) clearInterval(historySaveTimer);
-    historySaveTimer = setInterval(trackAndSaveHistory, 3000);
   }
 
   function startHlsStream(streamUrl, embedUrl, resumePosition = 0) {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-
-    // Ensure protocols are https to prevent Mixed Content
-    if (streamUrl.startsWith('//')) streamUrl = 'https:' + streamUrl;
-    if (streamUrl.startsWith('http://')) streamUrl = 'https://' + streamUrl.slice(7);
-    if (embedUrl.startsWith('//')) embedUrl = 'https:' + embedUrl;
-    if (embedUrl.startsWith('http://')) embedUrl = 'https://' + embedUrl.slice(7);
-
-    const applyResumePosition = () => {
-      if (resumePosition > 0) {
-        try {
-          videoPlayer.currentTime = resumePosition;
-        } catch (_) {}
-      }
-    };
-
-    if (streamUrl && streamUrl.includes('.m3u8')) {
-      // 1. Native HLS for Safari iOS / Mac Safari
-      if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-        videoPlayer.src = streamUrl;
-        videoPlayer.load();
-
-        if (videoPlayer.readyState >= 1) {
-          applyResumePosition();
-        } else {
-          const onMeta = () => {
-            applyResumePosition();
-            videoPlayer.removeEventListener('loadedmetadata', onMeta);
-          };
-          videoPlayer.addEventListener('loadedmetadata', onMeta);
-        }
-
-        const playPromise = videoPlayer.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              requestPlayerFullscreen();
-            })
-            .catch(e => {
-              console.log('Native iOS Autoplay prevented (waiting for tap):', e);
-            });
-        }
-      }
-      // 2. hls.js for Chrome, Edge, Firefox, Android
-      else if (window.Hls && Hls.isSupported()) {
-        if (hlsInstance) {
-          try { hlsInstance.destroy(); } catch (_) {}
-          hlsInstance = null;
-        }
-        hlsRecoveryAttempts = 0;
-        hlsInstance = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 60,
-          maxBufferLength: 30,
-          manifestLoadingTimeOut: 12000,
-          manifestLoadingMaxRetry: 2,
-          fragLoadingTimeOut: 15000,
-          fragLoadingMaxRetry: 3,
-          nudgeMaxRetry: 5
-        });
-        hlsInstance.loadSource(streamUrl);
-        hlsInstance.attachMedia(videoPlayer);
-
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          applyResumePosition();
-          const playPromise = videoPlayer.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                requestPlayerFullscreen();
-              })
-              .catch(e => console.log('Hls.js autoplay prevented (tap to play):', e));
-          }
-        });
-
-        hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                // If CORS preflight blocked or 0 status, fallback to Web Embed immediately
-                if (data.response && data.response.code === 0) {
-                  console.warn('HLS stream CORS/network blocked, auto-falling back to Web Embed immediately.');
-                  handlePlaybackError(streamUrl, embedUrl);
-                  return;
-                }
-                if (hlsRecoveryAttempts < 2) {
-                  hlsRecoveryAttempts++;
-                  console.warn('Hls network error, reloading attempt', hlsRecoveryAttempts);
-                  hlsInstance.startLoad();
-                } else {
-                  console.warn('Hls unrecoverable network error, auto-fallback to embed');
-                  handlePlaybackError(streamUrl, embedUrl);
-                }
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                if (hlsRecoveryAttempts === 0) {
-                  hlsRecoveryAttempts++;
-                  console.warn('Hls media error, recovering...');
-                  hlsInstance.recoverMediaError();
-                } else if (hlsRecoveryAttempts === 1) {
-                  hlsRecoveryAttempts++;
-                  console.warn('Hls media error, swapping audio codec...');
-                  try { hlsInstance.swapAudioCodec(); } catch (_) {}
-                  hlsInstance.recoverMediaError();
-                } else {
-                  console.warn('Hls unrecoverable media error, auto-fallback to embed');
-                  handlePlaybackError(streamUrl, embedUrl);
-                }
-                break;
-              default:
-                console.error('Fatal unrecoverable HLS error:', data);
-                handlePlaybackError(streamUrl, embedUrl);
-                break;
-            }
-          }
-        });
-      }
-      // 3. Fallback to direct src
-      else {
-        videoPlayer.src = streamUrl;
-        videoPlayer.play().catch(e => {
-          if (e.name !== 'NotAllowedError') {
-            handlePlaybackError(streamUrl, embedUrl);
-          }
-        });
-      }
-
-      // Stream watchdog: only if playback was started but stalled at 0s for >10s
-      streamWatchdogTimer = setTimeout(() => {
-        if (currentPlayerMode === 'hls' && !videoPlayer.paused && videoPlayer.currentTime === 0) {
-          console.warn('Stream watchdog detected stall at 0s, auto-falling back to embed.');
-          handlePlaybackError(streamUrl, embedUrl);
-        }
-      }, 10000);
-    } else if (embedUrl) {
-      fallbackToIframe(embedUrl, false);
-    } else {
-      handlePlaybackError(streamUrl, embedUrl);
-    }
+    const normalize = url => url.replace(/^http:\/\//, 'https://').replace(/^\/\//, 'https://');
+    streamUrl = normalize(streamUrl || '');
+    if (streamUrl) mobilePlayer.open(streamUrl, resumePosition);
+    else if (embedUrl) fallbackToIframe(normalize(embedUrl));
+    else handlePlaybackError('', '');
   }
 
   function handlePlaybackError(streamUrl, embedUrl) {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-
     // Auto-fallback to Web Embed if available
     if (embedUrl && currentPlayerMode === 'hls') {
       console.warn('Direct stream failed, automatically switching to Web Embed.');
@@ -1186,28 +1029,18 @@
   }
 
   function fallbackToIframe(embedUrl, isAuto = false) {
+    embedUrl = (embedUrl || '').trim().replace(/^http:\/\//, 'https://').replace(/^\/\//, 'https://');
     if (!embedUrl) {
       handlePlaybackError('', '');
       return;
     }
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-    // Update player mode FIRST so any videoPlayer events know embed is active
+    trackAndSaveHistory();
+    // Update player mode before releasing media so pause events cannot overwrite history.
     currentPlayerMode = 'embed';
     updatePlayerModeButton();
     playerErrorBanner.style.display = 'none';
 
-    if (hlsInstance) {
-      try { hlsInstance.destroy(); } catch (_) {}
-      hlsInstance = null;
-    }
-    try {
-      videoPlayer.pause();
-      videoPlayer.removeAttribute('src');
-      videoPlayer.load();
-    } catch (_) {}
+    mobilePlayer.stop();
     videoPlayer.style.display = 'none';
     iframePlayer.style.display = 'block';
 
@@ -1218,18 +1051,17 @@
     if (isAuto) {
       showPlayerToast('⚠️ Đang phát bằng Trình phát Dự phòng (Web Embed)');
     }
-    trackAndSaveHistory(true);
   }
 
-  function trackAndSaveHistory(force = false) {
-    if (!currentPlayingMovie || !currentPlayingEpisode) return;
+  function trackAndSaveHistory() {
+    if (!currentPlayingMovie || !currentPlayingEpisode || currentPlayerMode !== 'hls' || videoPlayer.readyState < 2) return;
     const currentT = Math.floor(videoPlayer.currentTime || 0);
     const rawDur = videoPlayer.duration;
     const dur = (rawDur && isFinite(rawDur) && !isNaN(rawDur) && rawDur > 0) ? Math.floor(rawDur) : 0;
 
     const existing = getWatchHistory().find(x => x.movieSlug === currentPlayingMovie.slug);
     const isSameEp = existing && existing.episodeSlug === currentPlayingEpisode.slug;
-    const finalCurrentTime = (currentT > 0) ? currentT : (isSameEp ? (existing.currentTime || 0) : 0);
+    const finalCurrentTime = currentT;
     const finalDuration = (dur > 0) ? dur : (isSameEp ? (existing.duration || 0) : 0);
 
     const { primary } = getMovieImageUrls(currentPlayingMovie);
@@ -1239,7 +1071,7 @@
       posterUrl: primary,
       episodeSlug: currentPlayingEpisode.slug,
       episodeName: currentPlayingEpisode.name,
-      serverName: (currentDetailEpisodes[currentServerIndex] && currentDetailEpisodes[currentServerIndex].server_name) || 'Server VIP',
+      serverName: currentPlayingServerName,
       currentTime: finalCurrentTime,
       duration: finalDuration,
       timestamp: Date.now()
@@ -1248,7 +1080,7 @@
 
   // Next Episode Playback
   window.playNextEpisode = function () {
-    if (!currentPlayingEpisode || !currentPlayingEpisodesList) return;
+    if (!currentPlayingEpisode || !currentPlayingEpisodesList.length) return;
     const currentIdx = currentPlayingEpisodesList.findIndex(e => e.slug === currentPlayingEpisode.slug);
     if (currentIdx !== -1 && currentIdx + 1 < currentPlayingEpisodesList.length) {
       const nextEp = currentPlayingEpisodesList[currentIdx + 1];
@@ -1256,7 +1088,7 @@
         currentPlayingMovie,
         nextEp,
         currentPlayingEpisodesList,
-        (currentDetailEpisodes[currentServerIndex] && currentDetailEpisodes[currentServerIndex].server_name) || 'Server VIP'
+        currentPlayingServerName
       );
     } else {
       alert('Đã hết tập tiếp theo trong danh sách!');
@@ -1266,37 +1098,12 @@
   // Close Player
   window.closeVideoPlayer = function (fromPopState = false) {
     trackAndSaveHistory();
-
-    if (historySaveTimer) {
-      clearInterval(historySaveTimer);
-      historySaveTimer = null;
-    }
-
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
     currentPlayerMode = 'hls';
 
-    // 1. Immediately mute, reset and pause HTML5 video
-    try {
-      videoPlayer.pause();
-      videoPlayer.muted = true;
-      videoPlayer.currentTime = 0;
-      videoPlayer.removeAttribute('src');
-      videoPlayer.src = '';
-      videoPlayer.load();
-    } catch (_) {}
-
-    // 2. Fully stop and destroy HLS streaming instance
-    if (hlsInstance) {
-      try {
-        hlsInstance.stopLoad();
-        hlsInstance.detachMedia();
-        hlsInstance.destroy();
-      } catch (_) {}
-      hlsInstance = null;
-    }
+    currentPlayingMovie = null;
+    currentPlayingEpisode = null;
+    currentPlayingEpisodesList = [];
+    mobilePlayer.stop();
 
     // 3. Completely terminate iframe audio & child process by recreating the element
     try {
@@ -1363,6 +1170,7 @@
 
   // Video Events
   videoPlayer.addEventListener('ended', () => {
+    if (!currentPlayingEpisode || currentPlayerMode !== 'hls') return;
     // Auto play next episode
     const currentIdx = currentPlayingEpisodesList.findIndex(e => e.slug === currentPlayingEpisode.slug);
     if (currentIdx !== -1 && currentIdx + 1 < currentPlayingEpisodesList.length) {
@@ -1370,43 +1178,23 @@
     }
   });
 
-  videoPlayer.addEventListener('playing', () => {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
-  });
-
-  videoPlayer.addEventListener('error', (e) => {
-    if (currentPlayerMode !== 'hls') return;
-    const currentSrc = videoPlayer.getAttribute('src');
-    if (!currentSrc || currentSrc === 'about:blank' || !videoPlayer.error) return;
-    console.warn('HTML5 video error, auto-falling back to embed:', videoPlayer.error);
-    handlePlaybackError(videoPlayer.src, currentPlayingEpisode ? currentPlayingEpisode.link_embed : '');
-  });
-
-  // Handle native iOS Safari "Done" button to cleanly exit player overlay
-  videoPlayer.addEventListener('webkitendfullscreen', () => {
-    closeVideoPlayer();
-  });
+  // Leaving iOS native fullscreen keeps the same source and playback position.
+  videoPlayer.addEventListener('webkitendfullscreen', () => trackAndSaveHistory());
 
   // Save history on pause and when user switches apps or minimizes Safari
   let lastRecordedHistorySec = 0;
   videoPlayer.addEventListener('timeupdate', () => {
     const cur = Math.floor(videoPlayer.currentTime || 0);
-    if (Math.abs(cur - lastRecordedHistorySec) >= 3) {
+    if (Math.abs(cur - lastRecordedHistorySec) >= 10) {
       lastRecordedHistorySec = cur;
       trackAndSaveHistory();
     }
   });
 
   videoPlayer.addEventListener('pause', () => {
-    if (streamWatchdogTimer) {
-      clearTimeout(streamWatchdogTimer);
-      streamWatchdogTimer = null;
-    }
     trackAndSaveHistory();
   });
+  window.addEventListener('pagehide', () => trackAndSaveHistory());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) trackAndSaveHistory();
   });
