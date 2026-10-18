@@ -8,8 +8,8 @@
 | :--- | :--- | :--- | :--- |
 | **Samsung TV / Apps2Samsung 1.0.11** | `/tv-samsung-tizen` | Bản sửa cần đóng gói/ký; [WGT cũ 1.0.10](https://github.com/dodangquang/kho-phim/releases/download/v1.0.10/KhoPhim_Samsung_Tizen_v1.0.10.wgt) | Sửa watchdog khi tạm dừng |
 | **TV Web 1.0.12 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://dodangquang.github.io/kho-phim/tv/) | Đợi seekable, giữ pause khi khôi phục nguồn |
-| **Android TV 1.0.3** | `/tv` | Bản sửa cần build từ source | Giữ đúng phim/server; tua an toàn |
-| **Android Mobile 1.0.3** | `/mobile-android` | Bản sửa cần build từ source | Không dùng thời gian tập cũ khi thử lại |
+| **Android TV 1.0.3** | `/tv` | [Tải APK TV 1.0.3](https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_TV_v1.0.3.apk) | Giữ đúng phim/server; tua an toàn |
+| **Android Mobile 1.0.3** | `/mobile-android` | [Tải APK Mobile 1.0.3](https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_Mobile_v1.0.3.apk) | Không dùng thời gian tập cũ khi thử lại |
 | **Web Mobile 1.0.13 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | ✅ HLS gốc Safari, tua ±10s, khôi phục luồng |
 | **iOS 1.0.1/build2** | `/mobile-ios` | IPA trong artifact workflow macOS | Quản lý player/observer; tải lại khi lỗi |
 | **Web Desktop 1.0.6** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Giữ vị trí/pause khi đổi nguồn; HLS.js cục bộ tải khi cần |
@@ -22,6 +22,8 @@
 - **Nguồn dữ liệu:** ưu tiên PhimAPI; Android vẫn có đường dự phòng từ tên miền do người dùng chọn. Đã bỏ URL cấu hình tên miền và endpoint OPhim trả 404.
 
 ## 🚀 Tải File Cài Đặt (Releases)
+Android Mobile và Android TV 1.0.3/code4 có trong [GitHub Release v1.0.3](https://github.com/dodangquang/kho-phim/releases/tag/v1.0.3). Hai APK giữ application ID và chứng chỉ của bản 1.0.2. Mở **Cài đặt → Kiểm tra cập nhật** hoặc mở lại app để kiểm tra tự động; Android vẫn yêu cầu xác nhận cài đặt. `version.json` và `docs/version.json` dùng cùng thông tin phiên bản và link riêng cho từng nền tảng.
+
 Các file trong `releases/` là bản cũ, chưa chứa các sửa phát phim hiện tại:
 - `KhoPhim_TV_v1.0.0.apk`: Bản dành cho Smart TV / TV Box / Android TV.
 - `KhoPhim_Mobile_v1.0.0.apk`: tên file cũ ghi 1.0.0 nhưng metadata bên trong là 1.0.2/code3. Không dùng tên file này để xác định phiên bản.

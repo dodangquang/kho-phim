@@ -1,7 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_Mobile_v1.0.2.apk",
-  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.2/KhoPhim_TV_v1.0.2.apk",
-  "changelog": "Bản cập nhật v1.0.2: Trình phát gốc siêu mượt, tự động đối chiếu máy chủ lọc bỏ các phim lỗi link/404, tối ưu danh sách phim và tiếp tục xem."
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_Mobile_v1.0.3.apk",
+  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_Mobile_v1.0.3.apk",
+  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_TV_v1.0.3.apk",
+  "changelog": "Bản cập nhật v1.0.3: Sửa mở nhầm phim có năm/số phần, tiếp tục xem đúng server và tập, reset thời gian khi đổi tập hoặc thử lại, tua an toàn khi video đang tải. Android TV thêm thử lại và đổi nguồn khi lỗi. Bỏ endpoint dự phòng đã hỏng."
 }
