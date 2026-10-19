@@ -20,7 +20,7 @@ async function main(){
   async function device(mobile=false,seed=false){
    const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1366,height:900},isMobile:mobile,hasTouch:mobile});
    await context.route('**/sync/config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.KHO_SYNC_CONFIG='+JSON.stringify({enabled:true,apiKey:'fixture',projectId:'demo-khophim',authDomain:'demo-khophim.firebaseapp.com',appId:'fixture',accountUrl:origin+'/docs/account/'})}));
-   await context.route('https://www.gstatic.com/firebasejs/**',route=>route.fulfill({contentType:'text/javascript',body:route.request().url().includes('firebase-app-')?`window.firebase={initializeApp:function(){},auth:function(){return {languageCode:'vi',setPersistence:function(){return Promise.resolve()},signInWithPopup:function(){var uid=window.__googleUser||'alice';return Promise.resolve({user:{uid:uid},credential:{idToken:'google-'+uid}})}}}};firebase.auth.Auth={Persistence:{NONE:'none'}};firebase.auth.GoogleAuthProvider=function(){this.setCustomParameters=function(){}};`:''}));
+   await context.route('https://www.gstatic.com/firebasejs/**',route=>route.fulfill({contentType:'text/javascript',body:route.request().url().includes('firebase-app-')?`window.firebase={initializeApp:function(){},auth:function(){return {languageCode:'vi',setPersistence:function(){return Promise.resolve()},signInWithPopup:function(){var uid=window.__googleUser||'alice',result={user:{uid:uid},credential:{idToken:'google-'+uid}};return window.__holdGoogle?new Promise(function(resolve){window.__finishGoogle=function(){resolve(result)}}):Promise.resolve(result)}}}};firebase.auth.Auth={Persistence:{NONE:'none'}};firebase.auth.GoogleAuthProvider=function(){this.setCustomParameters=function(){}};`:''}));
    await context.route('https://identitytoolkit.googleapis.com/**',route=>{
     const data=route.request().postDataJSON(),signup=route.request().url().includes('signUp');
     const uid=signup?'anon'+(++anonymous):new URLSearchParams(data.postBody).get('id_token').replace('google-','');
@@ -75,6 +75,15 @@ async function main(){
    await page.getByRole('button',{name:'Tiếp tục với Google',exact:true}).click();await page.waitForURL(origin+back);
    await page.waitForFunction(()=>window.KhoSync?.user()?.uid===window.__expectedUid||window.KhoSync?.user());
   }
+  const canceled=await device(true);await canceled.page.goto(origin+'/docs/account/');
+  await canceled.page.evaluate(()=>{window.__holdGoogle=true});
+  await canceled.page.getByRole('button',{name:'Tiếp tục với Google',exact:true}).click();
+  await canceled.page.getByRole('button',{name:'Hủy đăng nhập',exact:true}).click();
+  await canceled.page.evaluate(()=>window.__finishGoogle());
+  assert.equal(await canceled.page.evaluate(()=>KhoSync.user()),null,'A canceled popup must not activate a late account');
+  await canceled.page.getByRole('button',{name:'Tiếp tục với Google',exact:true}).waitFor({state:'visible'});
+  assert.equal(await canceled.page.getByRole('button',{name:'Tiếp tục với Google',exact:true}).isEnabled(),true);
+  await canceled.context.close();
   const mobile=await device(true,true);await login(mobile.page,'/docs/?mode=mobile');
   await mobile.page.evaluate(()=>KhoSync.sync());
   assert.equal(decode(docs.get('users/alice/history/phim-2026')).positionMs,65000);

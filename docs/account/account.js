@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   var button = document.getElementById('google-signin'), status = document.getElementById('auth-status');
+  var cancel = document.getElementById('google-cancel'), attempt = 0, timeout;
   var params = new URLSearchParams(location.hash.slice(1)), pairing = params.get('pair') ? { pair: params.get('pair'), key: params.get('key') || '' } : null;
   // Pairing keys stay out of network requests, referrers, analytics and browser history.
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -21,11 +22,21 @@
   auth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function () {
     button.disabled = false; button.textContent = pairing ? 'Tiếp tục với Google và liên kết thiết bị' : 'Tiếp tục với Google';
   }).catch(function () { status.textContent = 'Không chuẩn bị được đăng nhập. Hãy tải lại trang.'; });
+  function stop(message) {
+    attempt++; clearTimeout(timeout); button.disabled = false; cancel.hidden = true; status.textContent = message;
+  }
+  cancel.onclick = function () { stop('Đã hủy đăng nhập. Bạn có thể thử lại.'); };
   button.onclick = function () {
-    button.disabled = true; status.textContent = 'Đang mở đăng nhập Google…';
+    var current = ++attempt;
+    button.disabled = true; cancel.hidden = false; status.textContent = 'Đang mở đăng nhập Google…';
+    timeout = setTimeout(function () {
+      if (current === attempt) stop('Chưa nhận được kết quả Google. Đóng cửa sổ đăng nhập cũ và nhấn Google để thử lại.');
+    }, 120000);
     var provider = new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({ prompt: 'select_account' });
     // Open the popup directly from the tap so Safari preserves the user gesture.
     auth.signInWithPopup(provider).then(function (result) {
+      if (current !== attempt) return;
+      clearTimeout(timeout); cancel.hidden = true;
       var credential = result.credential;
       if (!credential || !credential.idToken) throw new Error('Thiếu thông tin đăng nhập Google.');
       return KhoSync.acceptGoogle(credential.idToken, result.user.uid).then(function (session) {
@@ -36,6 +47,8 @@
         status.textContent = 'Đăng nhập thành công. Đang trở về Kho Phim…'; location.replace(back.href);
       });
     }).catch(function (e) {
+      if (current !== attempt) return;
+      clearTimeout(timeout); cancel.hidden = true;
       status.textContent = /popup-closed|cancelled-popup/.test(e.code || '') ? 'Bạn đã đóng đăng nhập. Có thể thử lại bất cứ lúc nào.' : /popup-blocked/.test(e.code || '') ? 'Trình duyệt chặn cửa sổ đăng nhập. Cho phép cửa sổ bật lên rồi nhấn lại nút Google.' : 'Chưa đăng nhập hoặc liên kết được. Hãy kiểm tra kết nối và thử lại; mã QR có thể đã hết hạn.';
       button.disabled = false;
     });
