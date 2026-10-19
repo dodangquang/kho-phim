@@ -1,4 +1,10 @@
-# Kho Phim Samsung TV 1.0.11
+# Kho Phim Samsung TV 1.0.12
+
+Thêm điểm IMDb/TMDB trên thẻ phim và trang chi tiết, kèm nguồn, thang 10 và số lượt đánh giá. Dùng dữ liệu sẵn có trong API, không thêm request từng phim. Không hiển thị 0/10 cho phim chưa có điểm. Điểm thay đổi được nhận khi tải lại dữ liệu sau lần cài bản hỗ trợ này.
+
+Gói [KhoPhim_Samsung_Tizen_v1.0.12_UNSIGNED.wgt](https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Samsung_Tizen_v1.0.12_UNSIGNED.wgt) đã phát hành; chứa 12 file runtime, cần Apps2Samsung ký/cài. Giữ ID và khóa lịch sử. Đã qua 36 kiểm tra TV, kiểm tra hiển thị điểm và cú pháp ES5 trên Edge; chưa thử trên TV thật.
+
+## Lịch sử bản 1.0.11
 
 Bản 1.0.11 sửa lỗi tự đóng video sau 25 giây khi đang tạm dừng mà AVPlay gửi sự kiện buffering. Watchdog chỉ theo dõi lúc chuẩn bị/phát, được bật lại khi phát tiếp; tua lúc tạm dừng vẫn giữ trạng thái tạm dừng. Callback của video cũ không thể thay đổi bộ đếm nguồn mới. Đã bỏ yêu cầu dự phòng đến endpoint OPhim trả 404, tránh chờ nguồn đã hỏng khi tải thông tin phim thất bại.
 
