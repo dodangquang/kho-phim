@@ -23,7 +23,7 @@ jobs:
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Check player lifecycle and TV compatibility
         run: |
-          node --test docs/tests/mobile-player.test.cjs
+          node --test docs/tests/mobile-player.test.cjs docs/tests/ratings.test.cjs
           node tv-samsung-tizen/tests/player-timing.cjs
           node tv-samsung-tizen/tests/web-player.cjs
         env:
@@ -32,6 +32,7 @@ jobs:
         run: |
           node docs/tests/mobile-browser.cjs
           node docs/tests/desktop-browser.cjs
+          node docs/tests/ratings-browser.cjs
           node tv-samsung-tizen/tests/regression.cjs
         env:
           NODE_PATH: ${{ github.workspace }}/tv-samsung-tizen/node_modules

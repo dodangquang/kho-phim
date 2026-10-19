@@ -9,8 +9,9 @@ struct MovieItem: Identifiable, Codable, Hashable {
     let badge: String?
     let episodeBadge: String?
     let modifiedTime: String?
+    let rating: MovieRating?
 
-    init(title: String, slug: String, posterUrl: String, bannerUrl: String? = nil, badge: String? = nil, episodeBadge: String? = nil, modifiedTime: String? = nil) {
+    init(title: String, slug: String, posterUrl: String, bannerUrl: String? = nil, badge: String? = nil, episodeBadge: String? = nil, modifiedTime: String? = nil, rating: MovieRating? = nil) {
         self.title = title
         self.slug = slug
         self.posterUrl = posterUrl
@@ -18,6 +19,7 @@ struct MovieItem: Identifiable, Codable, Hashable {
         self.badge = badge
         self.episodeBadge = episodeBadge
         self.modifiedTime = modifiedTime
+        self.rating = rating
     }
 }
 
@@ -39,6 +41,7 @@ struct MovieDetail: Identifiable {
     let quality: String
     let episodes: [EpisodeSource]
     let relatedMovies: [MovieItem]
+    var rating: MovieRating? = nil
 }
 
 struct EpisodeSource: Identifiable, Codable, Hashable {

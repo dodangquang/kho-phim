@@ -50,6 +50,12 @@ struct MovieCardView: View {
                         .padding(4)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                if let rating = movie.rating {
+                    Text(rating.label)
+                        .font(.system(size: 9, weight: .bold)).foregroundColor(.yellow)
+                        .padding(4).background(Color.black.opacity(0.85)).cornerRadius(3).padding(4)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                }
             }
 
             Text(movie.title)

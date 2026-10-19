@@ -436,6 +436,7 @@
         >
         ${badge ? `<span class="movie-badge-top-left">${badge}</span>` : ''}
         ${epBadge ? `<span class="movie-badge-top-right">${epBadge}</span>` : ''}
+        ${KhoRatings.html(movie, 'movie-rating', false)}
       </div>
       <div class="movie-title">${movie.name}</div>
     `;
@@ -726,6 +727,8 @@
             ${movie.episode_current ? `<span class="meta-pill">${movie.episode_current}</span>` : ''}
             ${movie.time ? `<span class="meta-pill">${movie.time}</span>` : ''}
           </div>
+
+          ${KhoRatings.html(movie, 'movie-rating-detail', true)}
 
           <div style="display:flex; gap:10px; margin-bottom:20px;">
             <button class="btn-primary" style="flex:1;" onclick="playFirstOrResumeEpisode()">

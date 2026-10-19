@@ -151,6 +151,8 @@
     } else {
       wrap.appendChild(child('span', 'tv-badge-left', item.quality || item.year || 'HD'));
       if (item.episode_current) wrap.appendChild(child('span', 'tv-badge-right', item.episode_current));
+      var rating = global.KhoRatings.fromMovie(item);
+      if (rating) wrap.appendChild(child('span', 'movie-rating', global.KhoRatings.label(rating)));
     }
     var info = child('span', continuing ? 'tv-continue-info' : 'tv-card-info');
     info.appendChild(child('span', continuing ? 'tv-continue-title' : 'tv-card-title', item.name || item.title || item.origin_name || item.slug));
@@ -283,6 +285,7 @@
   function displayDetail(data) {
     movie = data.movie;
     el('detail-backdrop').src = C.image(movie.thumb_url || movie.poster_url);
+    text('detail-rating', global.KhoRatings.detail(global.KhoRatings.fromMovie(movie)));
     text('detail-year', movie.year || '');
     text('detail-quality', movie.quality || 'HD');
     servers = (Array.isArray(data.episodes) ? data.episodes : []).filter(function (server) { return server && Array.isArray(server.server_data) && server.server_data.length; });

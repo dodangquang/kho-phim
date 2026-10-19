@@ -178,6 +178,10 @@ fun DetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        val rating = if (detail != null) detail?.rating else movie.rating
+                        Text(text = rating?.detailLabel ?: "Chưa có điểm", color = Color(0xFFFFD166), fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         // Big Play / Resume Button
                         val firstEp = filteredEpisodes.firstOrNull() ?: episodes.firstOrNull()
                         val resumeEp = PlaybackSupport.resumeEpisode(filteredEpisodes, lastProgress) ?: firstEp
