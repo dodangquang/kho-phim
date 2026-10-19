@@ -6,7 +6,7 @@
 
 | Nền tảng | Thư mục mã nguồn | File cài đặt sẵn có | Trạng thái |
 | :--- | :--- | :--- | :--- |
-| **Samsung TV / Apps2Samsung 1.0.14** | `/tv-samsung-tizen` | [WGT 1.0.14 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Samsung_Tizen_v1.0.14_UNSIGNED.wgt), cần Apps2Samsung ký/cài | Tủ Phim, giữ lịch sử cũ |
+| **Samsung TV / Apps2Samsung 1.0.15** | `/tv-samsung-tizen` | [WGT 1.0.15 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/samsung-v1.0.15/KhoPhim_Samsung_Tizen_v1.0.15_UNSIGNED.wgt), cần Apps2Samsung ký/cài lần đầu | Tự tải cập nhật giao diện/trình phát, Tủ Phim, giữ lịch sử cũ |
 | **TV Web 1.0.16 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://khophimqd.vercel.app/tv/) | Tủ Phim, Google login bằng QR |
 | **Android TV 1.0.7** | `/tv` | [Tải APK TV 1.0.7](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_TV_v1.0.7.apk) | Tủ Phim, Google login bằng QR |
 | **Android Mobile 1.0.7** | `/mobile-android` | [Tải APK Mobile 1.0.7](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Mobile_v1.0.7.apk) | Tủ Phim, Google login và đồng bộ |
@@ -46,7 +46,7 @@ Chi tiết thay đổi và phạm vi kiểm chứng: [PLAYBACK-FIXES.md](PLAYBAC
 
 ## Bản phát hành cũ Samsung 1.0.10 và TV Web 1.0.11
 
-Bản Samsung đóng gói giao diện cục bộ, phát bằng AVPlay; bản web dùng cùng giao diện tối ưu tại `/tv/`. Giữ 6 phim mỗi kệ/trang, cache tối đa 48 thumbnail và sửa poster bị hẹp trên Chromium 69. Chi tiết kiểm tra và cách cài ở [tv-samsung-tizen/README.md](tv-samsung-tizen/README.md).
+Bản Samsung có giao diện cục bộ dự phòng, phát bằng AVPlay. Từ 1.0.15, app tự tải cập nhật giao diện/trình phát trong nền và áp dụng ở lần mở tiếp theo, có kiểm tra SHA-256 và khôi phục khi lỗi khởi động. Cần cài WGT 1.0.15 một lần để bật chức năng; thay đổi quyền hệ thống vẫn cần WGT mới. Bản web dùng giao diện tối ưu tại `/tv/`. Giữ 6 phim mỗi kệ/trang, cache tối đa 48 thumbnail và sửa poster bị hẹp trên Chromium 69. Chi tiết kiểm tra và cách cài ở [tv-samsung-tizen/README.md](tv-samsung-tizen/README.md).
 
 TV Web 1.0.11 ưu tiên HLS.js trên PC có Media Source Extensions, kể cả khi Edge báo hỗ trợ HLS gốc. TV/Safari vẫn ưu tiên HLS gốc và có thêm bước thử HLS.js nếu phát gốc lỗi. Đã thử phát bốn phim đầu trang trên Edge bằng API/CDN thật.
 

@@ -1,4 +1,27 @@
-# Kho Phim Samsung TV 1.0.14
+# Kho Phim Samsung TV 1.0.15
+
+## Tự động cập nhật từ 1.0.15
+
+Cài [WGT 1.0.15 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/samsung-v1.0.15/KhoPhim_Samsung_Tizen_v1.0.15_UNSIGNED.wgt) qua Apps2Samsung một lần, ký bằng profile/chứng chỉ đã dùng cho app cũ. Giữ application ID `X84DodangQ.KhoPhim`, package `X84DodangQ` và khóa lịch sử. Cài cập nhật lên app hiện có; gỡ app có thể mất dữ liệu.
+
+Sau đó app tự kiểm tra khi mở, tải giao diện/trình phát mới trong nền và áp dụng khi mở lại. Cài Đặt có **Kiểm tra cập nhật**, **Áp dụng ngay** và **Khôi phục bản cài sẵn**; điều khiển được bằng remote. Không tự khởi động lại khi đang xem phim; Áp dụng ngay cũng bị chặn trong lúc phát.
+
+Máy chủ cố định `https://khophimqd.vercel.app/samsung/update.json` công bố phiên bản và bundle theo địa chỉ SHA-256. Bộ tải ES5 kiểm tra dung lượng, hash, phiên bản và giao thức shell trước khi lưu. Chỉ thay con trỏ bản đang dùng khi bản mới khởi động thành công. Nếu lỗi hoặc lần khởi động thử bị ngắt, app bỏ qua bundle đó và về bản thành công trước/bản cài sẵn. Mất mạng vẫn mở được bản đã lưu; bộ nhớ đầy không xóa lịch sử để lấy chỗ.
+
+Chức năng này cập nhật HTML/CSS/JavaScript trong cùng ngữ cảnh ứng dụng đóng gói, giữ AVPlay, remote và origin lưu trữ; không chuyển sang trình duyệt hoặc iframe. Cache chỉ dùng khóa riêng `khophim_samsung_ota_v1`. Không xin quyền cài package, không dùng eval/unsafe-inline. SHA-256 kiểm tra tính toàn vẹn; nguồn tin cậy là máy chủ HTTPS cố định của dự án.
+
+Thay đổi `config.xml`, quyền, icon, native shell hay phiên bản giao thức shell vẫn cần WGT ký/cài qua Apps2Samsung. Samsung quy định [Package.install cần quyền platform](https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/package-api.html); app sideload thông thường không có quyền này. Đây không phải gói phân phối Samsung Store: [chính sách hosted/external scripts của Store](https://developer.samsung.com/smarttv/develop/faq/hosted-applications.html) yêu cầu làm việc với Samsung Content Manager.
+
+Đã kiểm tra 4 bài unit, 13 tình huống cập nhật qua trình duyệt với CSP thật của gói và 36 kiểm tra giao diện/AVPlay mô phỏng. Chưa xác minh trên TV Samsung thật hoặc ký bằng chứng chỉ TV. Gói có 14 file runtime.
+
+### Phát hành cập nhật giao diện/trình phát
+
+1. Sửa runtime và tăng phiên bản trong `core.js`, `package.json`, nhãn HTML. Khi phát hành WGT, tăng cả `config.xml` và `PACKAGE_VERSION` trong `updater.js`; giữ `SHELL = 1` trừ khi đổi giao thức tải/quyền.
+2. Chạy `node tv-samsung-tizen/tools/build-update.cjs`, rồi `npm test` trong `tv-samsung-tizen`. Builder chuẩn hóa LF và tạo `docs/samsung/bundles/<sha256>.json` cùng `update.json`. `.gitattributes` giữ nguyên byte bundle khi checkout.
+3. Triển khai cả bundle và manifest cùng một commit. Không sửa nội dung file có hash cũ, giữ bundle cũ cho TV đang tải. Manifest không cache; bundle có địa chỉ bất biến và CORS cho origin của TV.
+4. Bản sửa sau rollback phải tăng số phiên bản và có hash mới. Không công bố shell mới cho app cũ trừ khi có WGT tương ứng: app sẽ hướng dẫn cài WGT.
+
+## Lịch sử bản 1.0.14
 
 Bản 1.0.14 chuyển toàn bộ danh mục, tìm kiếm và nguồn phát sang Tủ Phim qua gateway chung. Không còn gọi nguồn phim cũ hay máy chủ dự phòng của nguồn cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; hai mục Lồng Tiếng và Thuyết Minh có bộ lọc đúng theo nhãn âm thanh, phân trang riêng và ưu tiên server tương ứng khi mở phim.
 

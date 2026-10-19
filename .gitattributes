@@ -1,0 +1,2 @@
+# Content-addressed update downloads must retain exact bytes on every checkout.
+docs/samsung/bundles/*.json -text

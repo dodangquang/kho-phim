@@ -1,6 +1,22 @@
 {
   "outputDirectory": "docs",
   "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/samsung/update.json",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/samsung/bundles/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/source/:path*", "destination": "/api/tuphim?path=:path*" }
   ],
