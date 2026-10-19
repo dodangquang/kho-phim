@@ -63,6 +63,9 @@ struct DetailView: View {
                                     .foregroundColor(.green)
                             }
 
+                            Text(detail.rating?.detailLabel ?? "Chưa có điểm")
+                                .font(.system(size: 12)).foregroundColor(.yellow)
+
                             // Big Play Button
                             let lastProgress = watchHistoryManager.getProgress(for: movie.slug)
                             let currentEpisodes = detail.episodes.filter { $0.serverName == selectedServer }

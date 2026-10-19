@@ -7,7 +7,8 @@ data class MovieItem(
     val bannerUrl: String? = null,
     val badge: String? = null,
     val episodeBadge: String? = null,
-    val modifiedTime: String? = null
+    val modifiedTime: String? = null,
+    val rating: MovieRating? = null
 )
 
 data class MovieSection(
@@ -25,7 +26,8 @@ data class MovieDetail(
     val year: String = "",
     val quality: String = "",
     val episodes: List<EpisodeSource> = emptyList(),
-    val relatedMovies: List<MovieItem> = emptyList()
+    val relatedMovies: List<MovieItem> = emptyList(),
+    val rating: MovieRating? = null
 )
 
 data class EpisodeSource(

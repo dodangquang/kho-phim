@@ -223,7 +223,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                         bannerUrl = finalBanner,
                         badge = badge.ifEmpty { null },
                         episodeBadge = epBadge.ifEmpty { null },
-                        modifiedTime = modifiedTime
+                        modifiedTime = modifiedTime, rating = MovieRating.fromMovie(item)
                     )
                 )
             }
@@ -508,7 +508,8 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                 overview = overview,
                 year = year,
                 quality = quality,
-                episodes = episodesList
+                episodes = episodesList,
+                rating = MovieRating.fromMovie(movieObj)
             )
         } catch (e: Exception) {
             Log.e("PhimMoiRepo", "Lỗi parse movie JSON: ${e.message}")

@@ -172,7 +172,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                 val epBadge = item.optString("episode_current").ifEmpty { item.optString("time", "") }
                 val modifiedObj = item.optJSONObject("modified")
                 val modifiedTime = modifiedObj?.optString("time")?.ifEmpty { null }
-                list.add(MovieItem(title = name.ifEmpty { slug }, slug = slug, posterUrl = finalPoster, bannerUrl = finalBanner, badge = badge.ifEmpty { null }, episodeBadge = epBadge.ifEmpty { null }, modifiedTime = modifiedTime))
+                list.add(MovieItem(title = name.ifEmpty { slug }, slug = slug, posterUrl = finalPoster, bannerUrl = finalBanner, badge = badge.ifEmpty { null }, episodeBadge = epBadge.ifEmpty { null }, modifiedTime = modifiedTime, rating = MovieRating.fromMovie(item)))
             }
             // Sắp xếp các phim: phim mới cập nhật lên đầu
             list.sortWith(compareByDescending<MovieItem> { it.modifiedTime ?: "" }.thenByDescending { it.badge ?: "" })
@@ -367,7 +367,7 @@ class PhimMoiRepository(private val domainManager: DomainManager? = null) {
                     }
                 }
             }
-            return MovieDetail(title = name, slug = fallbackSlug, posterUrl = finalPoster, backdropUrl = finalBackdrop, overview = overview, year = year, quality = quality, episodes = episodesList)
+            return MovieDetail(title = name, slug = fallbackSlug, posterUrl = finalPoster, backdropUrl = finalBackdrop, overview = overview, year = year, quality = quality, episodes = episodesList, rating = MovieRating.fromMovie(movieObj))
         } catch (e: Exception) {
             Log.e("PhimMoiRepo", "JSON detail parse error: ${e.message}")
             return null

@@ -108,6 +108,15 @@ fun MobileMovieCard(
                         )
                     )
             )
+            movie.rating?.let { rating ->
+                Text(
+                    text = rating.label,
+                    color = Color(0xFFFFD166), fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(5.dp))

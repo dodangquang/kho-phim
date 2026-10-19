@@ -63,7 +63,7 @@ class PhimRepository {
                     bannerUrl: finalBanner,
                     badge: quality?.isEmpty == false ? quality : nil,
                     episodeBadge: epBadge?.isEmpty == false ? epBadge : nil,
-                    modifiedTime: modifiedTime
+                    modifiedTime: modifiedTime, rating: MovieRating.fromMovie(item)
                 )
             )
         }
@@ -226,7 +226,7 @@ class PhimRepository {
                         year: year,
                         quality: quality,
                         episodes: episodesList,
-                        relatedMovies: []
+                        relatedMovies: [], rating: MovieRating.fromMovie(movieObj)
                     )
                 }
             } catch {}

@@ -500,7 +500,7 @@
       <div class="tv-card-info">
         <div class="tv-card-title">${title}</div>
         <div class="tv-card-meta">
-          <span class="tv-card-match">98% Phù hợp</span>
+          ${KhoRatings.html(item, 'tv-card-rating', false)}
           <span class="tv-card-hd">HD</span>
         </div>
       </div>
@@ -771,6 +771,7 @@
 
     document.getElementById('tv-detail-backdrop').style.backgroundImage = `url('${banner}')`;
     document.getElementById('tv-detail-title').textContent = movie.name || movie.origin_name;
+    document.getElementById('tv-detail-rating').textContent = KhoRatings.detail(KhoRatings.fromMovie(movie));
     document.getElementById('tv-detail-year').textContent = movie.year || '2026';
     document.getElementById('tv-detail-quality').textContent = movie.quality || 'Full HD';
 

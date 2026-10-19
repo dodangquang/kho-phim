@@ -155,6 +155,8 @@ fun DetailScreen(
                         fontWeight = FontWeight.Bold
                     )
 
+                    Text(text = currentDetail.rating?.detailLabel ?: "Chưa có điểm", color = Color(0xFFFFD166), fontSize = 13.sp)
+
                     if (currentDetail.overview.isNotEmpty()) {
                         Text(
                             text = currentDetail.overview,
