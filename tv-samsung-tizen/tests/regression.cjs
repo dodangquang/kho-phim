@@ -111,12 +111,12 @@ function mockPlatform() {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base);
     await page.waitForFunction(() => window.KhoBoot.ready && !document.querySelector('#hero-play').disabled && document.querySelectorAll('#shelves .tv-card').length >= 6);
-    assert.equal(await page.locator('#menu button').count(), 7);
+    assert.equal(await page.locator('#menu button').count(), 9);
     assert.equal(await page.locator('script[src^="https:"]').count(), 0);
     assert.equal(await page.locator('iframe').count(), 0);
     assert.equal(await page.locator('#hero').evaluate(node => node.offsetHeight), 480);
     assert.equal(await page.locator('#sidebar').evaluate(node => node.offsetWidth), 68);
-    assert.equal(await page.locator('#shelves > .tv-shelf-section').count(), 9);
+    assert.equal(await page.locator('#shelves > .tv-shelf-section').count(), 11);
     await page.waitForTimeout(100);
     assert.ok(apiRequests.length <= 2, 'Only nearby shelves may request initial data');
     assert.ok(await page.locator('#shelves .tv-card').count() <= 18);
@@ -151,7 +151,7 @@ function mockPlatform() {
     await page.keyboard.press('Escape');
     await page.locator('#hero-play').evaluate(node => node.focus());
     pass('Movie cards retain focus, Enter/Space activation and Return after replacing native buttons');
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 11; i++) {
       await page.keyboard.press('ArrowDown');
       await page.waitForFunction(index => {
         const shelf = document.activeElement.closest('[data-shelf]');
@@ -162,7 +162,7 @@ function mockPlatform() {
     }
     await page.locator('#menu [data-tab="home"]').click();
     await page.waitForFunction(() => document.querySelectorAll('[data-shelf="0"] .tv-card').length === 6);
-    pass('Remote traverses all nine supported virtual shelves without losing focus or growing DOM');
+    pass('Remote traverses audio and genre virtual shelves without losing focus or growing DOM');
     const firstShelf = page.locator('[data-shelf="0"]');
     await firstShelf.locator('.tv-card-more').last().click();
     await page.waitForFunction(() => document.querySelector('[data-shelf="0"] .tv-card-title') && document.querySelector('[data-shelf="0"] .tv-card-title').textContent === 'Phim thử nghiệm 6');
@@ -283,7 +283,7 @@ function mockPlatform() {
     await page.keyboard.press('Escape');
     pass('AVPlay error closes decoder and remains navigable with Return');
     await page.locator('#menu button').first().click();
-    for (let i = 0; i < 6; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(90); }
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(90); }
     assert.equal(await page.locator('#menu button').last().evaluate(node => document.activeElement === node), true);
     assert.ok(await page.locator('#menu button').last().evaluate(node => node.getBoundingClientRect().bottom <= 1080));
     await page.keyboard.press('Enter');
@@ -313,7 +313,7 @@ function mockPlatform() {
     const offline = await context.newPage();
     await offline.goto(base);
     await offline.waitForFunction(() => window.KhoBoot.ready && document.querySelector('#hero-overview').textContent.indexOf('Không tải') !== -1);
-    assert.equal(await offline.locator('#menu button').count(), 7);
+    assert.equal(await offline.locator('#menu button').count(), 9);
     await offline.locator('#menu button').last().click();
     assert.equal(await offline.locator('#settings').isVisible(), true);
     await offline.evaluate(() => {

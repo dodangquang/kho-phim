@@ -10,8 +10,9 @@ struct MovieItem: Identifiable, Codable, Hashable {
     let episodeBadge: String?
     let modifiedTime: String?
     let rating: MovieRating?
+    let audioPreference: String?
 
-    init(title: String, slug: String, posterUrl: String, bannerUrl: String? = nil, badge: String? = nil, episodeBadge: String? = nil, modifiedTime: String? = nil, rating: MovieRating? = nil) {
+    init(title: String, slug: String, posterUrl: String, bannerUrl: String? = nil, badge: String? = nil, episodeBadge: String? = nil, modifiedTime: String? = nil, rating: MovieRating? = nil, audioPreference: String? = nil) {
         self.title = title
         self.slug = slug
         self.posterUrl = posterUrl
@@ -20,6 +21,7 @@ struct MovieItem: Identifiable, Codable, Hashable {
         self.episodeBadge = episodeBadge
         self.modifiedTime = modifiedTime
         self.rating = rating
+        self.audioPreference = audioPreference
     }
 }
 

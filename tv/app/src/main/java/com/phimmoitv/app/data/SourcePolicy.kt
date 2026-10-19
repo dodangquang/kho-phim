@@ -13,7 +13,6 @@ object SourcePolicy {
 
     fun categoryUrl(path: String, page: Int = 1): String? {
         val clean = path.trim().trim('/')
-        if (clean.contains("thuyet-minh") || clean.contains("long-tieng")) return null
         val route = when {
             clean in listOf("phim-moi", "phim-moi-cap-nhat", "danh-sach/phim-moi-cap-nhat") -> "danh-sach/phim-moi-cap-nhat"
             Regex("(the-loai|quoc-gia|danh-sach)/[a-z0-9-]+").matches(clean) -> "v1/api/$clean"
@@ -27,7 +26,7 @@ object SourcePolicy {
         "$API_BASE/v1/api/tim-kiem?keyword=${URLEncoder.encode(it, "UTF-8")}&limit=50&page=1"
     }
 
-    fun detailUrl(slug: String): String? = if (isCurrentSlug(slug)) "$API_BASE/phim/$slug" else null
+    fun detailUrl(slug: String, audio: String? = null): String? = if (isCurrentSlug(slug)) "$API_BASE/phim/$slug" + (if (audio in listOf("lt", "tm")) "?audio=$audio" else "") else null
 
     fun imageUrl(raw: String): String {
         val value = raw.trim()

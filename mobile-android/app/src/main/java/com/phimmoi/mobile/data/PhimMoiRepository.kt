@@ -39,7 +39,7 @@ class PhimMoiRepository {
                 badge = item.optString("quality").ifEmpty { item.optString("year") }.ifEmpty { null },
                 episodeBadge = item.optString("episode_current").ifEmpty { item.optString("time") }.ifEmpty { null },
                 modifiedTime = item.optJSONObject("modified")?.optString("time")?.ifEmpty { null },
-                rating = MovieRating.fromMovie(item)
+                rating = MovieRating.fromMovie(item), audioPreference = item.optString("audio_preference").takeIf { it in listOf("lt", "tm") }
             )
         }
     }
@@ -56,6 +56,8 @@ class PhimMoiRepository {
             "🇻🇳 Điện Ảnh & Phim Việt Nam" to "quoc-gia/viet-nam",
             "🍿 Phim Chiếu Rạp" to "phim-chieu-rap",
             "📺 Phim Bộ Đang Thịnh Hành" to "phim-bo",
+            "🗣️ Phim Lồng Tiếng" to "phim-long-tieng",
+            "🎙️ Phim Thuyết Minh" to "phim-thuyet-minh",
             "⚔️ Hành Động & Kịch Tính" to "the-loai/hanh-dong",
             "💥 Anime & Hoạt Hình" to "the-loai/hoat-hinh",
             "👻 Kinh Dị & Rùng Rợn" to "the-loai/kinh-di",
@@ -71,8 +73,8 @@ class PhimMoiRepository {
         SourcePolicy.searchUrl(query)?.let { fetchJson(it)?.let(::parseMovies) } ?: emptyList()
     }
 
-    suspend fun getMovieDetail(movieSlug: String): MovieDetail = withContext(Dispatchers.IO) {
-        val url = SourcePolicy.detailUrl(movieSlug) ?: return@withContext MovieDetail(
+    suspend fun getMovieDetail(movieSlug: String, audioPreference: String? = null): MovieDetail = withContext(Dispatchers.IO) {
+        val url = SourcePolicy.detailUrl(movieSlug, audioPreference) ?: return@withContext MovieDetail(
             title = movieSlug, slug = movieSlug, posterUrl = "", overview = SourcePolicy.LEGACY_MESSAGE
         )
         val root = fetchJson(url) ?: return@withContext MovieDetail(movieSlug, movieSlug, "", overview = "Không tải được phim từ Tủ Phim. Vui lòng thử lại.")
@@ -96,7 +98,7 @@ class PhimMoiRepository {
         MovieDetail(
             title = movie.optString("name").ifBlank { movieSlug }, slug = movieSlug,
             posterUrl = poster.ifEmpty { thumb }, backdropUrl = thumb.ifEmpty { poster },
-            overview = Jsoup.parse(movie.optString("content")).text(), year = movie.optString("year"),
+            overview = listOf(movie.optString("audio_notice"), Jsoup.parse(movie.optString("content")).text()).filter { it.isNotBlank() }.joinToString("\n\n"), year = movie.optString("year"),
             quality = movie.optString("quality"), episodes = episodes, rating = MovieRating.fromMovie(movie)
         )
     }

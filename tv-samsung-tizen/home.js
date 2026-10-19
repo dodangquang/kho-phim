@@ -8,6 +8,8 @@
     ['🇻🇳 Phim Việt Nam', 'quoc-gia/viet-nam'],
     ['🍿 Chiếu Rạp Đặc Sắc', 'danh-sach/phim-chieu-rap'],
     ['📺 Phim Bộ Hot', 'danh-sach/phim-bo'],
+    ['🗣️ Phim Lồng Tiếng', 'danh-sach/phim-long-tieng'],
+    ['🎙️ Phim Thuyết Minh', 'danh-sach/phim-thuyet-minh'],
     ['⚔️ Phim Hành Động', 'the-loai/hanh-dong'],
     ['💥 Anime / Hoạt Hình', 'danh-sach/hoat-hinh'],
     ['👻 Phim Kinh Dị', 'the-loai/kinh-di'],

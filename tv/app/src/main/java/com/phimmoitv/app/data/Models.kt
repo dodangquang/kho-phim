@@ -8,7 +8,8 @@ data class MovieItem(
     val badge: String? = null,
     val episodeBadge: String? = null,
     val modifiedTime: String? = null,
-    val rating: MovieRating? = null
+    val rating: MovieRating? = null,
+    val audioPreference: String? = null
 )
 
 data class MovieSection(

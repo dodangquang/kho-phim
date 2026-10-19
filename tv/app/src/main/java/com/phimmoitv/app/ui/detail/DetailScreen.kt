@@ -55,10 +55,10 @@ fun DetailScreen(
     LaunchedEffect(movie.slug) {
         isLoading = true
         try {
-            val d = repository.getMovieDetail(movie.slug)
+            val d = repository.getMovieDetail(movie.slug, movie.audioPreference)
             detail = d
             val servers = d.episodes.map { it.serverName }.distinct()
-            selectedServer = watchHistoryManager?.getProgress(movie.slug)?.serverName?.takeIf { it in servers } ?: servers.firstOrNull()
+            selectedServer = (if (movie.audioPreference == null) watchHistoryManager?.getProgress(movie.slug)?.serverName?.takeIf { it in servers } else null) ?: servers.firstOrNull()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {

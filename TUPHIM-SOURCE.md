@@ -1,12 +1,12 @@
 # Nguồn Tủ Phim
 
-Web Mobile 1.0.17, Desktop 1.0.9, TV Web 1.0.15, Samsung 1.0.13, APK Mobile/TV 1.0.6 (code7) và source iOS 1.0.3 (build4) dùng duy nhất danh mục Tủ Phim. Các phiên bản cài đặt cũ cần nâng cấp để nhận thay đổi nguồn.
+Web Mobile 1.0.18, Desktop 1.0.10, TV Web 1.0.16, Samsung 1.0.14, APK Mobile/TV 1.0.7 (code8) và source iOS 1.0.4 (build5) dùng duy nhất danh mục Tủ Phim. Các phiên bản cài đặt cũ cần nâng cấp để nhận thay đổi nguồn.
 
 ## Dữ liệu và phát phim
 
 `/source/*` trên Vercel đi qua `api/tuphim.js` và `lib/tuphim.js`. Gateway đọc API công khai `https://api.phimsrv.com/v1` mà website Tủ Phim sử dụng, chuyển dữ liệu sang cấu trúc hiện có của Kho Phim. Không dùng API key, cookie hoặc tài khoản của Tủ Phim; không có đường dự phòng tới nguồn cũ. Trang GitHub Pages và APK dùng chung gateway tại `https://khophimqd.vercel.app/source` để tránh CORS của upstream.
 
-Danh mục hỗ trợ mới cập nhật, phim lẻ (`single` và `movie`), phim bộ, chiếu rạp, thể loại, quốc gia và tìm kiếm. Loại các phim upstream đánh dấu `vipOnly`. Không tạo danh mục Thuyết minh/Lồng tiếng riêng vì upstream bỏ qua bộ lọc đó; lựa chọn âm thanh phụ thuộc server từng phim.
+Danh mục hỗ trợ mới cập nhật, phim lẻ (`single` và `movie`), phim bộ, chiếu rạp, thể loại, quốc gia và tìm kiếm. Loại các phim upstream đánh dấu `vipOnly`. Hai mục Lồng tiếng và Thuyết minh dùng đúng tham số `langKeys=lt` và `langKeys=tm`, với phân trang và cache riêng. Không dùng `lang=...` vì upstream bỏ qua tham số đó. Gateway kiểm tra nhãn từng kết quả; nếu upstream trả sai bộ lọc sẽ báo lỗi thay vì trộn phim Vietsub. Phim có cả hai nhãn có thể xuất hiện ở cả hai mục. Mở phim từ một mục sẽ ưu tiên server tương ứng, vẫn giữ các lựa chọn khác và lịch sử đã lưu. Nhãn phim của upstream đôi khi không khớp tên server hiện có; khi chưa thấy server ghi đúng nhãn, app hiện thông báo để người xem tự chọn nguồn, không đổi tên server hoặc khẳng định âm thanh chưa xác minh.
 
 Chỉ tạo link HLS cho tập có `useMedia: true`. Những lựa chọn chỉ có iframe ngoài không được gắn link HLS giả. Gateway đọc cấu hình JSON công khai trong trang embed và giải cách che URL mà trình phát công khai dùng. HLS không có phụ đề ngoài được chuyển hướng302 đến CDN để thiết bị xem tải trực tiếp; tránh đọc trước từ data centre khi CDN trả404 theo vị trí mạng. Với WebVTT ngoài, gateway trả manifest có nhóm phụ đề và URI tuyệt đối. Không chạy JavaScript upstream, không tự giải mã video/DRM và không thay đổi danh tính/Referer để vượt lỗi403. Video và phụ đề được tải trực tiếp từ CDN nguồn; gateway không chuyển tiếp byte video.
 

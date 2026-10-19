@@ -34,13 +34,32 @@ test('public player config is parsed as inert JSON and only ordinary HTTPS HLS i
   assert.throws(() => publicEpisode('<script>config=process.exit()</script>'));
   assert.throws(() => publicEpisode(fixture({ encrypted_url: 'GG' })));
 });
-test('legacy detail and unsupported audio catalogues fail without contacting any provider', async () => {
+test('legacy detail and unsupported catalogues fail without contacting any provider', async () => {
   const { source, requests } = mocked({});
   await assert.rejects(source('phim/old-film'), { status: 410 });
-  await assert.rejects(source('v1/api/danh-sach/phim-thuyet-minh'), { status: 404 });
+  await assert.rejects(source('v1/api/danh-sach/unknown-audio'), { status: 404 });
   await assert.rejects(source('phim/tp--../bad'), { status: 400 });
   await assert.rejects(source('stream/../../index.m3u8'), { status: 404 });
   assert.equal(requests.length, 0);
+});
+test('audio categories use langKeys, retain independent pagination and never mix labels', async () => {
+  const routes = {};
+  for (const key of ['lt', 'tm']) for (const page of [1, 2]) routes['https://api.phimsrv.com/v1/movies?page=' + page + '&limit=24&langKeys=' + key] = { ok: true, data: { page, limit: 24, total: 48, totalPages: 2, items: [{ primarySlug: key + '-' + page, langKeys: ['vs', key], lang: 'Vietsub' }] } };
+  const { source, requests } = mocked(routes);
+  for (const [category, key] of [['phim-long-tieng', 'lt'], ['phim-thuyet-minh', 'tm']]) for (const page of [1, 2]) {
+    const { json } = await source('v1/api/danh-sach/' + category, new URLSearchParams({ page: String(page) }));
+    assert.equal(json.audio, key);
+    assert.equal(json.items[0].slug, 'tp--' + key + '-' + page);
+    assert.equal(json.items[0].audio_preference, key);
+    assert.ok(json.items[0].lang_keys.includes(key));
+    assert.equal(json.data.params.pagination.currentPage, page);
+    assert.equal(json.data.params.pagination.totalPages, 2);
+  }
+  assert.equal(requests.length, 4);
+});
+test('audio category fails clearly if upstream ignores the requested language', async () => {
+  const { source } = mocked({ 'https://api.phimsrv.com/v1/movies?page=1&limit=24&langKeys=lt': { ok: true, data: { items: [{ primarySlug: 'sub-only', langKeys: ['vs'] }] } } });
+  await assert.rejects(source('v1/api/danh-sach/phim-long-tieng'), { status: 502 });
 });
 test('search and filters use public API only, preserve pagination and exclude VIP', async () => {
   const url = 'https://api.phimsrv.com/v1/movies?page=2&limit=24&search=ultraman+tiga';
@@ -68,6 +87,12 @@ test('detail loads later episode pages on the original source index', async () =
   assert.match(r.json.episodes[0].server_data[1].link_m3u8, /\/source\/stream\/abcdefgh\/index\.m3u8$/);
   assert.equal(r.json.episodes[0].server_data[0].link_embed, '');
   assert.equal(requests.length, 2);
+  const preferred = await source('phim/tp--series', new URLSearchParams({ audio: 'lt' }));
+  assert.equal(preferred.json.episodes[0].server_name, 'Gold [LT]');
+  assert.equal(preferred.json.movie.audio_preference, 'lt');
+  const missing = await source('phim/tp--series', new URLSearchParams({ audio: 'tm' }));
+  assert.match(missing.json.movie.audio_notice, /Chưa thấy server ghi nhãn Thuyết minh/);
+  await assert.rejects(source('phim/tp--series', new URLSearchParams({ audio: 'arbitrary' })), { status: 400 });
 });
 test('upstream errors do not fall back to retired source', async () => {
   let count = 0;

@@ -14,8 +14,8 @@ final class SourcePolicyTests: XCTestCase {
         XCTAssertEqual(SourcePolicy.categoryURL("phim-moi", page: 0)?.absoluteString, "https://khophimqd.vercel.app/source/danh-sach/phim-moi-cap-nhat?page=1")
         XCTAssertEqual(SourcePolicy.categoryURL("the-loai/hanh-dong", page: 2)?.absoluteString, "https://khophimqd.vercel.app/source/v1/api/the-loai/hanh-dong?page=2")
         XCTAssertNil(SourcePolicy.categoryURL("https://legacy.example/catalog"))
-        XCTAssertNil(SourcePolicy.categoryURL("phim-thuyet-minh"))
-        XCTAssertNil(SourcePolicy.categoryURL("phim-long-tieng"))
+        XCTAssertEqual(SourcePolicy.categoryURL("phim-thuyet-minh")?.absoluteString, "https://khophimqd.vercel.app/source/v1/api/danh-sach/phim-thuyet-minh?page=1")
+        XCTAssertEqual(SourcePolicy.categoryURL("phim-long-tieng")?.absoluteString, "https://khophimqd.vercel.app/source/v1/api/danh-sach/phim-long-tieng?page=1")
     }
     func testPlayerAcceptsOnlyNewGatewayStreams() {
         XCTAssertTrue(SourcePolicy.isGatewayStream("https://khophimqd.vercel.app/source/stream/abc/index.m3u8"))

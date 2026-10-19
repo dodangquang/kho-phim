@@ -11,8 +11,8 @@ class SourcePolicyTest {
         assertEquals("https://khophimqd.vercel.app/source/v1/api/danh-sach/phim-bo?page=1", SourcePolicy.categoryUrl("phim-bo"))
         assertNull(SourcePolicy.categoryUrl("https://legacy.example/catalog"))
         assertNull(SourcePolicy.categoryUrl("../phim-moi"))
-        assertNull(SourcePolicy.categoryUrl("danh-sach/phim-thuyet-minh"))
-        assertNull(SourcePolicy.categoryUrl("phim-long-tieng"))
+        assertEquals("https://khophimqd.vercel.app/source/v1/api/danh-sach/phim-thuyet-minh?page=1", SourcePolicy.categoryUrl("danh-sach/phim-thuyet-minh"))
+        assertEquals("https://khophimqd.vercel.app/source/v1/api/danh-sach/phim-long-tieng?page=1", SourcePolicy.categoryUrl("phim-long-tieng"))
     }
 
     @Test fun legacyHistoryCannotResolveToANewProviderTitle() {
@@ -22,6 +22,7 @@ class SourcePolicyTest {
         assertEquals("https://khophimqd.vercel.app/source/phim/tp--sat-thu-ve-vuon-2026", SourcePolicy.detailUrl("tp--sat-thu-ve-vuon-2026"))
         // Old provider's broken title exclusions must not hide the new provider's title.
         assertTrue(SourcePolicy.isCurrentSlug("tp--vision-quest"))
+        assertEquals("https://khophimqd.vercel.app/source/phim/tp--film?audio=lt", SourcePolicy.detailUrl("tp--film", "lt"))
     }
 
     @Test fun searchCannotInjectAnotherQueryOrSource() {

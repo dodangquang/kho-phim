@@ -1,6 +1,6 @@
 {
   "name": "kho-phim-samsung-tv",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "private": true,
   "description": "Local Samsung Tizen TV app for Kho Phim with the Tủ Phim source",
   "scripts": { "test": "node tests/regression.cjs", "test:web": "node tests/web-player.cjs" },
