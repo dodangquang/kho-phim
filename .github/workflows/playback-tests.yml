@@ -46,6 +46,7 @@ jobs:
           node docs/tests/ratings-browser.cjs --xss
           node docs/tests/sync-browser.cjs
           node docs/tests/source-browser.cjs
+          node docs/tests/episode-refresh-browser.cjs
           node tv-samsung-tizen/tests/regression.cjs
           node tv-samsung-tizen/tests/update-browser.cjs
         env:

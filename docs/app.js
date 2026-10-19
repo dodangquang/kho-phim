@@ -638,7 +638,7 @@
       const timeout = setTimeout(() => controller.abort(), 12000);
       let json;
       try {
-        const resp = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}${['lt', 'tm'].includes(audioPreference) ? '?audio=' + audioPreference : ''}`, { signal: controller.signal });
+        const resp = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}${['lt', 'tm'].includes(audioPreference) ? '?audio=' + audioPreference : ''}`, { signal: controller.signal, cache: 'no-store' });
         if (!resp.ok) throw new Error('Máy chủ dữ liệu chưa phản hồi. Hãy thử lại.');
         json = await resp.json();
       } finally { clearTimeout(timeout); }
@@ -679,6 +679,41 @@
         const cleanUrl = `${window.location.pathname}${window.location.search}`;
         history.replaceState(null, '', cleanUrl);
       } catch (_) {}
+    }
+  };
+
+  window.refreshMovieEpisodes = async function () {
+    if (!currentDetailMovie || !detailModal.classList.contains('open') || playerOverlay.classList.contains('open')) return;
+    const refresh = document.getElementById('refresh-episodes');
+    if (!refresh || refresh.disabled) return;
+    const generation = ++detailGeneration;
+    const slug = currentDetailMovie.slug;
+    const audio = currentDetailMovie.audio_preference;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    refresh.disabled = true;
+    const message = document.getElementById('episode-refresh-status');
+    message.textContent = 'Đang kiểm tra tập mới...';
+    try {
+      const response = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}${['lt', 'tm'].includes(audio) ? '?audio=' + audio : ''}`, { signal: controller.signal, cache: 'no-store' });
+      if (!response.ok) throw new Error('Không tải được tập mới');
+      const data = await response.json();
+      if (!data.movie || data.movie.slug !== slug || !Array.isArray(data.episodes)) throw new Error('Dữ liệu tập không hợp lệ');
+      if (generation !== detailGeneration || playerOverlay.classList.contains('open')) return;
+      const selectedName = currentDetailEpisodes[currentServerIndex]?.server_name;
+      const scroll = detailModal.scrollTop;
+      currentDetailMovie = data.movie;
+      currentDetailEpisodes = data.episodes;
+      const selectedIndex = data.episodes.findIndex(server => server.server_name === selectedName);
+      currentServerIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      renderDetailContent(currentDetailMovie, currentDetailEpisodes);
+      detailModal.scrollTop = scroll;
+      document.getElementById('episode-refresh-status').textContent = 'Đã làm mới danh sách tập.';
+    } catch (_) {
+      if (generation === detailGeneration) message.textContent = 'Chưa tải được tập mới. Danh sách hiện tại vẫn dùng được; hãy thử lại.';
+    } finally {
+      clearTimeout(timeout);
+      if (generation === detailGeneration) refresh.disabled = false;
     }
   };
 
@@ -747,6 +782,8 @@
           </div>
 
           <!-- Server Tabs & Episodes -->
+          <button id="refresh-episodes" class="btn-secondary" onclick="refreshMovieEpisodes()">Làm mới danh sách tập</button>
+          <p id="episode-refresh-status" role="status"></p>
           ${renderServersAndEpisodesHtml(episodes, movie.slug)}
         </div>
       </div>

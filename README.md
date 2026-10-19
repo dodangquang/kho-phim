@@ -7,12 +7,12 @@
 | Nền tảng | Thư mục mã nguồn | File cài đặt sẵn có | Trạng thái |
 | :--- | :--- | :--- | :--- |
 | **Samsung TV / Apps2Samsung 1.0.15** | `/tv-samsung-tizen` | [WGT 1.0.15 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/samsung-v1.0.15/KhoPhim_Samsung_Tizen_v1.0.15_UNSIGNED.wgt), cần Apps2Samsung ký/cài lần đầu | Tự tải cập nhật giao diện/trình phát, Tủ Phim, giữ lịch sử cũ |
-| **TV Web 1.0.16 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://khophimqd.vercel.app/tv/) | Tủ Phim, Google login bằng QR |
+| **TV Web 1.0.17 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://khophimqd.vercel.app/tv/) | Tủ Phim, Google login bằng QR |
 | **Android TV 1.0.7** | `/tv` | [Tải APK TV 1.0.7](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_TV_v1.0.7.apk) | Tủ Phim, Google login bằng QR |
 | **Android Mobile 1.0.7** | `/mobile-android` | [Tải APK Mobile 1.0.7](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Mobile_v1.0.7.apk) | Tủ Phim, Google login và đồng bộ |
-| **Web Mobile 1.0.18 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | Tủ Phim; HLS gốc Safari |
+| **Web Mobile 1.0.19 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | Tủ Phim; HLS gốc Safari |
 | **iOS source 1.0.4/build5** | `/mobile-ios` | Chờ workflow macOS build IPA | Source đã đổi; chưa xác minh bản iOS chạy thật |
-| **Web Desktop 1.0.10** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Tủ Phim, Google login và đồng bộ |
+| **Web Desktop 1.0.11** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Tủ Phim, Google login và đồng bộ |
 
 Hai mục **Phim Lồng Tiếng** và **Phim Thuyết Minh** có trên trang chủ và bộ lọc của các bản mới. Danh sách lấy theo nhãn âm thanh nguồn, có phân trang riêng; mở phim sẽ ưu tiên server tương ứng. Nhãn phim và tên server đôi khi không khớp, app sẽ báo để chọn nguồn khác.
 

@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   var C = {};
-  C.VERSION = '1.0.16';
+  C.VERSION = '1.0.17';
   C.API_BASE = 'https://khophimqd.vercel.app/source';
   C.SOURCE_ID = 'tuphim-v1';
   C.isCurrentMovie = function (slug) { return typeof slug === 'string' && /^tp--[a-zA-Z0-9_-]{1,176}$/.test(slug); };

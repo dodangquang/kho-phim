@@ -302,7 +302,7 @@
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
       const audio = ['lt', 'tm'].includes(audioPreference) ? '?audio=' + audioPreference : '';
-      const res = await fetch(API_BASE + '/phim/' + encodeURIComponent(slug) + audio, { signal: controller.signal });
+      const res = await fetch(API_BASE + '/phim/' + encodeURIComponent(slug) + audio, { signal: controller.signal, cache: 'no-store' });
       if (!res.ok) return null;
       const json = await res.json();
       return json && json.movie && isCurrentMovie(json.movie.slug) ? json : null;
@@ -746,7 +746,7 @@
   // ==========================================================================
   // MOVIE DETAIL MODAL
   // ==========================================================================
-  async function openMovieDetail(slug, autoPlay = false, audioPreference = '') {
+  async function openMovieDetail(slug, autoPlay = false, audioPreference = '', preferredServer = '') {
     if (!isCurrentMovie(slug)) {
       ++detailGeneration;
       clearTimeout(detailAutoplayTimer);
@@ -762,10 +762,12 @@
       return;
     }
     const generation = ++detailGeneration;
+    const previousScroll = preferredServer ? detailModal.scrollTop : 0;
     clearTimeout(detailAutoplayTimer);
     showToast('Đang tải thông tin phim...');
     const data = await fetchMovieDetail(slug, audioPreference);
     if (generation !== detailGeneration) return;
+    if (preferredServer && playerOverlay.classList.contains('open')) return;
     if (!data || !data.movie) {
       showToast('Không thể tải thông tin phim này');
       return;
@@ -803,7 +805,8 @@
 
     const episodesArr = data.episodes || [];
     const history = getWatchHistory().find(x => x.slug === slug);
-    const savedServer = !data.audio && history ? episodesArr.findIndex(srv => srv.server_name === history.serverName) : -1;
+    const selectedName = preferredServer || (!data.audio && history ? history.serverName : '');
+    const savedServer = selectedName ? episodesArr.findIndex(srv => srv.server_name === selectedName) : -1;
     currentServerIndex = savedServer >= 0 ? savedServer : 0;
     if (episodesArr.length > 0) {
       episodesArr.forEach((srv, sIdx) => {
@@ -843,11 +846,26 @@
     };
 
     document.getElementById('tv-detail-close-btn').onclick = closeMovieDetail;
+    const refresh = document.getElementById('tv-refresh-episodes');
+    const refreshStatus = document.getElementById('tv-episode-refresh-status');
+    refreshStatus.textContent = preferredServer ? 'Đã làm mới danh sách tập.' : '';
+    refresh.onclick = async () => {
+      if (refresh.disabled || playerOverlay.classList.contains('open') || currentMovieDetail?.slug !== slug) return;
+      refresh.disabled = true;
+      refreshStatus.textContent = 'Đang kiểm tra tập mới...';
+      const selectedName = episodesArr[currentServerIndex]?.server_name || '';
+      const requestGeneration = detailGeneration + 1;
+      await openMovieDetail(slug, false, audioPreference, selectedName);
+      if (detailGeneration === requestGeneration) {
+        refresh.disabled = false;
+        if (refreshStatus.textContent === 'Đang kiểm tra tập mới...') refreshStatus.textContent = 'Chưa tải được tập mới. Danh sách hiện tại vẫn dùng được; hãy thử lại.';
+      }
+    };
     const backBtn = document.getElementById('tv-detail-back-btn');
     if (backBtn) backBtn.onclick = closeMovieDetail;
 
     detailModal.classList.add('open');
-    detailModal.scrollTop = 0;
+    detailModal.scrollTop = previousScroll;
 
     if (autoPlay && currentEpisodeList.length > 0) {
       const epToPlay = (history && currentEpisodeList.find(e => e.slug === history.episodeSlug)) || currentEpisodeList[0];

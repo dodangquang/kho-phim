@@ -1,4 +1,6 @@
-# Kho Phim TV Web 1.0.16
+# Kho Phim TV Web 1.0.17
+
+Bản1.0.17 bỏ cache chi tiết trong phiên và thêm nút Làm mới tập, điều khiển bằng remote, giữ server đã chọn. Gateway trả chi tiết no-store và chỉ cache nguồn15giây để nhận tập mới sớm hơn.
 
 Danh mục, tìm kiếm và nguồn phát sử dụng Tủ Phim qua `https://khophimqd.vercel.app/source`. Không có fallback sang nguồn phim cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; hai mục Lồng Tiếng/Thuyết Minh có trong menu và trang chủ, lọc theo nhãn âm thanh và có phân trang riêng. Mở từ một mục sẽ ưu tiên đúng server tương ứng.
 
