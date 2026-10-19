@@ -57,7 +57,7 @@ fun HomeScreen(
     var sections by remember { mutableStateOf<List<MovieSection>>(emptyList()) }
     var historyList by remember { mutableStateOf<List<WatchProgress>>(emptyList()) }
     val historyRevision by watchHistoryManager.revision.collectAsState()
-    LaunchedEffect(historyRevision) { historyList = watchHistoryManager.getAllHistory() }
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager.getAllHistory().filter { SourcePolicy.isCurrentSlug(it.movieSlug) } }
 
     // Category grid mode for Phim lẻ & Phim bộ
     var categoryMovies by remember { mutableStateOf<List<MovieItem>>(emptyList()) }
@@ -99,7 +99,7 @@ fun HomeScreen(
     LaunchedEffect(currentTab) {
         isLoading = true
         try {
-            historyList = watchHistoryManager.getAllHistory()
+            historyList = watchHistoryManager.getAllHistory().filter { SourcePolicy.isCurrentSlug(it.movieSlug) }
 
             if (currentTab == MobileTab.HOME) {
                 if (sections.isEmpty()) {

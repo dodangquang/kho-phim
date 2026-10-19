@@ -8,7 +8,7 @@ struct SearchView: View {
     @State private var searchTask: Task<Void, Never>?
 
     let trendingTags = [
-        "Thuyết Minh", "Lồng Tiếng", "Chiếu Rạp", "Anime",
+        "Chiếu Rạp", "Anime",
         "Hành Động", "Việt Nam", "Hàn Quốc", "Kinh Dị", "Tình Cảm", "Viễn Tưởng"
     ]
 
@@ -134,6 +134,7 @@ struct HistoryView: View {
     @EnvironmentObject var watchHistoryManager: WatchHistoryManager
     @State private var selectedMovie: MovieItem?
     @State private var showConfirmClear = false
+    @State private var showLegacyMessage = false
 
     var body: some View {
         NavigationStack {
@@ -172,6 +173,7 @@ struct HistoryView: View {
                         List {
                             ForEach(watchHistoryManager.historyList) { item in
                                 Button {
+                                    guard SourcePolicy.isCurrentSlug(item.movieSlug) else { showLegacyMessage = true; return }
                                     selectedMovie = MovieItem(
                                         title: item.movieTitle,
                                         slug: item.movieSlug,
@@ -181,7 +183,7 @@ struct HistoryView: View {
                                 } label: {
                                     HStack(spacing: 12) {
                                         ZStack(alignment: .bottom) {
-                                            AsyncImage(url: URL(string: item.bannerUrl ?? item.posterUrl)) { phase in
+                                            AsyncImage(url: SourcePolicy.isCurrentSlug(item.movieSlug) ? URL(string: SourcePolicy.imageURL(item.bannerUrl ?? item.posterUrl)) : nil) { phase in
                                                 if let img = phase.image {
                                                     img.resizable().scaledToFill()
                                                 } else {
@@ -236,6 +238,9 @@ struct HistoryView: View {
                     }
                 }
             }
+            .alert("Nguồn phim đã thay đổi", isPresented: $showLegacyMessage) {
+                Button("Đóng", role: .cancel) {}
+            } message: { Text(SourcePolicy.legacyMessage) }
             .alert("Xác nhận xóa", isPresented: $showConfirmClear) {
                 Button("Xóa hết", role: .destructive) {
                     watchHistoryManager.clear()

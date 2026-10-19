@@ -67,7 +67,7 @@ final class IOSPlaybackController: ObservableObject {
         hasStartedPlayback = false
         lastSavedAt = 0
 
-        guard let url = PlaybackPolicy.directHLSURL(episode.streamUrl) else {
+        guard SourcePolicy.isCurrentSlug(movie.slug), SourcePolicy.isGatewayStream(episode.streamUrl), let url = PlaybackPolicy.directHLSURL(episode.streamUrl) else {
             isLoading = false
             errorMessage = "Nguồn này không có liên kết HLS trực tiếp. Hãy chọn nguồn hoặc tập khác."
             return

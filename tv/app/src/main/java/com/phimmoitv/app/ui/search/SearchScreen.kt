@@ -141,7 +141,7 @@ fun SearchScreen(
     val quickKeywords = remember {
         listOf(
             "Batman", "Conan", "Thám Tử", "Hành Động", "Kinh Dị",
-            "Chiếu Rạp", "Anime", "Lồng Tiếng", "Thuyết Minh",
+            "Chiếu Rạp", "Anime",
             "Việt Nam", "Hàn Quốc", "Cổ Trang", "Hoạt Hình", "Hài Hước", "Võ Thuật"
         )
     }
