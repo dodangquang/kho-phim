@@ -8,6 +8,9 @@ const [web,mobile,tv]=args.map(p=>JSON.parse(fs.readFileSync(path.resolve(p),'ut
 for(const field of ['apiKey','authDomain','projectId','appId'])if(typeof web[field]!=='string'||!web[field].trim())fail('Missing public Firebase web field: '+field);
 if(!/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(web.projectId)||web.authDomain!==web.projectId+'.firebaseapp.com')fail('Expected the Firebase project auth domain.');
 function android(config,packageName){
+ if(config.packageName===packageName&&config.projectId===web.projectId&&config.apiKey&&/^1:\d+:android:[a-f0-9]+$/.test(config.appId||'')){
+  return {enabled:true,apiKey:config.apiKey,projectId:web.projectId,appId:config.appId,accountUrl:'https://khophimqd.vercel.app/account/'};
+ }
  if(config.project_info?.project_id!==web.projectId)fail('All apps must use the same Firebase project.');
  const client=config.client?.find(c=>c.client_info?.android_client_info?.package_name===packageName);
  const apiKey=client?.api_key?.[0]?.current_key,appId=client?.client_info?.mobilesdk_app_id;

@@ -1,13 +1,13 @@
 # Google login and shared history
 
-Status: implementation and emulator tests are ready. Public configuration is disabled until the owner creates a Firebase project, accepts its first-use terms, and connects the registered apps. Do not publish an APK update manifest until configured APK assets exist.
+Status: project kho-phim-c46f2 exists on Spark. Google/Anonymous Auth, public web/Mobile/TV app identifiers and tested Firestore Rules are configured on this branch. Real Google login validation and production rollout are pending. Do not publish an APK update manifest until configured APK assets exist.
 
 ## Firebase console
 
 Create a dedicated **Spark** project for Kho Phim. Analytics, Gemini, Developer Program enrollment, Functions, Storage and a billing account are not required. Spark has service quotas; the implementation does not enable billing or promise unlimited use.
 
 1. Enable Authentication providers **Google** and **Anonymous**. Anonymous sessions are used only for temporary device pairing and cannot access watch history.
-2. Register a web app, Android `com.phimmoi.mobile`, and Android TV `com.phimmoitv.app`. Keep those package names and the existing Android signing certificate. Download each Android app's `google-services.json` and the web app's public SDK config. This flow gets the Google credential in a real browser; APKs do not embed a Google OAuth client secret.
+2. Register a web app, Android `com.phimmoi.mobile`, and Android TV `com.phimmoitv.app`. Keep those package names and the existing Android signing certificate. Download each Android app's `google-services.json` and the web app's public SDK config. Manual FirebaseOptions initialization also accepts public `{packageName, projectId, appId, apiKey}` objects; the shared project API key was verified with Android request headers. This flow gets the Google credential in a real browser; APKs do not embed a Google OAuth client secret.
 3. Authorize `khophimqd.vercel.app` and `dodangquang.github.io` for web Google login. Add an exact preview hostname only while validating that deployment; do not use wildcard domains.
 4. Create the **Standard / Native mode** Firestore database, preferably `asia-southeast1` if available. Start with restrictive rules, then deploy **firebase/firestore.rules**. Do not use open test-mode rules.
 5. Configure the public identifiers using `node tools/configure-sync.cjs web-config.json mobile-google-services.json tv-google-services.json`. The script verifies both Android package names and that all three configs belong to the same project. No service-account private key is needed.

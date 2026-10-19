@@ -1,7 +1,7 @@
 {
-  "enabled": false,
-  "apiKey": "",
-  "projectId": "",
-  "appId": "",
+  "enabled": true,
+  "apiKey": "AIzaSyCJdmE8-gwNv5IhP4j3MBTk0sjT0Lr5JUo",
+  "projectId": "kho-phim-c46f2",
+  "appId": "1:419566082895:android:252994881f2438bef3833a",
   "accountUrl": "https://khophimqd.vercel.app/account/"
 }
