@@ -20,6 +20,10 @@ Thẻ phim và trang chi tiết hiển thị điểm IMDb trên thang 10, dùng 
 
 Kiểm tra: `node --test docs/tests/ratings.test.cjs`, `node docs/tests/ratings-browser.cjs` (thêm `--webkit` để thử web mobile bằng WebKit), JUnit Android và XCTest iOS.
 
+## Đăng nhập Google và đồng bộ lịch sử (đang thiết lập)
+
+Mã nguồn web mobile/desktop/TV và hai APK đã có luồng đồng bộ. Chưa bật trên production: cần chủ tài khoản tạo dự án Firebase và chấp nhận điều khoản lần đầu. Chi tiết cấu hình, quyền dữ liệu và kiểm tra ở [firebase/SETUP.md](firebase/SETUP.md). Không phát hành manifest cập nhật trước khi backend và các gói đã được xác minh.
+
 ## 🌟 Tính Năng Chính
 - **Màn hình dọc & Toàn màn hình:** Lướt phim ở màn hình dọc. Trên web mobile, bấm nút toàn màn hình khi video đã sẵn sàng; hỗ trợ tua 10s, kéo thanh thời gian, chọn tập và đổi nguồn.
 - **Hệ thống nguồn phát linh hoạt:** Hỗ trợ đa server m3u8 (Server VIP, Server Phụ, Thuyết Minh, Lồng Tiếng, Vietsub).

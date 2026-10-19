@@ -40,6 +40,8 @@ fun HistoryScreen(
 ) {
     val context = LocalContext.current
     var historyList by remember { mutableStateOf(watchHistoryManager.getAllHistory()) }
+    val historyRevision by watchHistoryManager.revision.collectAsState()
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager.getAllHistory() }
     var showClearConfirm by remember { mutableStateOf(false) }
 
     Column(

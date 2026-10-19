@@ -61,6 +61,15 @@ fun PlayerScreen(
     onBackPress: () -> Unit
 ) {
     val context = LocalContext.current
+    val playbackHistoryManager = remember(movieSlug) { watchHistoryManager?.forPlayback() }
+    val playbackOwner = remember(movieSlug) { watchHistoryManager?.ownerKey() ?: "guest" }
+    val playbackAccount by com.phimmoitv.app.data.CloudHistory.get(context).account.collectAsState()
+    LaunchedEffect(playbackAccount.uid) {
+        if ((playbackAccount.uid ?: "guest") != playbackOwner) {
+            android.widget.Toast.makeText(context, "Tài khoản đã thay đổi. Mở lại phim để tiếp tục xem.", android.widget.Toast.LENGTH_SHORT).show()
+            onBackPress()
+        }
+    }
     var currentEpisode by remember { mutableStateOf(initialEpisode) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
@@ -124,7 +133,7 @@ fun PlayerScreen(
             val finalPos = exoPlayer.currentPosition
             val finalDur = exoPlayer.duration
             if (watchHistoryManager != null && movieSlug.isNotEmpty() && finalPos > 2000L && finalDur > 0L) {
-                watchHistoryManager.saveProgress(
+                playbackHistoryManager?.saveProgress(
                     WatchProgress(
                         movieSlug = movieSlug,
                         movieTitle = movieTitle,
@@ -150,7 +159,7 @@ fun PlayerScreen(
         val position = exoPlayer.currentPosition.coerceAtLeast(0L)
         val duration = exoPlayer.duration
         if (watchHistoryManager != null && movieSlug.isNotEmpty() && position > 2000L && duration > 0L) {
-            watchHistoryManager.saveProgress(WatchProgress(
+            playbackHistoryManager?.saveProgress(WatchProgress(
                 movieSlug = movieSlug, movieTitle = movieTitle, posterUrl = posterUrl, bannerUrl = bannerUrl,
                 episodeSlug = currentEpisode.episodeSlug, episodeName = currentEpisode.episodeName,
                 serverName = currentEpisode.serverName, streamUrl = currentEpisode.streamUrl,
@@ -195,7 +204,7 @@ fun PlayerScreen(
                 totalDuration = exoPlayer.duration.coerceAtLeast(0L)
                 if (++saveTicks >= 5 && exoPlayer.isPlaying && watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
                     saveTicks = 0
-                    watchHistoryManager.saveProgress(
+                    playbackHistoryManager?.saveProgress(
                         WatchProgress(
                             movieSlug = movieSlug,
                             movieTitle = movieTitle,

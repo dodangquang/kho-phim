@@ -6,11 +6,14 @@ const http = require('node:http');
 const { chromium, webkit } = require('playwright');
 const root = path.resolve(__dirname, '../..');
 const poster = 'https://phimimg.com/rating-fixture.svg';
+const attack = process.argv.includes('--xss');
+const injected = '<img src=x onerror="window.__xss=1">';
 const movies = [
   { slug: 'rated', name: 'Phim có điểm', imdb: { vote_average: 8.1, vote_count: 900 }, tmdb: { vote_average: 9, vote_count: 1 } },
   { slug: 'fallback', name: 'Điểm dự phòng', imdb: { vote_average: 0, vote_count: 0 }, tmdb: { vote_average: 7.2, vote_count: 8 } },
   { slug: 'unrated', name: 'Phim chưa có điểm' }
 ].map(item => ({ ...item, poster_url: poster, thumb_url: poster, quality: 'HD', year: 2026 }));
+if (attack) movies.forEach(movie => Object.assign(movie, { name: injected, quality: injected, episode_current: injected, year: injected, origin_name: injected, content: injected, director: injected, actor: [injected], category: [{name:injected}] }));
 async function main() {
   const server = http.createServer((request,response) => {
     let file = path.resolve(root, '.'+decodeURIComponent(new URL(request.url,'http://localhost').pathname));
@@ -33,7 +36,7 @@ async function main() {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('https://phimapi.com/**', route => {
         const slug = new URL(route.request().url()).pathname.split('/phim/')[1];
-        return route.fulfill({json:slug ? {status:true,movie:movies.find(movie=>movie.slug===slug)||movies[0],episodes:[]} : {status:true,items:movies,data:{items:movies,params:{pagination:{totalPages:1,currentPage:1}}}}});
+        return route.fulfill({json:slug ? {status:true,movie:movies.find(movie=>movie.slug===slug)||movies[0],episodes:attack ? [{server_name:injected,server_data:[{slug:'tap-1',name:injected,link_m3u8:'https://media.test/fixture.m3u8'}]}] : []} : {status:true,items:movies,data:{items:movies,params:{pagination:{totalPages:1,currentPage:1}}}}});
       });
       await page.route('https://phimimg.com/**', route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="300" height="450" fill="#26384a"/></svg>'}));
       const url = surface==='mobile' ? '/docs/?mode=mobile' : surface==='samsung' ? '/tv-samsung-tizen/' : '/docs/'+surface+'/';
@@ -50,9 +53,10 @@ async function main() {
       const detail = page.locator(mobile ? '#detail-modal .movie-rating-detail' : surface==='desktop' ? '#tv-detail-rating' : '#detail-rating');
       await detail.waitFor();
       assert.equal(await detail.innerText(),'★ IMDb 8.1/10 · 900 lượt đánh giá');
+      if (attack) { await page.waitForTimeout(100); assert.equal(await page.evaluate(()=>window.__xss || 0),0,'API text must not execute HTML'); }
       assert.deepEqual(errors,[],surface+' JS errors');
       if (mobile && process.env.KHOPHIM_TEST_OUTPUT) await page.screenshot({path:path.join(process.env.KHOPHIM_TEST_OUTPUT,'ratings-mobile-'+(safari?'webkit':'edge')+'.png')});
-      console.log('PASS '+surface+': IMDb, TMDB fallback, missing score, detail votes; '+(safari?'WebKit':'Edge'));
+      console.log('PASS '+surface+': IMDb, TMDB fallback, missing score, detail votes'+(attack?', API HTML escaped':'')+'; '+(safari?'WebKit':'Edge'));
       await context.close();
     }
   } finally { if(browser) await browser.close(); await new Promise(resolve=>server.close(resolve)); }

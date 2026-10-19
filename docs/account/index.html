@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#111111">
+  <title>Tài khoản · Kho Phim</title>
+  <link rel="stylesheet" href="../sync/style.css">
+</head>
+<body class="account-page">
+  <main class="account-card">
+    <a class="account-brand" href="../?mode=mobile">KHO PHIM</a>
+    <h1>Lịch sử theo bạn trên mọi thiết bị</h1>
+    <p>Đăng nhập cùng tài khoản Google trên web và APK để tiếp tục đúng phim, tập, nguồn phát và vị trí đang xem.</p>
+    <p id="pair-info" hidden></p>
+    <button id="google-signin" class="sync-button" disabled>Đang chuẩn bị đăng nhập…</button>
+    <p id="auth-status" role="status" aria-live="polite"></p>
+    <a id="return-link" href="../?mode=mobile">Về Kho Phim</a>
+    <p class="account-note">Khi đăng nhập, lịch sử đang lưu trên thiết bị này được nhập vào tài khoản. Khi đăng xuất, lịch sử tài khoản được giữ riêng. Bạn vẫn có thể xem và lưu lịch sử khi mất mạng.</p>
+    <a href="privacy.html">Quyền riêng tư</a>
+  </main>
+  <script src="../sync/config.js"></script><script src="../sync/history.js"></script>
+  <script src="../sync/transport.js"></script><script src="../sync/client.js"></script><script src="../sync/pairing.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+  <script src="account.js"></script>
+</body>
+</html>

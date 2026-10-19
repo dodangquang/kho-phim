@@ -53,19 +53,15 @@
       imageDomain: data.APP_DOMAIN_CDN_IMAGE || 'https://phimimg.com'
     };
   };
-  C.history = function () {
-    try {
-      var entries = JSON.parse(global.localStorage.getItem(C.HISTORY_KEY) || '[]');
-      if (!Array.isArray(entries)) return [];
-      return entries.filter(function (entry) { return entry && typeof entry.slug === 'string'; }).slice(0, 40);
-    } catch (ignore) { return []; }
-  };
+  C.history = function () { return global.KhoSync.history().map(global.KhoSyncView.tv); };
+
   C.findHistory = function (slug) {
     var list = C.history();
     for (var i = 0; i < list.length; i++) if (list[i].slug === slug) return list[i];
     return null;
   };
   C.save = function (entry) {
+    global.KhoSync.save(entry);
     var entries = C.history().filter(function (item) { return item.slug !== entry.slug; });
     entries.unshift(entry);
     try { global.localStorage.setItem(C.HISTORY_KEY, JSON.stringify(entries.slice(0, 40))); } catch (ignore) {}

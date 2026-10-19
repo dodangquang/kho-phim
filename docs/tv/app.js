@@ -80,7 +80,11 @@
     var rows = [];
     if (path === 'search') rows.push([el('search-input'), el('search-button')]);
     if (path === 'history') rows.push([el('history-clear')]);
-    if (path === 'settings') rows.push([el('clear-cache'), el('clear-history')]);
+    if (path === 'settings') {
+      var accountButtons = Array.prototype.slice.call(el('settings').querySelectorAll('[data-sync-panel] button')).filter(function (node) { return !node.disabled; });
+      if (accountButtons.length) rows.push(accountButtons);
+      rows.push([el('clear-cache'), el('clear-history')]);
+    }
     var columns = gridColumns();
     for (var i = 0; i < gridCards.length; i += columns) rows.push(gridCards.slice(i, i + columns));
     if (path !== 'settings') rows.push([el('previous'), el('retry'), el('next')].filter(function (node) { return !node.disabled; }));
@@ -561,7 +565,16 @@
   el('rewind').onclick = function () { player.seek(-10000); showHud(false); };
   el('forward').onclick = function () { player.seek(10000); showHud(false); };
   el('next-episode').onclick = nextEpisode;
+  global.KhoSync.onBeforeAccountChange(function () { if (scene === 'player') stopPlayback(); if (scene === 'detail') closeDetail(); });
+  global.KhoSync.onHistoryChange(function () {
+    if (scene !== 'main') return;
+    if (categories[selected][1] === 'history') loadList(true, false);
+    else if (categories[selected][1] === 'settings') updateMainRows(gridCards);
+    else if (isHome()) home.activate();
+  });
+
   el('clear-history').onclick = function () {
+    global.KhoSync.clear();
     try { global.localStorage.removeItem(C.HISTORY_KEY); toast('Đã xóa lịch sử của ứng dụng này.'); } catch (ignore) { toast('TV không cho phép xóa lịch sử lúc này.'); }
   };
   el('clear-cache').onclick = function () { cache.clear(); detailCache.clear(); home.clear(); global.KhoPosters.clear(); toast('Đã xóa bộ nhớ tạm danh sách và poster.'); };
