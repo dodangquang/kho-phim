@@ -1,6 +1,6 @@
 # Google login and shared history
 
-Status: project kho-phim-c46f2 exists on Spark. Google/Anonymous Auth, public web/Mobile/TV app identifiers and tested Firestore Rules are configured on this branch. Real Google login validation and production rollout are pending. Do not publish an APK update manifest until configured APK assets exist.
+Status: project kho-phim-c46f2 runs on Spark with Google/Anonymous Auth, web/Mobile/TV app identifiers and Firestore Rules deployed. Google sign-in and history writes were verified in the live web project. Web sources are on main; signed APK 1.0.5 assets were downloaded from the public release and verified before updating the manifests.
 
 ## Firebase console
 
@@ -31,6 +31,6 @@ Successful receivers delete their pairing document. Abandoned expired documents 
 - `node docs/tests/sync-browser.cjs` and `--webkit` with Playwright installed; these use a mock transport and mock Google popup, not a real Google grant.
 - `cd firebase && npm ci --ignore-scripts && npm test` with Java 17. This runs actual Firestore Security Rules in the emulator, including cross-account denial, anonymous denial, expiry, single-use claims and monotonic saves.
 - Android `testDebugUnitTest assembleRelease` on both projects. The Firebase BoM is pinned to 34.0.0 to stay compatible with this repo's Kotlin 2.0 toolchain. A wider compiler migration is separate work.
-- Real project validation still requires an enabled backend: actual Google popup in Safari, two independent web sessions, Mobile APK, Android TV QR pairing, an offline retry, account switching, clearing and app restart. Do not describe emulator success as a completed live Google login.
+- Live validation: Google login completed in Edge; the web showed the account and synced state. A test film's episode/server record was verified in Firestore and rendered in Mobile/Desktop. A temporary anonymous QR owner could read its own pairing document; another anonymous user and an unauthenticated request were denied, as was anonymous access to history. Physical Safari, Mobile APK and Android TV QR confirmation remain device checks; Edge/WebKit fixture success is not physical-device evidence.
 
 When ready, increment web asset versions and both APK version codes, build/sign using the existing certificate, publish verified assets, then merge the update manifests. iOS native and the locally packaged Samsung WGT do not gain sync from changes to web/APK sources.

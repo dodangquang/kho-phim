@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "1.0.4",
-  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Mobile_v1.0.4.apk",
-  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Mobile_v1.0.4.apk",
-  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_TV_v1.0.4.apk",
-  "changelog": "Bản cập nhật v1.0.4: Thêm điểm IMDb/TMDB trên thẻ phim và trang chi tiết, kèm thang 10 và số lượt đánh giá. Điểm tự nhận từ API khi tải dữ liệu; phim chưa có điểm không hiển thị 0/10. Giữ các sửa phát phim và tua của v1.0.3."
+  "versionCode": 6,
+  "versionName": "1.0.5",
+  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_Mobile_v1.0.5.apk",
+  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_Mobile_v1.0.5.apk",
+  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_TV_v1.0.5.apk",
+  "changelog": "Bản cập nhật v1.0.5: Đăng nhập Google để đồng bộ lịch sử với web, APK Mobile và Android TV; tiếp tục đúng phim, tập, server và vị trí đang xem. TV đăng nhập bằng QR qua điện thoại, Mobile xác nhận trong trình duyệt. Lưu ngoại tuyến và đồng bộ khi có mạng. Giữ các cải tiến phát/tua và điểm IMDb/TMDB."
 }

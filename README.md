@@ -7,12 +7,12 @@
 | Nền tảng | Thư mục mã nguồn | File cài đặt sẵn có | Trạng thái |
 | :--- | :--- | :--- | :--- |
 | **Samsung TV / Apps2Samsung 1.0.12** | `/tv-samsung-tizen` | [WGT 1.0.12 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Samsung_Tizen_v1.0.12_UNSIGNED.wgt), cần Apps2Samsung ký/cài | Sửa watchdog khi tạm dừng |
-| **TV Web 1.0.13 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://dodangquang.github.io/kho-phim/tv/) | Đợi seekable, giữ pause khi khôi phục nguồn |
-| **Android TV 1.0.4** | `/tv` | [Tải APK TV 1.0.4](https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_TV_v1.0.4.apk) | Giữ đúng phim/server; tua an toàn |
-| **Android Mobile 1.0.4** | `/mobile-android` | [Tải APK Mobile 1.0.4](https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Mobile_v1.0.4.apk) | Không dùng thời gian tập cũ khi thử lại |
-| **Web Mobile 1.0.15 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | ✅ HLS gốc Safari, tua ±10s, khôi phục luồng |
+| **TV Web 1.0.14 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://dodangquang.github.io/kho-phim/tv/) | Google login bằng QR, lịch sử chung |
+| **Android TV 1.0.5** | `/tv` | [Tải APK TV 1.0.5](https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_TV_v1.0.5.apk) | Google login bằng QR, lịch sử chung |
+| **Android Mobile 1.0.5** | `/mobile-android` | [Tải APK Mobile 1.0.5](https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_Mobile_v1.0.5.apk) | Google login và lịch sử chung |
+| **Web Mobile 1.0.16 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | Google login và lịch sử chung; HLS gốc Safari |
 | **iOS 1.0.2/build3** | `/mobile-ios` | IPA trong artifact workflow macOS | Quản lý player/observer; tải lại khi lỗi |
-| **Web Desktop 1.0.7** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Giữ vị trí/pause khi đổi nguồn; HLS.js cục bộ tải khi cần |
+| **Web Desktop 1.0.8** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Google login và lịch sử chung; giữ vị trí khi đổi nguồn |
 
 ## Điểm phim
 
@@ -20,9 +20,9 @@ Thẻ phim và trang chi tiết hiển thị điểm IMDb trên thang 10, dùng 
 
 Kiểm tra: `node --test docs/tests/ratings.test.cjs`, `node docs/tests/ratings-browser.cjs` (thêm `--webkit` để thử web mobile bằng WebKit), JUnit Android và XCTest iOS.
 
-## Đăng nhập Google và đồng bộ lịch sử (đang thiết lập)
+## Đăng nhập Google và đồng bộ lịch sử
 
-Mã nguồn web mobile/desktop/TV và hai APK đã có luồng đồng bộ, đang kiểm tra trên nhánh feature/google-history-sync. Firebase kho-phim-c46f2 (Spark), Google/Anonymous Auth, ba app và Firestore Rules đã được cấu hình; chưa merge tính năng hoặc phát hành APK 1.0.5. Chi tiết cấu hình, quyền dữ liệu và kiểm tra ở [firebase/SETUP.md](firebase/SETUP.md). Không phát hành manifest cập nhật trước khi backend và các gói đã được xác minh.
+Web Mobile/Desktop/TV và hai APK dùng chung tài khoản Google trên Firebase kho-phim-c46f2 (Spark). Mở **Lịch sử** trên web hoặc **Cài đặt → Tài khoản & lịch sử** trong APK. Android TV/Web TV hiển thị QR để xác nhận trên điện thoại; Mobile APK mở trình duyệt. Dùng cùng Google để tiếp tục đúng phim, tập, server và vị trí. Lịch sử ngoại tuyến được gửi lại khi có mạng; cache riêng từng tài khoản. iOS native và WGT Samsung cục bộ chưa có đồng bộ. Cấu hình và quyền dữ liệu: [firebase/SETUP.md](firebase/SETUP.md).
 
 ## 🌟 Tính Năng Chính
 - **Màn hình dọc & Toàn màn hình:** Lướt phim ở màn hình dọc. Trên web mobile, bấm nút toàn màn hình khi video đã sẵn sàng; hỗ trợ tua 10s, kéo thanh thời gian, chọn tập và đổi nguồn.
@@ -32,7 +32,7 @@ Mã nguồn web mobile/desktop/TV và hai APK đã có luồng đồng bộ, đa
 - **Nguồn dữ liệu:** ưu tiên PhimAPI; Android vẫn có đường dự phòng từ tên miền do người dùng chọn. Đã bỏ URL cấu hình tên miền và endpoint OPhim trả 404.
 
 ## 🚀 Tải File Cài Đặt (Releases)
-Android Mobile và Android TV 1.0.4/code4 có trong [GitHub Release v1.0.4](https://github.com/dodangquang/kho-phim/releases/tag/v1.0.4). Hai APK giữ application ID và chứng chỉ của bản 1.0.2. Mở **Cài đặt → Kiểm tra cập nhật** hoặc mở lại app để kiểm tra tự động; Android vẫn yêu cầu xác nhận cài đặt. `version.json` và `docs/version.json` dùng cùng thông tin phiên bản và link riêng cho từng nền tảng.
+Android Mobile và Android TV 1.0.5/code6 có trong [GitHub Release v1.0.5](https://github.com/dodangquang/kho-phim/releases/tag/v1.0.5). Hai APK giữ application ID và chứng chỉ của bản 1.0.2. Mở **Cài đặt → Kiểm tra cập nhật** hoặc mở lại app để kiểm tra tự động; Android vẫn yêu cầu xác nhận cài đặt. `version.json` và `docs/version.json` dùng cùng thông tin phiên bản và link riêng cho từng nền tảng.
 
 Các file trong `releases/` là bản cũ, chưa chứa các sửa phát phim hiện tại:
 - `KhoPhim_TV_v1.0.0.apk`: Bản dành cho Smart TV / TV Box / Android TV.
