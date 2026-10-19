@@ -1067,6 +1067,13 @@ button {
   touch-action: manipulation;
 }
 
+.player-seek-controls .player-seek-dismiss {
+  min-width: 44px;
+  padding: 8px;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .player-error-banner {
   position: absolute;
   background: rgba(20, 20, 20, 0.95);

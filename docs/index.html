@@ -77,7 +77,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.13">
+  <link rel="stylesheet" href="style.css?v=1.0.14">
 
   <!-- HLS.js is loaded locally on demand by mobile-player.js. -->
 </head>
@@ -89,7 +89,7 @@
       <div class="logo-area" onclick="window.selectCategoryById('all')">
         <img src="icon.png" alt="Kho Phim" class="logo-icon">
         <span class="logo-title">Kho Phim</span>
-        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.13</span>
+        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.14</span>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="window.switchTabDirect('history')" title="Lịch sử xem">
@@ -296,9 +296,10 @@
         preload="auto"
       ></video>
 
-      <div id="player-seek-controls" class="player-seek-controls" aria-label="Tua video">
+      <div id="player-seek-controls" class="player-seek-controls" role="group" aria-label="Tua video" hidden>
         <button type="button" onclick="seekVideoBy(-10)" aria-label="Lùi 10 giây">↶ 10s</button>
         <button type="button" onclick="seekVideoBy(10)" aria-label="Tiến 10 giây">10s ↷</button>
+        <button type="button" class="player-seek-dismiss" onclick="hideSeekControls()" aria-label="Ẩn nút tua" title="Ẩn nút tua">×</button>
       </div>
 
       <iframe id="iframe-player" referrerpolicy="no-referrer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -314,6 +315,6 @@
 
   <!-- JavaScript -->
   <script src="mobile-player.js?v=1.0.13"></script>
-  <script src="app.js?v=1.0.13"></script>
+  <script src="app.js?v=1.0.14"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 | **TV Web 1.0.12 / LG webOS launcher** | `/docs/tv` | [Mở TV Web](https://dodangquang.github.io/kho-phim/tv/) | Đợi seekable, giữ pause khi khôi phục nguồn |
 | **Android TV 1.0.3** | `/tv` | [Tải APK TV 1.0.3](https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_TV_v1.0.3.apk) | Giữ đúng phim/server; tua an toàn |
 | **Android Mobile 1.0.3** | `/mobile-android` | [Tải APK Mobile 1.0.3](https://github.com/dodangquang/kho-phim/releases/download/v1.0.3/KhoPhim_Mobile_v1.0.3.apk) | Không dùng thời gian tập cũ khi thử lại |
-| **Web Mobile 1.0.13 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | ✅ HLS gốc Safari, tua ±10s, khôi phục luồng |
+| **Web Mobile 1.0.14 (iPhone/Android)** | `/docs` | [Trang Web Kho Phim](https://khophimqd.vercel.app/?mode=mobile) | ✅ HLS gốc Safari, tua ±10s, khôi phục luồng |
 | **iOS 1.0.1/build2** | `/mobile-ios` | IPA trong artifact workflow macOS | Quản lý player/observer; tải lại khi lỗi |
 | **Web Desktop 1.0.6** | `/docs/desktop` | [Mở Desktop](https://khophimqd.vercel.app/desktop/) | Giữ vị trí/pause khi đổi nguồn; HLS.js cục bộ tải khi cần |
 
@@ -40,7 +40,9 @@ TV Web 1.0.11 ưu tiên HLS.js trên PC có Media Source Extensions, kể cả k
 
 Gói Samsung hiện hành duy nhất được phát hành trong GitHub Releases: `KhoPhim_Samsung_Tizen_v1.0.10.wgt` (UNSIGNED, dành cho Apps2Samsung ký/cài). Link tải trên website trỏ thẳng tới file này.
 
-## Web Mobile 1.0.13
+## Web Mobile 1.0.14
+
+Hai nút tua ±10 giây tự ẩn sau 3 giây. Chạm video để hiện/ẩn lại, hoặc bấm × để ẩn ngay. Tua tiếp đặt lại thời gian tự ẩn; đổi sang embed, vào toàn màn hình gốc và đóng video đều dọn các nút/timer. Đã kiểm tra giao diện trên Edge và WebKit Windows với viewport iPhone; chưa xác nhận trên iPhone thật.
 
 Safari ưu tiên HLS gốc và chỉ tải HLS.js 1.7.3 cục bộ khi cần dự phòng. Trình phát chờ vùng thời gian có thể tua trước khi tiếp tục xem hoặc tua ±10s, hủy tác vụ cũ khi đổi tập/đóng video, và thử khôi phục tại vị trí đang xem khi luồng bị kẹt. Thoát toàn màn hình iPhone giữ nguyên phiên phát. Lịch sử được lưu theo tiến trình, khi tạm dừng hoặc rời trang; không dựng lại kệ phim trong lúc xem.
 
@@ -50,6 +52,8 @@ Kiểm tra từ thư mục gốc repo:
 node --test docs/tests/mobile-player.test.cjs
 # Cần Playwright và Microsoft Edge, hoặc đặt PLAYWRIGHT_CHANNEL=chrome.
 node docs/tests/mobile-browser.cjs
+# Kiểm tra cùng luồng giao diện trên WebKit nếu đã cài browser Playwright tương ứng.
+node docs/tests/mobile-browser.cjs --webkit
 # Kiểm tra thêm API/CDN thật; cần truy cập mạng.
 node docs/tests/mobile-browser.cjs --live
 ```
