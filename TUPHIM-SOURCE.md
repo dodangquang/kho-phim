@@ -10,7 +10,7 @@ Danh mục hỗ trợ mới cập nhật, phim lẻ (`single` và `movie`), phim
 
 Chỉ tạo link HLS cho tập có `useMedia: true`. Những lựa chọn chỉ có iframe ngoài không được gắn link HLS giả. Gateway đọc cấu hình JSON công khai trong trang embed, giải cách che URL mà trình phát công khai dùng, rồi trả manifest HLS với URI tuyệt đối. Không chạy JavaScript upstream, không giải mã video/DRM và không thay đổi danh tính/Referer để vượt lỗi 403. Phụ đề WebVTT ngoài được gắn thành nhóm phụ đề HLS. Video và phụ đề được tải trực tiếp từ CDN nguồn; gateway không chuyển tiếp byte video.
 
-Một số server nguồn trả 403. Kho Phim báo lỗi để đổi server; việc thay nguồn không bảo đảm mọi server upstream luôn hoạt động. HLS có khóa mã hóa hiện được báo không hỗ trợ. Không sửa hoặc giả điểm IMDb/TMDB; điểm cập nhật cùng dữ liệu phim.
+Ưu tiên Diamond khi phim có server này, sau đó server có nhiều tập HLS hơn; vẫn giữ các lựa chọn khác. Một số server nguồn trả 403 hoặc tải segment chậm. Kho Phim báo lỗi để đổi server; việc thay nguồn không bảo đảm mọi server upstream luôn hoạt động hay tải nhanh. HLS có khóa mã hóa hiện được báo không hỗ trợ. Không sửa hoặc giả điểm IMDb/TMDB; điểm cập nhật cùng dữ liệu phim.
 
 ## Lịch sử
 
