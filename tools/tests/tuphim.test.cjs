@@ -55,11 +55,16 @@ test('search and filters use public API only, preserve pagination and exclude VI
 });
 test('detail loads later episode pages on the original source index', async () => {
   const { source, requests } = mocked({
-    'https://api.phimsrv.com/v1/movies/series': { ok: true, data: { movie: { primarySlug: 'series' }, watchSources: [{ sourceIndex: 0, nickname: 'Diamond [VS]', hasEpisodes: true, episodePagination: { totalPages: 2 }, episodes: [{ hash: '12345678', name: '1', slug: 'tap-1', useMedia: true }] }] } },
+    'https://api.phimsrv.com/v1/movies/series': { ok: true, data: { movie: { primarySlug: 'series' }, watchSources: [
+      { sourceIndex: 1, nickname: 'Gold [LT]', hasEpisodes: true, episodes: [{ hash: 'goldhash', name: '1', slug: 'tap-1', useMedia: true }] },
+      { sourceIndex: 0, nickname: 'Diamond [VS]', hasEpisodes: true, episodePagination: { totalPages: 2 }, episodes: [{ hash: '12345678', name: '1', slug: 'tap-1', useMedia: true }] },
+      { sourceIndex: 2, nickname: 'Iframe', hasEpisodes: true, episodes: [{ hash: 'external', name: '1', slug: 'tap-1', useMedia: false, embedUrl: 'https://player.example.org/embed' }] }
+    ] } },
     'https://api.phimsrv.com/v1/movies/series/episodes?sourceIndex=0&page=2&limit=100': { ok: true, data: { episodes: [{ hash: 'abcdefgh', name: '101', slug: 'tap-101', useMedia: true }] } }
   });
   const r = await source('phim/tp--series');
   assert.equal(r.json.episodes[0].server_data.length, 2);
+  assert.deepEqual(r.json.episodes.map(s => s.server_name), ['Diamond [VS]', 'Gold [LT]']);
   assert.match(r.json.episodes[0].server_data[1].link_m3u8, /\/source\/stream\/abcdefgh\/index\.m3u8$/);
   assert.equal(r.json.episodes[0].server_data[0].link_embed, '');
   assert.equal(requests.length, 2);

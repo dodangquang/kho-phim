@@ -104,7 +104,7 @@
     function watch(s, delay = 20000) {
       clearWatchdog(s);
       s.timer = global.setTimeout(() => {
-        if (!live(s) || video.ended || video.paused) return;
+        if (!live(s) || video.ended || (video.paused && !s.awaitingManifest)) return;
         if (document.hidden) { watch(s, delay); return; }
         recover(s);
       }, delay);
@@ -141,12 +141,18 @@
           startPosition: s.pendingSeek === null ? -1 : s.pendingSeek
         });
         s.engine = 'hls';
+        s.awaitingManifest = true;
+        // Manifest errors can remain nonfatal while HLS.js retries. Bound the
+        // initial wait even though the media element is internally paused.
+        watch(s);
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
           if (live(s) && s.hls === hls) hls.loadSource(s.url);
         });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (!live(s) || s.hls !== hls) return;
+          s.awaitingManifest = false;
           s.internalReset = false;
+          clearWatchdog(s);
           applySeek(s);
           if (s.autoplay) { watch(s); play(s); }
         });
@@ -180,7 +186,7 @@
       const s = session = {
         url, engine: '', pendingSeek: Number.isFinite(position) && position > 0 ? position : null,
         lastTime: 0, nativeRetries: 0, networkRetries: 0, mediaRetries: 0,
-        timer: null, listeners: [], hls: null, failed: false,
+        timer: null, listeners: [], hls: null, failed: false, awaitingManifest: false,
         autoplay: options.autoplay !== false, internalReset: false
       };
       if (options.unmute !== false) video.muted = false;
@@ -195,9 +201,9 @@
         if (video.paused || video.readyState >= 3) clearWatchdog(s);
       });
       listen(s, 'pause', () => {
-        if (video.paused && !video.error) {
+        if (video.paused && !video.error && !s.internalReset) {
           clearWatchdog(s);
-          if (!s.internalReset) s.autoplay = false;
+          s.autoplay = false;
         }
       });
       listen(s, 'error', () => {

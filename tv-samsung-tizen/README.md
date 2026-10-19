@@ -1,5 +1,12 @@
-# Kho Phim Samsung TV 1.0.12
+# Kho Phim Samsung TV 1.0.13
 
+Bản 1.0.13 chuyển toàn bộ danh mục, tìm kiếm và nguồn phát sang Tủ Phim qua gateway chung. Không còn gọi nguồn phim cũ hay máy chủ dự phòng của nguồn cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; các mục danh sách riêng Thuyết Minh và Lồng Tiếng đã bỏ vì nguồn mới không hỗ trợ bộ lọc này.
+
+Lịch sử cũ và khóa lưu trữ được giữ nguyên. Phim từ nguồn cũ dùng ảnh mặc định, không xuất hiện trong Xem tiếp; chọn một mục cũ sẽ mở tìm kiếm với đúng tiêu đề đã lưu để người dùng chọn lại năm/phần phù hợp. ID mới có tiền tố `tp--`, không tự ghép phim chỉ dựa trên tên.
+
+Đã qua 36 kiểm tra giao diện/AVPlay và cú pháp ES5, kiểm tra điểm/XSS, cùng kiểm tra chuyển nguồn/lịch sử trên Edge. Các kiểm tra AVPlay sử dụng mô phỏng; chưa kiểm tra nguồn Tủ Phim trên TV Samsung thật. Gói WGT cần Apps2Samsung ký bằng chứng chỉ của TV trước khi cài.
+
+## Lịch sử bản 1.0.12
 Thêm điểm IMDb/TMDB trên thẻ phim và trang chi tiết, kèm nguồn, thang 10 và số lượt đánh giá. Dùng dữ liệu sẵn có trong API, không thêm request từng phim. Không hiển thị 0/10 cho phim chưa có điểm. Điểm thay đổi được nhận khi tải lại dữ liệu sau lần cài bản hỗ trợ này.
 
 Gói [KhoPhim_Samsung_Tizen_v1.0.12_UNSIGNED.wgt](https://github.com/dodangquang/kho-phim/releases/download/v1.0.4/KhoPhim_Samsung_Tizen_v1.0.12_UNSIGNED.wgt) đã phát hành; chứa 12 file runtime, cần Apps2Samsung ký/cài. Giữ ID và khóa lịch sử. Đã qua 36 kiểm tra TV, kiểm tra hiển thị điểm và cú pháp ES5 trên Edge; chưa thử trên TV thật.
