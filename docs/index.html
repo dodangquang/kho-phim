@@ -77,10 +77,10 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.0.15">
+  <link rel="stylesheet" href="style.css?v=1.0.16">
 
   <!-- HLS.js is loaded locally on demand by mobile-player.js. -->
-</head>
+<link rel="stylesheet" href="sync/style.css?v=1"></head>
 <body>
 
   <div id="app">
@@ -89,7 +89,7 @@
       <div class="logo-area" onclick="window.selectCategoryById('all')">
         <img src="icon.png" alt="Kho Phim" class="logo-icon">
         <span class="logo-title">Kho Phim</span>
-        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.15</span>
+        <span style="font-size:10px; font-weight:700; color:#fff; background:#e50914; padding:2px 6px; border-radius:4px; margin-left:6px; letter-spacing:0.5px;">v1.0.16</span>
       </div>
       <div class="header-actions">
         <button class="icon-btn" onclick="window.switchTabDirect('history')" title="Lịch sử xem">
@@ -145,12 +145,13 @@
         <h2 style="font-size: 20px; font-weight: 800;">Lịch sử xem</h2>
         <button id="history-clear-btn" onclick="clearHistoryDirect()" style="font-size: 13px; color: var(--accent-red); font-weight: 600; display:none; background:none; border:none; cursor:pointer;">Xoá tất cả</button>
       </div>
+      <div data-sync-panel="mobile"></div>
       <div id="history-empty" class="history-empty" style="display:none; text-align:center; padding:60px 20px;">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="var(--text-muted)" style="margin-bottom:12px; opacity:0.6;"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         <p style="margin-bottom: 16px; color:var(--text-muted);">Bạn chưa xem bộ phim nào gần đây.</p>
         <button class="btn-primary" onclick="window.switchTabDirect('home')" style="margin: 0 auto; padding: 8px 20px; font-size: 13px;">Khám phá phim ngay</button>
       </div>
-      <div id="history-list" class="history-list"></div>
+        <div id="history-list" class="history-list"></div>
     </main>
 
     <!-- 5. Download App View -->
@@ -314,8 +315,9 @@
   </div>
 
   <!-- JavaScript -->
+  <script src="sync/config.js?v=1"></script><script src="sync/history.js?v=1"></script><script src="sync/transport.js?v=1"></script><script src="sync/client.js?v=1"></script><script src="sync/pairing.js?v=1"></script><script src="sync/adapters.js?v=1"></script><script src="sync/ui.js?v=1"></script>
   <script src="mobile-player.js?v=1.0.13"></script>
   <script src="ratings.js?v=1.0.0"></script>
-  <script src="app.js?v=1.0.15"></script>
+  <script src="app.js?v=1.0.16"></script>
 </body>
 </html>

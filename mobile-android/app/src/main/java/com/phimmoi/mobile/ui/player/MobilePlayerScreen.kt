@@ -79,6 +79,15 @@ fun MobilePlayerScreen(
     onBackPress: () -> Unit
 ) {
     val context = LocalContext.current
+    val playbackHistoryManager = remember(movieSlug) { watchHistoryManager?.forPlayback() }
+    val playbackOwner = remember(movieSlug) { watchHistoryManager?.ownerKey() ?: "guest" }
+    val playbackAccount by com.phimmoi.mobile.data.CloudHistory.get(context).account.collectAsState()
+    LaunchedEffect(playbackAccount.uid) {
+        if ((playbackAccount.uid ?: "guest") != playbackOwner) {
+            android.widget.Toast.makeText(context, "Tài khoản đã thay đổi. Mở lại phim để tiếp tục xem.", android.widget.Toast.LENGTH_SHORT).show()
+            onBackPress()
+        }
+    }
     val activity = remember(context) { context.findActivity() }
 
     // 1. AUTO-ROTATE TO LANDSCAPE WHEN ENTERING, RESTORE PORTRAIT WHEN EXITING
@@ -186,7 +195,7 @@ fun MobilePlayerScreen(
             val finalPos = exoPlayer.currentPosition
             val finalDur = exoPlayer.duration
             if (watchHistoryManager != null && movieSlug.isNotEmpty() && finalPos > 2000L && finalDur > 0L) {
-                watchHistoryManager.saveProgress(
+                playbackHistoryManager?.saveProgress(
                     WatchProgress(
                         movieSlug = movieSlug,
                         movieTitle = movieTitle,
@@ -212,7 +221,7 @@ fun MobilePlayerScreen(
         val position = exoPlayer.currentPosition.coerceAtLeast(0L)
         val duration = exoPlayer.duration
         if (watchHistoryManager != null && movieSlug.isNotEmpty() && position > 2000L && duration > 0L) {
-            watchHistoryManager.saveProgress(WatchProgress(
+            playbackHistoryManager?.saveProgress(WatchProgress(
                 movieSlug = movieSlug, movieTitle = movieTitle, posterUrl = posterUrl, bannerUrl = bannerUrl,
                 episodeSlug = currentEp.episodeSlug, episodeName = currentEp.episodeName,
                 serverName = currentEp.serverName, streamUrl = currentEp.streamUrl,
@@ -273,7 +282,7 @@ fun MobilePlayerScreen(
                 totalDuration = exoPlayer.duration.coerceAtLeast(0L)
                 if (++saveTicks >= 6 && exoPlayer.isPlaying && watchHistoryManager != null && movieSlug.isNotEmpty() && currentPos > 2000L && totalDuration > 0L) {
                     saveTicks = 0
-                    watchHistoryManager.saveProgress(
+                    playbackHistoryManager?.saveProgress(
                         WatchProgress(
                             movieSlug = movieSlug,
                             movieTitle = movieTitle,

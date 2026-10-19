@@ -56,6 +56,8 @@ fun HomeScreen(
     var heroMovie by remember { mutableStateOf<MovieItem?>(null) }
     var sections by remember { mutableStateOf<List<MovieSection>>(emptyList()) }
     var historyList by remember { mutableStateOf<List<WatchProgress>>(emptyList()) }
+    val historyRevision by watchHistoryManager.revision.collectAsState()
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager.getAllHistory() }
 
     // Category grid mode for Phim lẻ & Phim bộ
     var categoryMovies by remember { mutableStateOf<List<MovieItem>>(emptyList()) }

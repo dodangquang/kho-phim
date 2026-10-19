@@ -52,6 +52,7 @@ fun SettingsScreen(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item { SyncAccountCard() }
         item {
             Text(
                 text = "Cài Đặt Hệ Thống",

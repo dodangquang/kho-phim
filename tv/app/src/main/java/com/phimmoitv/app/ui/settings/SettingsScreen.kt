@@ -76,6 +76,7 @@ fun SettingsScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item { SyncAccountCard(onNavigateLeft = onNavigateLeft) }
         // CLOUD AUTO-UPDATE SECTION
         item {
             Column(

@@ -76,6 +76,13 @@
 
   const VN_FLAG_HTML = '<span class="vn-flag-icon" aria-label="Việt Nam"><svg viewBox="0 0 30 20" width="18" height="12"><rect width="30" height="20" fill="#da251d"/><polygon points="15,4 16.35,8.15 20.71,8.15 17.18,10.71 18.53,14.85 15,12.29 11.47,14.85 12.82,10.71 9.29,8.15 13.65,8.15" fill="#ffff00"/></svg></span>';
 
+  KhoSync.onBeforeAccountChange(() => { if (playerOverlay.classList.contains('open')) window.closeVideoPlayer(); if (detailModal.classList.contains('open')) window.closeMovieDetail(); });
+  KhoSync.onHistoryChange(() => {
+    if (playerOverlay.classList.contains('open')) return;
+    renderContinueWatchingHome();
+    if (currentTab === 'history') renderHistoryScreen();
+  });
+
   // Categories Definition
   const CATEGORIES = [
     { id: 'all', title: 'Tất cả' },
@@ -179,25 +186,7 @@
   }
 
   // Local Storage History Helper
-  function getWatchHistory() {
-    try {
-      const saved = localStorage.getItem('khophim_history') || localStorage.getItem('kho_phim_history') || localStorage.getItem('phimmoi_history');
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      const cleanList = parsed.filter(item => item && item.movieSlug && !isBrokenMovie(item.movieSlug));
-      if (cleanList.length !== parsed.length) {
-        try {
-          localStorage.setItem('khophim_history', JSON.stringify(cleanList));
-          localStorage.setItem('khophim_watch_history', JSON.stringify(cleanList));
-        } catch (_) {}
-      }
-      return cleanList;
-    } catch (e) {
-      console.warn('Failed to parse watch history:', e);
-      return [];
-    }
-  }
+  function getWatchHistory() { return KhoSync.history().filter(item => !isBrokenMovie(item.movieSlug)).map(KhoSyncView.mobile); }
 
   function saveWatchHistoryItem(item) {
     if (!item || !item.movieSlug) return;
@@ -219,6 +208,7 @@
       if (list.length > 60) list = list.slice(0, 60);
       localStorage.setItem('khophim_history', JSON.stringify(list));
       localStorage.setItem('khophim_watch_history', JSON.stringify(list));
+      KhoSync.save(item);
       if (!playerOverlay.classList.contains('open')) renderContinueWatchingHome();
     } catch (e) {
       console.warn('Failed to save watch history:', e);
@@ -226,6 +216,7 @@
   }
 
   function removeWatchHistoryItem(slug) {
+    KhoSync.remove(slug);
     let list = getWatchHistory().filter(x => x.movieSlug !== slug);
     try {
       localStorage.setItem('khophim_history', JSON.stringify(list));
@@ -243,6 +234,7 @@
       proceed = true;
     }
     if (proceed) {
+      KhoSync.clear();
       try {
         localStorage.removeItem('khophim_history');
         localStorage.removeItem('khophim_watch_history');
@@ -428,18 +420,23 @@
     card.innerHTML = `
       <div class="movie-poster-wrap">
         <img
-          src="${primary}"
-          alt="${movie.name}"
+          src="${KhoHistory.escape(primary)}"
+          alt="${KhoHistory.escape(movie.name)}"
           loading="lazy"
           referrerpolicy="no-referrer"
-          onerror="if(this.dataset.failed!=='1'&&'${fallback}'&&'${fallback}'!==this.src){this.dataset.failed='1';this.src='${fallback}';}else{this.onerror=null;this.src='icon.png';}"
+
         >
-        ${badge ? `<span class="movie-badge-top-left">${badge}</span>` : ''}
-        ${epBadge ? `<span class="movie-badge-top-right">${epBadge}</span>` : ''}
+        ${badge ? `<span class="movie-badge-top-left">${KhoHistory.escape(badge)}</span>` : ''}
+        ${epBadge ? `<span class="movie-badge-top-right">${KhoHistory.escape(epBadge)}</span>` : ''}
         ${KhoRatings.html(movie, 'movie-rating', false)}
       </div>
-      <div class="movie-title">${movie.name}</div>
+      <div class="movie-title">${KhoHistory.escape(movie.name)}</div>
     `;
+    const img = card.querySelector('img');
+    img.onerror = function () {
+      if (this.dataset.failed !== '1' && fallback && fallback !== this.src) { this.dataset.failed = '1'; this.src = fallback; }
+      else { this.onerror = null; this.src = 'icon.png'; }
+    };
     return card;
   }
 
@@ -481,18 +478,18 @@
 
       card.innerHTML = `
         <div class="continue-thumb-wrap">
-          <img class="continue-thumb-img" src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';" loading="lazy">
+          <img class="continue-thumb-img" src="${KhoHistory.escape(item.posterUrl || 'icon.png')}" alt="${KhoHistory.escape(item.movieTitle || 'Phim')}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';" loading="lazy">
           <div class="continue-play-overlay">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           </div>
-          <div class="continue-ep-badge">${item.episodeName || 'Tập 1'}</div>
+          <div class="continue-ep-badge">${KhoHistory.escape(item.episodeName || 'Tập 1')}</div>
           <div class="continue-progress-wrap">
             <div class="continue-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
           </div>
         </div>
         <div class="continue-info">
-          <div class="continue-title" title="${item.movieTitle || 'Phim'}">${item.movieTitle || 'Phim'}</div>
-          <div class="continue-sub">${item.episodeName || 'Tập 1'} • ${timeLabel}</div>
+          <div class="continue-title" title="${KhoHistory.escape(item.movieTitle || 'Phim')}">${KhoHistory.escape(item.movieTitle || 'Phim')}</div>
+          <div class="continue-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • ${timeLabel}</div>
         </div>
       `;
 
@@ -595,27 +592,30 @@
     heroBanner.innerHTML = `
       <div class="hero-content">
         <div class="hero-badge-row">
-          <span class="hero-badge" style="background:var(--accent-red);">${badge}</span>
-          ${year ? `<span class="hero-badge">${year}</span>` : ''}
-          ${ep ? `<span class="hero-badge">${ep}</span>` : ''}
+          <span class="hero-badge" style="background:var(--accent-red);">${KhoHistory.escape(badge)}</span>
+          ${year ? `<span class="hero-badge">${KhoHistory.escape(year)}</span>` : ''}
+          ${ep ? `<span class="hero-badge">${KhoHistory.escape(ep)}</span>` : ''}
         </div>
-        <h1 class="hero-title">${movie.name}</h1>
+        <h1 class="hero-title">${KhoHistory.escape(movie.name)}</h1>
         <div class="hero-buttons">
-          <button id="hero-play-btn" class="btn-primary" onclick="openMovieDetail('${movie.slug}', true)">
+          <button id="hero-play-btn" class="btn-primary">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             Xem ngay
           </button>
-          <button id="hero-info-btn" class="btn-secondary" onclick="openMovieDetail('${movie.slug}')">
+          <button id="hero-info-btn" class="btn-secondary">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             Chi tiết
           </button>
         </div>
       </div>
     `;
+    document.getElementById('hero-play-btn').onclick = () => openMovieDetail(movie.slug, true);
+    document.getElementById('hero-info-btn').onclick = () => openMovieDetail(movie.slug);
   }
 
   // Open Movie Detail Modal
   window.openMovieDetail = async function (slug, autoPlay = false) {
+    if (typeof slug !== 'string' || !/^[a-zA-Z0-9_-]{1,180}$/.test(slug)) return;
     const generation = ++detailGeneration;
     if (!window.location.hash.startsWith('#detail-') && !window.location.hash.startsWith('#player-')) {
       try {
@@ -673,7 +673,7 @@
       console.error('Detail fetch error:', e);
       detailModal.innerHTML = `
         <div class="detail-modal" style="padding:40px; text-align:center;">
-          <p>Lỗi tải dữ liệu: ${e.message}</p>
+          <p>Lỗi tải dữ liệu: ${KhoHistory.escape(e.message)}</p>
           <button class="btn-primary" style="margin-top:16px;" onclick="closeMovieDetail()">Đóng</button>
         </div>
       `;
@@ -715,17 +715,17 @@
           </button>
         </div>
 
-        <div class="detail-backdrop" style="background-image: url('${backdropUrl}');"></div>
+        <div class="detail-backdrop"></div>
 
         <div class="detail-body">
-          <h2 class="detail-title">${movie.name}</h2>
-          <div class="detail-origin-title">${movie.origin_name || ''}</div>
+          <h2 class="detail-title">${KhoHistory.escape(movie.name)}</h2>
+          <div class="detail-origin-title">${KhoHistory.escape(movie.origin_name || '')}</div>
 
           <div class="detail-meta-row">
-            ${movie.quality ? `<span class="meta-pill accent">${movie.quality}</span>` : ''}
-            ${movie.year ? `<span class="meta-pill">${movie.year}</span>` : ''}
-            ${movie.episode_current ? `<span class="meta-pill">${movie.episode_current}</span>` : ''}
-            ${movie.time ? `<span class="meta-pill">${movie.time}</span>` : ''}
+            ${movie.quality ? `<span class="meta-pill accent">${KhoHistory.escape(movie.quality)}</span>` : ''}
+            ${movie.year ? `<span class="meta-pill">${KhoHistory.escape(movie.year)}</span>` : ''}
+            ${movie.episode_current ? `<span class="meta-pill">${KhoHistory.escape(movie.episode_current)}</span>` : ''}
+            ${movie.time ? `<span class="meta-pill">${KhoHistory.escape(movie.time)}</span>` : ''}
           </div>
 
           ${KhoRatings.html(movie, 'movie-rating-detail', true)}
@@ -739,7 +739,7 @@
 
           ${historyItem ? `
             <div style="background:rgba(255,255,255,0.06); padding:10px 14px; border-radius:8px; margin-bottom:20px; font-size:12.5px;">
-              <span>Đang xem dở: <strong>${historyItem.episodeName}</strong></span>
+              <span>Đang xem dở: <strong>${KhoHistory.escape(historyItem.episodeName)}</strong></span>
               <div class="history-progress-wrap" style="margin-top:6px;">
                 <div class="history-progress-bar" style="width:${Math.min(100, Math.round((historyItem.currentTime / (historyItem.duration || 1)) * 100))}%;"></div>
               </div>
@@ -747,14 +747,14 @@
           ` : ''}
 
           <div class="detail-overview">
-            ${movie.content ? movie.content.replace(/<[^>]*>/g, '') : 'Chưa có tóm tắt cho phim này.'}
+            ${KhoHistory.escape(movie.content ? movie.content.replace(/<[^>]*>/g, '') : 'Chưa có tóm tắt cho phim này.')}
           </div>
 
           <div style="margin-bottom:16px; font-size:12.5px; color:var(--text-secondary); line-height:1.6;">
-            <div><strong>Thể loại:</strong> ${genres}</div>
-            <div><strong>Quốc gia:</strong> ${countries}</div>
-            ${movie.director ? `<div><strong>Đạo diễn:</strong> ${movie.director}</div>` : ''}
-            ${movie.actor ? `<div><strong>Diễn viên:</strong> ${movie.actor.join(', ')}</div>` : ''}
+            <div><strong>Thể loại:</strong> ${KhoHistory.escape(genres)}</div>
+            <div><strong>Quốc gia:</strong> ${KhoHistory.escape(countries)}</div>
+            ${movie.director ? `<div><strong>Đạo diễn:</strong> ${KhoHistory.escape(movie.director)}</div>` : ''}
+            ${movie.actor ? `<div><strong>Diễn viên:</strong> ${KhoHistory.escape(movie.actor.join(', '))}</div>` : ''}
           </div>
 
           <!-- Server Tabs & Episodes -->
@@ -764,6 +764,7 @@
     `;
 
     detailModal.innerHTML = html;
+    detailModal.querySelector('.detail-backdrop').style.backgroundImage = `url("${backdropUrl.replace(/["\\]/g, '')}")`;
   }
 
   function renderServersAndEpisodesHtml(episodes, slug) {
@@ -782,7 +783,7 @@
         <div class="server-tab-row">
           ${episodes.map((srv, idx) => `
             <button class="server-btn ${idx === currentServerIndex ? 'active' : ''}" onclick="switchDetailServer(${idx})">
-              ${srv.server_name || `Server ${idx + 1}`}
+              ${KhoHistory.escape(srv.server_name || `Server ${idx + 1}`)}
             </button>
           `).join('')}
         </div>
@@ -796,7 +797,7 @@
           const isCurrentWatched = historyItem && historyItem.episodeSlug === ep.slug;
           return `
             <button class="episode-btn ${isCurrentWatched ? 'active' : ''}" onclick="playSpecificEpisode(${idx})">
-              ${ep.name}
+              ${KhoHistory.escape(ep.name)}
               ${isCurrentWatched ? '<div class="ep-progress" style="width:100%;"></div>' : ''}
             </button>
           `;
@@ -1314,7 +1315,7 @@
       searchStatus.innerHTML = '';
 
       if (items.length === 0) {
-        searchStatus.innerHTML = `<div class="search-empty">Không tìm thấy phim nào khớp với "<strong>${query}</strong>".</div>`;
+        searchStatus.innerHTML = `<div class="search-empty">Không tìm thấy phim nào khớp với "<strong>${KhoHistory.escape(query)}</strong>".</div>`;
         return;
       }
 
@@ -1324,7 +1325,7 @@
       });
     } catch (e) {
       console.error('Search error:', e);
-      searchStatus.innerHTML = `<div class="search-empty">Lỗi tìm kiếm: ${e.message}</div>`;
+      searchStatus.innerHTML = `<div class="search-empty">Lỗi tìm kiếm: ${KhoHistory.escape(e.message)}</div>`;
     }
   }
 
@@ -1357,10 +1358,10 @@
         : (item.currentTime > 0 ? `Đã xem ${formattedCurrent}` : 'Vừa xem');
 
       card.innerHTML = `
-        <img class="history-thumb" src="${item.posterUrl || 'icon.png'}" alt="${item.movieTitle || 'Phim'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
+        <img class="history-thumb" src="${KhoHistory.escape(item.posterUrl || 'icon.png')}" alt="${KhoHistory.escape(item.movieTitle || 'Phim')}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
         <div class="history-info">
-          <div class="history-title">${item.movieTitle || 'Phim'}</div>
-          <div class="history-sub">${item.episodeName || 'Tập 1'} • ${item.serverName || 'VIP'}</div>
+          <div class="history-title">${KhoHistory.escape(item.movieTitle || 'Phim')}</div>
+          <div class="history-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • ${KhoHistory.escape(item.serverName || 'VIP')}</div>
           <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${progressLabel}</div>
           <div class="history-progress-wrap">
             <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>

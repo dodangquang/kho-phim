@@ -111,6 +111,10 @@ fun HomeScreen(
     val lastFocusedTabSlug = remember { mutableStateMapOf<TvNavTab, String?>() }
 
     var historyList by remember { mutableStateOf<List<WatchProgress>>(emptyList()) }
+    val cloudContext = androidx.compose.ui.platform.LocalContext.current
+    val cloudHistory = remember { com.phimmoitv.app.data.CloudHistory.get(cloudContext) }
+    val historyRevision by cloudHistory.revision.collectAsState()
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager?.getAllHistory() ?: emptyList() }
     val playFocusRequester = remember { FocusRequester() }
 
     val findVisibleCandidateSlug: () -> String? = {

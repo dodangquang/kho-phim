@@ -62,6 +62,8 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     var historyList by remember { mutableStateOf(watchHistoryManager.getAllHistory()) }
+    val historyRevision by watchHistoryManager.revision.collectAsState()
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager.getAllHistory() }
     val scope = rememberCoroutineScope()
 
     // Lưu lại vị trí thẻ đang focus để khi chuyển tab quay lại không bị kẹt

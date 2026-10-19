@@ -247,16 +247,10 @@
   // ==========================================================================
   const HISTORY_KEY = 'khophim_desktop_watch_history';
 
-  function getWatchHistory() {
-    try {
-      const data = localStorage.getItem(HISTORY_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch (_) {
-      return [];
-    }
-  }
+  function getWatchHistory() { return KhoSync.history().map(KhoSyncView.desktop); }
 
   function saveWatchProgress(item) {
+    KhoSync.save(item);
     try {
       let list = getWatchHistory().filter(x => x.slug !== item.slug);
       list.unshift(item);
@@ -266,6 +260,7 @@
   }
 
   function clearAllHistory() {
+    KhoSync.clear();
     try {
       localStorage.removeItem(HISTORY_KEY);
       showToast('Đã xóa toàn bộ lịch sử xem');
@@ -411,12 +406,12 @@
     heroBanner.innerHTML = `
       <div class="hero-content">
         <div class="hero-badge-row">
-          <span class="hero-badge red">${quality}</span>
-          <span class="hero-badge">${year}</span>
-          <span class="hero-badge">${epBadge}</span>
+          <span class="hero-badge red">${KhoHistory.escape(quality)}</span>
+          <span class="hero-badge">${KhoHistory.escape(year)}</span>
+          <span class="hero-badge">${KhoHistory.escape(epBadge)}</span>
         </div>
-        <h1 class="hero-title">${title}</h1>
-        <p class="hero-overview">${movie.content ? movie.content.replace(/<[^>]*>?/gm, '') : 'Trải nghiệm xem phim chất lượng cao Full HD, Vietsub, Thuyết minh miễn phí trên máy tính.'}</p>
+        <h1 class="hero-title">${KhoHistory.escape(title)}</h1>
+        <p class="hero-overview">${KhoHistory.escape(movie.content ? movie.content.replace(/<[^>]*>?/gm, '') : 'Trải nghiệm xem phim chất lượng cao Full HD, Vietsub, Thuyết minh miễn phí trên máy tính.')}</p>
         <div class="hero-actions">
           <button id="hero-play-btn" class="tv-btn tv-btn-primary" tabindex="0">
             <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -493,12 +488,12 @@
 
     card.innerHTML = `
       <div class="tv-card-poster-wrap">
-        <img src="${poster}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='${fallback}';">
-        <div class="tv-badge-left">${quality}</div>
-        ${ep ? `<div class="tv-badge-right">${ep}</div>` : ''}
+        <img src="${KhoHistory.escape(poster)}" alt="${KhoHistory.escape(title)}" loading="lazy">
+        <div class="tv-badge-left">${KhoHistory.escape(quality)}</div>
+        ${ep ? `<div class="tv-badge-right">${KhoHistory.escape(ep)}</div>` : ''}
       </div>
       <div class="tv-card-info">
-        <div class="tv-card-title">${title}</div>
+        <div class="tv-card-title">${KhoHistory.escape(title)}</div>
         <div class="tv-card-meta">
           ${KhoRatings.html(item, 'tv-card-rating', false)}
           <span class="tv-card-hd">HD</span>
@@ -506,6 +501,7 @@
       </div>
     `;
 
+    card.querySelector('img').onerror = function () { this.onerror = null; this.src = fallback; };
     card.onclick = () => openMovieDetail(item.slug);
     return card;
   }
@@ -536,14 +532,14 @@
 
       card.innerHTML = `
         <div class="tv-continue-thumb-wrap">
-          <img src="${item.banner || item.poster}" alt="${item.title}" loading="lazy" onerror="this.onerror=null; this.src='icon.png';">
+          <img src="${KhoHistory.escape(item.banner || item.poster)}" alt="${KhoHistory.escape(item.title)}" loading="lazy" onerror="this.onerror=null; this.src='icon.png';">
           <div class="tv-continue-progress">
             <div class="tv-continue-progress-bar" style="width: ${progressPercent}%;"></div>
           </div>
         </div>
         <div class="tv-continue-info">
-          <div class="tv-continue-title">${item.title}</div>
-          <div class="tv-continue-sub">${item.episodeName || 'Tập 1'} • Còn ${100 - progressPercent}%</div>
+          <div class="tv-continue-title">${KhoHistory.escape(item.title)}</div>
+          <div class="tv-continue-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • Còn ${100 - progressPercent}%</div>
         </div>
       `;
 
@@ -665,14 +661,14 @@
 
       card.innerHTML = `
         <div class="tv-continue-thumb-wrap">
-          <img src="${item.banner || item.poster}" alt="${item.title}" loading="lazy">
+          <img src="${KhoHistory.escape(item.banner || item.poster)}" alt="${KhoHistory.escape(item.title)}" loading="lazy">
           <div class="tv-continue-progress">
             <div class="tv-continue-progress-bar" style="width: ${progressPercent}%;"></div>
           </div>
         </div>
         <div class="tv-continue-info">
-          <div class="tv-continue-title">${item.title}</div>
-          <div class="tv-continue-sub">${item.episodeName || 'Tập 1'} • Đã xem ${progressPercent}%</div>
+          <div class="tv-continue-title">${KhoHistory.escape(item.title)}</div>
+          <div class="tv-continue-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • Đã xem ${progressPercent}%</div>
         </div>
       `;
 
@@ -682,6 +678,13 @@
 
     document.getElementById('tv-clear-history-btn').onclick = clearAllHistory;
   }
+
+  KhoSync.onBeforeAccountChange(() => { if (document.getElementById('tv-player-overlay').classList.contains('open')) closeVideoPlayer(); closeMovieDetail(); });
+  KhoSync.onHistoryChange(() => {
+    if (document.getElementById('tv-player-overlay').classList.contains('open')) return;
+    renderContinueWatchingRow();
+    if (currentTab === 'history') renderHistoryView();
+  });
 
   function setupSettings() {
     const domainList = document.getElementById('tv-domain-list');
@@ -701,7 +704,7 @@
 
     document.getElementById('tv-clear-cache-btn').onclick = () => {
       try {
-        localStorage.clear();
+        localStorage.removeItem('khophim_desktop_vol');
         sessionStorage.clear();
         showToast('Đã xóa sạch bộ nhớ đệm!');
         setTimeout(() => window.location.reload(), 800);
