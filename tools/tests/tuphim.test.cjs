@@ -102,8 +102,14 @@ test('media URLs reject credentials, local destinations and private DNS', async 
   for (const u of ['http://example.org/a', 'https://127.0.0.1/a', 'https://user:pass@example.org/a', 'https://localhost/a', 'https://a.internal/a', 'https://example.org:8080/a']) assert.equal(secureUrl(u), '');
   for (const a of ['127.0.0.1', '10.0.0.1', '169.254.169.254', '172.16.0.1', '192.168.1.1', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.ok(isPrivate(a));
   assert.equal(isPrivate('8.8.8.8'), false);
-  const source = createSource({ fetchImpl: async () => new Response(fixture({})), lookup: async () => [{ address: '127.0.0.1' }] });
+  const source = createSource({ fetchImpl: async () => new Response(fixture({ subtitles: [{ lang: 'vi', url: 'https://media.example.org/sub.vtt' }] })), lookup: async () => [{ address: '127.0.0.1' }] });
   await assert.rejects(source('stream/12345678/index.m3u8'), { status: 502 });
+});
+test('ordinary HLS without external subtitles goes directly to the public CDN', async () => {
+  const { source, requests } = mocked({ 'https://api.phimsrv.com/v1/embed/12345678': fixture({}) });
+  const result = await source('stream/12345678/index.m3u8');
+  assert.equal(result.redirect, 'https://media.example.org/path/master.m3u8?token=fixture');
+  assert.equal(requests.length, 1, 'No data-centre fetch or video proxy is needed');
 });
 test('invalid pagination is rejected before upstream access', async () => {
   const { source, requests } = mocked({});

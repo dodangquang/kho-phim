@@ -13,6 +13,12 @@ module.exports = async function handler(req, res) {
     const path = req.query?.path || url.searchParams.get('path') || url.pathname.replace(/^\/source\//, '');
     if (Array.isArray(path)) throw new SourceError(400, 'Đường dẫn không hợp lệ.');
     const result = await route(path, url.searchParams);
+    if (result.redirect) {
+      res.statusCode = 302;
+      res.setHeader('Location', result.redirect);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.end();
+    }
     res.setHeader('Cache-Control', result.hls ? 'no-store' : 'public, max-age=30, s-maxage=60');
     res.setHeader('Content-Type', result.hls ? 'application/vnd.apple.mpegurl; charset=utf-8' : 'application/json; charset=utf-8');
     res.statusCode = 200;
