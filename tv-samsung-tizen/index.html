@@ -38,7 +38,7 @@
             <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
             <span class="sidebar-label">Cài Đặt</span>
           </button></div></div>
-      <span class="sidebar-version">1.0.14</span>
+      <span class="sidebar-version">1.0.15</span>
     </nav>
     <main id="main" class="tv-main-content">
       <section id="home" class="tv-view active">
@@ -56,7 +56,7 @@
         <div id="search-bar" class="search-input-wrap hidden"><svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l5 5 1.5-1.5zM9.5 14A4.5 4.5 0 1 1 9.5 5a4.5 4.5 0 0 1 0 9z"/></svg><input id="search-input" type="text" maxlength="80" placeholder="Nhập tên phim cần tìm..." aria-label="Tên phim" autocomplete="off"><button id="search-button" class="tv-btn tv-btn-secondary">Tìm kiếm</button></div>
         <p id="status" class="tv-status-msg" role="status"></p><div id="grid" class="tv-movie-grid"></div>
         <div id="pager" class="load-more-wrap"><button id="previous" class="tv-btn tv-btn-secondary">Trang trước</button><button id="retry" class="tv-btn tv-btn-secondary">Tải lại</button><button id="next" class="tv-btn tv-btn-secondary">Tải thêm phim</button></div>
-        <div id="settings" class="settings-wrap hidden"><div class="settings-card"><h3>Máy chủ kết nối</h3><p>Kho phim và thông tin phim: Tủ Phim. Chọn nguồn phát/ngôn ngữ trong danh sách máy chủ của từng phim.</p><p id="player-info"></p></div><div class="settings-card"><h3>Thông tin phiên bản</h3><p>Smart TV: <strong>v1.0.14 (TV Edition)</strong></p><p id="platform-info"></p><p id="diagnostic"></p><button id="clear-cache" class="tv-btn tv-btn-secondary">Xóa bộ nhớ đệm (Clear Cache)</button><button id="clear-history" class="tv-btn tv-btn-secondary">Xóa lịch sử xem</button></div></div>
+        <div id="settings" class="settings-wrap hidden"><div class="settings-card"><h3>Tự động cập nhật</h3><p id="update-version"></p><p id="update-status" role="status">Tự kiểm tra bản mới khi mở ứng dụng.</p><p>Bản mới tải trong nền và áp dụng khi mở lại app. Không ngắt phim đang xem.</p><button id="update-check" class="tv-btn tv-btn-secondary">Kiểm tra cập nhật</button><button id="update-apply" class="tv-btn tv-btn-secondary" disabled>Áp dụng ngay</button><button id="update-restore" class="tv-btn tv-btn-secondary" disabled>Khôi phục bản cài sẵn</button><p>Thay đổi quyền hệ thống vẫn cần cài gói WGT mới qua Apps2Samsung.</p></div><div class="settings-card"><h3>Máy chủ kết nối</h3><p>Kho phim và thông tin phim: Tủ Phim. Chọn nguồn phát/ngôn ngữ trong danh sách máy chủ của từng phim.</p><p id="player-info"></p></div><div class="settings-card"><h3>Thông tin phiên bản</h3><p>Smart TV: <strong>v1.0.15 (TV Edition)</strong></p><p id="platform-info"></p><p id="diagnostic"></p><button id="clear-cache" class="tv-btn tv-btn-secondary">Xóa bộ nhớ đệm (Clear Cache)</button><button id="clear-history" class="tv-btn tv-btn-secondary">Xóa lịch sử xem</button></div></div>
         <footer id="footer" class="tv-status-msg"></footer>
       </section>
     </main>
@@ -73,5 +73,5 @@
     </div>
   </section>
   <div id="toast" class="tv-toast hidden" role="status"></div><div id="boot-error" class="hidden" role="alert">Không thể khởi động. Hãy đóng và mở lại ứng dụng hoặc cài lại gói đúng chứng chỉ TV.</div>
-  <script src="$WEBAPIS/webapis/webapis.js"></script><script src="ratings.js?v=1.0.0"></script><script src="core.js"></script><script src="player.js"></script><script src="posters.js"></script><script src="home.js"></script><script src="app.js"></script>
+  <script src="$WEBAPIS/webapis/webapis.js"></script><script src="update-hash.js"></script><script src="updater.js"></script>
 </body></html>

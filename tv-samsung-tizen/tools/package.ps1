@@ -17,7 +17,7 @@ $outputPath = (Resolve-Path -LiteralPath $OutputDirectory).Path
 if (-not $StagingDirectory) { $StagingDirectory = Join-Path $projectPath '.build' }
 $stagePath = Join-Path $StagingDirectory ([Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
-$runtimeFiles = @('config.xml', 'index.html', 'style.css', 'tv-compat.css', 'boot.js', 'core.js', 'ratings.js', 'player.js', 'posters.js', 'home.js', 'app.js', 'icon.png')
+$runtimeFiles = @('config.xml', 'index.html', 'style.css', 'tv-compat.css', 'boot.js', 'update-hash.js', 'updater.js', 'core.js', 'ratings.js', 'player.js', 'posters.js', 'home.js', 'app.js', 'icon.png')
 foreach ($runtimeFile in $runtimeFiles) {
     Copy-Item -LiteralPath (Join-Path $projectPath $runtimeFile) -Destination $stagePath
 }

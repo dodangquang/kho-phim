@@ -81,7 +81,10 @@
     var rows = [];
     if (path === 'search') rows.push([el('search-input'), el('search-button')]);
     if (path === 'history') rows.push([el('history-clear')]);
-    if (path === 'settings') rows.push([el('clear-cache'), el('clear-history')]);
+    if (path === 'settings') {
+      rows.push([el('update-check'), el('update-apply'), el('update-restore')].filter(function (node) { return node && !node.disabled; }));
+      rows.push([el('clear-cache'), el('clear-history')]);
+    }
     var columns = gridColumns();
     for (var i = 0; i < gridCards.length; i += columns) rows.push(gridCards.slice(i, i + columns));
     if (path !== 'settings') rows.push([el('previous'), el('retry'), el('next')].filter(function (node) { return !node.disabled; }));
@@ -578,6 +581,20 @@
     try { global.localStorage.removeItem(C.HISTORY_KEY); toast('Đã xóa lịch sử của ứng dụng này.'); } catch (ignore) { toast('TV không cho phép xóa lịch sử lúc này.'); }
   };
   el('clear-cache').onclick = function () { cache.clear(); detailCache.clear(); home.clear(); global.KhoPosters.clear(); toast('Đã xóa bộ nhớ tạm danh sách và poster.'); };
+  if (global.KhoUpdate) {
+    global.KhoUpdate.bind(function () {
+      var update = global.KhoUpdate.info();
+      text('update-status', update.status);
+      text('update-version', 'Giao diện/trình phát: ' + C.VERSION + ' · Gói TV: ' + update.packageVersion);
+      el('update-check').disabled = update.checking;
+      el('update-apply').disabled = !update.pending || update.checking;
+      el('update-restore').disabled = !update.canRestore && !update.pending;
+      if (categories[selected][1] === 'settings') updateMainRows([]);
+    }, function () { return scene !== 'player'; });
+    el('update-check').onclick = global.KhoUpdate.check;
+    el('update-apply').onclick = global.KhoUpdate.apply;
+    el('update-restore').onclick = global.KhoUpdate.restore;
+  }
   el('history-clear').onclick = function () { el('clear-history').click(); page = 1; loadList(false, false); focus(el('history-clear')); };
   document.addEventListener('focusin', function (event) {
     if (event.target.tagName === 'BUTTON' || event.target.getAttribute('role') === 'button' || event.target === el('search-input')) {

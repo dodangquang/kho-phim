@@ -1,8 +1,12 @@
 {
   "name": "kho-phim-samsung-tv",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "description": "Local Samsung Tizen TV app for Kho Phim with the Tủ Phim source",
-  "scripts": { "test": "node tests/regression.cjs", "test:web": "node tests/web-player.cjs" },
+  "scripts": {
+    "build:update": "node tools/build-update.cjs",
+    "test": "node tools/build-update.cjs --check && node --test tests/update-unit.test.cjs && node tests/update-browser.cjs && node tests/regression.cjs",
+    "test:web": "node tests/web-player.cjs"
+  },
   "devDependencies": { "acorn": "8.15.0", "playwright": "1.62.1" }
 }

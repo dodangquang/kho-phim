@@ -59,7 +59,7 @@ function mockPlatform() {
     fs.createReadStream(file).pipe(res);
   });
   try {
-    for (const file of ['boot.js', 'ratings.js', 'core.js', 'player.js', 'posters.js', 'home.js', 'app.js']) {
+    for (const file of ['boot.js', 'update-hash.js', 'updater.js', 'ratings.js', 'core.js', 'player.js', 'posters.js', 'home.js', 'app.js']) {
       acorn.parse(fs.readFileSync(path.join(root, file), 'utf8'), { ecmaVersion: 5 });
     }
     pass('All runtime JavaScript parses as ES5');
