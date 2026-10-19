@@ -19,7 +19,8 @@ module.exports = async function handler(req, res) {
       res.setHeader('Cache-Control', 'no-store');
       return res.end();
     }
-    res.setHeader('Cache-Control', result.hls ? 'no-store' : 'public, max-age=30, s-maxage=60');
+    // Do not add browser/CDN cache time on top of the short episode cache.
+    res.setHeader('Cache-Control', result.hls || result.json?.movie ? 'no-store' : 'public, max-age=30, s-maxage=60');
     res.setHeader('Content-Type', result.hls ? 'application/vnd.apple.mpegurl; charset=utf-8' : 'application/json; charset=utf-8');
     res.statusCode = 200;
     return res.end(req.method === 'HEAD' ? '' : result.hls || JSON.stringify(result.json));

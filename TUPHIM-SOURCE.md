@@ -1,6 +1,6 @@
 # Nguồn Tủ Phim
 
-Web Mobile 1.0.18, Desktop 1.0.10, TV Web 1.0.16, Samsung 1.0.14, APK Mobile/TV 1.0.7 (code8) và source iOS 1.0.4 (build5) dùng duy nhất danh mục Tủ Phim. Các phiên bản cài đặt cũ cần nâng cấp để nhận thay đổi nguồn.
+Web Mobile 1.0.19, Desktop 1.0.11, TV Web 1.0.17, Samsung 1.0.15, APK Mobile/TV 1.0.7 (code8) và source iOS 1.0.4 (build5) dùng duy nhất danh mục Tủ Phim. Các phiên bản cài đặt cũ cần nâng cấp để nhận thay đổi nguồn.
 
 ## Dữ liệu và phát phim
 
@@ -11,6 +11,12 @@ Danh mục hỗ trợ mới cập nhật, phim lẻ (`single` và `movie`), phim
 Chỉ tạo link HLS cho tập có `useMedia: true`. Những lựa chọn chỉ có iframe ngoài không được gắn link HLS giả. Gateway đọc cấu hình JSON công khai trong trang embed và giải cách che URL mà trình phát công khai dùng. HLS không có phụ đề ngoài được chuyển hướng302 đến CDN để thiết bị xem tải trực tiếp; tránh đọc trước từ data centre khi CDN trả404 theo vị trí mạng. Với WebVTT ngoài, gateway trả manifest có nhóm phụ đề và URI tuyệt đối. Không chạy JavaScript upstream, không tự giải mã video/DRM và không thay đổi danh tính/Referer để vượt lỗi403. Video và phụ đề được tải trực tiếp từ CDN nguồn; gateway không chuyển tiếp byte video.
 
 Ưu tiên Diamond khi phim có server này, sau đó server có nhiều tập HLS hơn; vẫn giữ các lựa chọn khác. Một số server nguồn trả403 hoặc tải segment chậm. Kho Phim báo lỗi để đổi server; việc thay nguồn không bảo đảm mọi server upstream luôn hoạt động hay tải nhanh. Nhánh ghép phụ đề chưa hỗ trợ HLS có khóa mã hóa. Không sửa hoặc giả điểm IMDb/TMDB; điểm cập nhật cùng dữ liệu phim.
+
+## Độ mới của danh sách tập
+
+Chi tiết phim và các trang tập chỉ cache tại gateway 15 giây; HTTP trả `Cache-Control: no-store` để trình duyệt/CDN không cộng thêm thời gian lưu. Danh mục vẫn có cache riêng 90 giây. Web Mobile/Desktop mở chi tiết bằng fetch no-store; TV Web không lấy lại chi tiết từ cache ba phút trong phiên. Cả ba giao diện có nút Làm mới danh sách tập/Làm mới tập, giữ server đang chọn và danh sách cũ khi mất mạng. Danh sách đã mở không tự thay đổi trong lúc phát; chọn nút làm mới hoặc đóng/mở lại chi tiết.
+
+Sửa ngày20/10/2026 sau khi đối chiếu JoJo phần6: API công khai và gateway đều có5 tập, gồm hash `5107055b0d1a051f55`. Không thêm phim từ nguồn cũ. Kiểm tra hồi quy dùng đồng hồ giả cho bước4→5 ở gateway, cache header của HTTP và UI4→5 trên Mobile/Desktop/TV (Edge/WebKit), gồm giữ server, lỗi mạng và đóng chi tiết khi đang tải. Đây không phải xác nhận phát trên phần cứng iPhone/TV thật.
 
 ## Lịch sử
 

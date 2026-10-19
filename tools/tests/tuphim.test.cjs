@@ -95,6 +95,42 @@ test('detail loads later episode pages on the original source index', async () =
   assert.match(missing.json.movie.audio_notice, /Chưa thấy server ghi nhãn Thuyết minh/);
   await assert.rejects(source('phim/tp--series', new URLSearchParams({ audio: 'arbitrary' })), { status: 400 });
 });
+test('new episodes and later pages appear within 15 seconds without inheriting the catalogue cache', async () => {
+  let time = 0, count = 4;
+  const requests = [];
+  const source = createSource({ now: () => time, fetchImpl: async url => {
+    requests.push(url);
+    const row = { hash: '12345678', name: 'Tập 01', slug: 'tap-01', useMedia: true };
+    const data = url.includes('/episodes?')
+      ? { episodes: [{ ...row, hash: 'hashpage' + count, name: 'Tập ' + count, slug: 'tap-' + count }] }
+      : { movie: { primarySlug: 'updating' }, watchSources: [{ hasEpisodes: true, sourceIndex: 0, nickname: 'Diamond [VS]', episodeCount: count, episodePagination: { totalPages: 2 }, episodes: [row] }] };
+    return new Response(JSON.stringify({ ok: true, data }));
+  } });
+  const get = async () => (await source('phim/tp--updating')).json.episodes[0].server_data.at(-1).name;
+  assert.equal(await get(), 'Tập 4');
+  count = 5; time = 14999;
+  assert.equal(await get(), 'Tập 4');
+  assert.equal(requests.length, 2, 'Nearby opens share bounded upstream requests');
+  time = 15001;
+  assert.equal(await get(), 'Tập 5');
+  assert.equal(requests.length, 4, 'Both detail and later episode pages expire after 15s');
+});
+test('HTTP detail responses bypass browser and CDN caches while catalogue caching remains enabled', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async url => new Response(JSON.stringify({ ok: true, data: url.includes('/movies/')
+    ? { movie: { primarySlug: 'fresh' }, watchSources: [] }
+    : { items: [{ primarySlug: 'fresh' }], total: 1, page: 1, limit: 24, totalPages: 1 } }));
+  let handler;
+  try { delete require.cache[require.resolve('../../api/tuphim')]; handler = require('../../api/tuphim'); }
+  finally { global.fetch = originalFetch; }
+  for (const [path, cache] of [['phim/tp--fresh', 'no-store'], ['danh-sach/phim-moi-cap-nhat', 'public, max-age=30, s-maxage=60']]) {
+    const headers = {};
+    const res = { setHeader(key, value) { headers[key] = value; }, end(body) { this.body = body; } };
+    await handler({ method: 'GET', url: '/source/' + path, query: { path } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(headers['Cache-Control'], cache);
+  }
+});
 test('upstream errors do not fall back to retired source', async () => {
   let count = 0;
   const source = createSource({ fetchImpl: async () => { count++; return new Response('Unavailable', { status: 503 }); } });

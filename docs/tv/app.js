@@ -40,7 +40,6 @@
   var request = new C.Request();
   var detailRequest = new C.Request();
   var cache = new C.Cache(6);
-  var detailCache = new C.Cache(3);
   var sourceSizes = {};
   var toastTimer = null;
   var hudTimer = null;
@@ -255,7 +254,7 @@
 
   function episodes() { return servers[serverIndex] ? servers[serverIndex].server_data : []; }
   function updateDetailRows() {
-    var actions = [el('play'), el('detail-back')].filter(function (node) { return !node.disabled; });
+    var actions = [el('play'), el('detail-refresh'), el('detail-back')].filter(function (node) { return !node.disabled; });
     detailRows = [actions];
     var sourceButtons = Array.prototype.slice.call(el('servers').children);
     if (sourceButtons.length) detailRows.push(sourceButtons);
@@ -287,7 +286,7 @@
     renderEpisodes();
     focus(el('servers').children[index]);
   }
-  function displayDetail(data) {
+  function displayDetail(data, preferredServer) {
     movie = data.movie;
     el('detail-backdrop').src = C.image(movie.thumb_url || movie.poster_url);
     text('detail-rating', global.KhoRatings.detail(global.KhoRatings.fromMovie(movie)));
@@ -297,9 +296,10 @@
     serverIndex = 0;
     episodePage = 0;
     historyEntry = C.findHistory(movie.slug);
-    if (historyEntry && !data.audio) {
+    var selectedName = preferredServer || (historyEntry && !data.audio ? historyEntry.serverName : '');
+    if (selectedName) {
       for (var i = 0; i < servers.length; i++) {
-        if (servers[i].server_name === historyEntry.serverName) { serverIndex = i; break; }
+        if (servers[i].server_name === selectedName) { serverIndex = i; break; }
       }
     }
     text('detail-title', movie.name || movie.origin_name || movie.slug);
@@ -348,16 +348,15 @@
     el('servers').textContent = '';
     el('episodes').textContent = '';
     el('play').disabled = true;
+    el('detail-refresh').disabled = true;
     el('episode-previous').disabled = true;
     el('episode-next').disabled = true;
     updateDetailRows();
     focus(el('detail-back'));
     var audio = /^(lt|tm)$/.test(audioPreference || '') ? audioPreference : '';
-    var detailKey = slug + ':' + audio;
-    var saved = detailCache.get(detailKey);
-    if (saved) { displayDetail(saved); return; }
     var encoded = encodeURIComponent(slug);
     detailRequest.get([C.API_BASE + '/phim/' + encoded + (audio ? '?audio=' + audio : '')], function (error, data) {
+      el('detail-refresh').disabled = !!error;
       if (error || !data.movie || !C.isCurrentMovie(data.movie.slug)) {
         text('detail-title', 'Chưa tải được thông tin phim');
         text('detail-status', error ? error.message : 'Nguồn dữ liệu không trả về thông tin phim.');
@@ -367,7 +366,6 @@
         updateDetailRows();
         return;
       }
-      detailCache.set(detailKey, data);
       displayDetail(data);
     }, function (json) { return !!json.movie; });
   }
@@ -571,6 +569,24 @@
   el('next').onclick = function () { pageChange(1); };
   el('retry').onclick = function () { loadList(true, false); };
   el('detail-back').onclick = closeDetail;
+  el('detail-refresh').onclick = function () {
+    if (scene !== 'detail' || !movie || el('detail-refresh').disabled) return;
+    var slug = movie.slug;
+    var audio = /^(lt|tm)$/.test(movie.audio_preference || '') ? '?audio=' + movie.audio_preference : '';
+    el('detail-refresh').disabled = true;
+    text('detail-status', 'Đang kiểm tra tập mới...');
+    detailRequest.get([C.API_BASE + '/phim/' + encodeURIComponent(slug) + audio], function (error, data) {
+      el('detail-refresh').disabled = false;
+      if (scene !== 'detail' || !movie || movie.slug !== slug) return;
+      if (error || !data.movie || data.movie.slug !== slug) {
+        text('detail-status', 'Chưa tải được tập mới. Danh sách hiện tại vẫn dùng được; hãy thử lại.');
+        updateDetailRows(); return;
+      }
+      var selectedName = servers[serverIndex] ? servers[serverIndex].server_name : '';
+      displayDetail(data, selectedName);
+      text('detail-status', 'Đã làm mới danh sách tập.');
+    }, function (json) { return !!json.movie; });
+  };
   el('episode-previous').onclick = function () { episodePage--; renderEpisodes(); focus(el('episodes').firstChild); };
   el('episode-next').onclick = function () { episodePage++; renderEpisodes(); focus(el('episodes').firstChild); };
   el('player-back').onclick = stopPlayback;
@@ -590,7 +606,7 @@
     global.KhoSync.clear();
     try { global.localStorage.removeItem(C.HISTORY_KEY); toast('Đã xóa lịch sử của ứng dụng này.'); } catch (ignore) { toast('TV không cho phép xóa lịch sử lúc này.'); }
   };
-  el('clear-cache').onclick = function () { cache.clear(); detailCache.clear(); home.clear(); global.KhoPosters.clear(); toast('Đã xóa bộ nhớ tạm danh sách và poster.'); };
+  el('clear-cache').onclick = function () { cache.clear(); home.clear(); global.KhoPosters.clear(); toast('Đã xóa bộ nhớ tạm danh sách và poster.'); };
   el('history-clear').onclick = function () { el('clear-history').click(); page = 1; loadList(false, false); focus(el('history-clear')); };
   document.addEventListener('focusin', function (event) {
     if (event.target.tagName === 'BUTTON' || event.target.getAttribute('role') === 'button' || event.target === el('search-input')) {
