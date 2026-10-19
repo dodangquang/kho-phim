@@ -39,10 +39,17 @@ async function main() {
       await context.route('**/sync/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: 'window.KHO_SYNC_CONFIG={enabled:false};' }));
       await context.route(gateway + '/**', route => {
         const url = new URL(route.request().url());
-        assert.equal(/thuyet-minh|long-tieng/.test(url.pathname), false, 'Unsupported audio-only catalog must not be requested');
         if (url.pathname.includes('/phim/')) {
           assert.equal(url.pathname, '/source/phim/' + movie.slug, 'Only a current source slug may be resolved');
-          return route.fulfill({ json: { status: true, movie, episodes: ['Vietsub', 'Thuyết Minh'].map(server_name => ({ server_name, server_data: [{ slug: 'tap-1', name: 'Tập 1', link_m3u8: gateway + '/stream/public-fixture/index.m3u8' }] })) } });
+          const audio = url.searchParams.get('audio');
+          const names = audio === 'lt' ? ['Lồng Tiếng', 'Vietsub', 'Thuyết Minh'] : audio === 'tm' ? ['Thuyết Minh', 'Vietsub', 'Lồng Tiếng'] : ['Vietsub', 'Thuyết Minh', 'Lồng Tiếng'];
+          return route.fulfill({ json: { status: true, audio, movie: { ...movie, audio_preference: audio }, episodes: names.map(server_name => ({ server_name, server_data: [{ slug: 'tap-1', name: 'Tập 1', link_m3u8: gateway + '/stream/public-fixture/index.m3u8' }] })) } });
+        }
+        const audio = url.pathname.endsWith('/phim-long-tieng') ? 'lt' : url.pathname.endsWith('/phim-thuyet-minh') ? 'tm' : '';
+        if (audio) {
+          const p = Number(url.searchParams.get('page')) || 1;
+          const items = Array.from({ length: 6 }, (_, i) => ({ ...movie, slug: p === 1 && i === 0 ? movie.slug : 'tp--' + audio + '-' + p + '-' + i, name: audio.toUpperCase() + ' phim ' + p + '-' + i, lang_keys: [audio], audio_preference: audio }));
+          return route.fulfill({ json: { status: true, audio, items, data: { items, params: { pagination: { currentPage: p, totalItems: 12, totalItemsPerPage: 6, totalPages: 2 } } } } });
         }
         // Even a stale response item is excluded before rendering.
         const items = [movie, { ...movie, slug: 'stale-catalog-entry', name: 'Retired catalog card' }];
@@ -77,10 +84,30 @@ async function main() {
       await page.locator(searchCard).first().click();
       const serverButtons = mobile ? '.server-btn' : desktop ? '.tv-server-pill' : '#servers button';
       await page.locator(serverButtons).first().waitFor();
-      assert.equal(await page.locator(serverButtons).count(), 2, 'Audio/server choices remain on movie detail');
+      assert.equal(await page.locator(serverButtons).count(), 3, 'Audio/server choices remain on movie detail');
+      const close = mobile ? '.detail-close-btn' : desktop ? '#tv-detail-close-btn' : '#detail-back';
+      await page.locator(close).first().click();
+      for (const [key, tab, label] of [['lt', 'dubbed', 'Phim Lồng Tiếng'], ['tm', 'narrated', 'Phim Thuyết Minh']]) {
+        if (mobile) await page.locator('#category-filter-bar .pill-chip').filter({ hasText: label }).click();
+        else await page.locator('[data-tab="' + tab + '"]').click();
+        const cards = page.locator(mobile ? '#browse-grid .movie-card' : desktop ? '#tv-category-grid .tv-card' : '#grid .tv-card');
+        await cards.filter({ hasText: key.toUpperCase() + ' phim 1-0' }).waitFor();
+        assert.equal(await cards.count(), 6, 'Each audio category has its own first page');
+        await cards.first().click();
+        const active = page.locator(mobile ? '.server-btn.active' : desktop ? '.tv-server-pill.active' : '#servers .active');
+        await active.waitFor();
+        assert.equal(await active.innerText(), key === 'lt' ? 'Lồng Tiếng' : 'Thuyết Minh', 'Category audio takes priority over saved Vietsub server');
+        assert.ok(requests.some(u => u.includes('/phim/' + movie.slug + '?audio=' + key)));
+        await page.locator(close).first().click();
+        const more = page.locator(mobile ? '#browse-load-more' : desktop ? '#tv-load-more-btn' : '#next');
+        await more.click();
+        await cards.filter({ hasText: key.toUpperCase() + ' phim 2-0' }).waitFor();
+        assert.ok(requests.some(u => u.includes('/phim-' + (key === 'lt' ? 'long-tieng' : 'thuyet-minh')) && new URL(u).searchParams.get('page') === '2'));
+        assert.equal((await cards.allTextContents()).some(t => t.includes((key === 'lt' ? 'TM' : 'LT') + ' phim')), false, 'Audio pages never mix categories');
+      }
       assert.equal(requests.some(url => /phimapi\.com|phimmoi[^/]*\.|ophim1\.com|phimimg\.com|legacy-images\.example/.test(new URL(url).hostname)), false, 'No retired catalog or legacy image requests');
       assert.deepEqual(errors, [], surface + ' no browser runtime errors');
-      console.log('PASS ' + surface + ': exclusive Tủ Phim catalog, current-only continue, retained legacy history, search guidance and server/audio list; ' + (safari ? 'WebKit' : 'Edge'));
+      console.log('PASS ' + surface + ': exclusive Tủ Phim catalog, current-only continue, retained legacy history, search guidance, audio categories/pagination/preference; ' + (safari ? 'WebKit' : 'Edge'));
       await context.close();
     }
   } finally { if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }

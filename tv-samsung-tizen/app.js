@@ -4,6 +4,7 @@
   var categories = [
     ['Tìm Kiếm', 'search'], ['Trang Chủ', 'home'],
     ['Phim Lẻ', 'danh-sach/phim-le'], ['Phim Bộ', 'danh-sach/phim-bo'],
+    ['Lồng Tiếng', 'danh-sach/phim-long-tieng'], ['Thuyết Minh', 'danh-sach/phim-thuyet-minh'],
     ['Chiếu Rạp', 'danh-sach/phim-chieu-rap'], ['Đã Xem', 'history'], ['Cài Đặt', 'settings']
   ];
   function el(id) { return document.getElementById(id); }
@@ -138,7 +139,7 @@
     var card = child('div', continuing ? 'tv-continue-card' : 'tv-card');
     card.setAttribute('role', 'button');
     card.tabIndex = 0;
-    card.onclick = function () { openDetail(item.slug, continuing); };
+    card.onclick = function () { openDetail(item.slug, continuing, item.audio_preference); };
     card.setAttribute('data-slug', item.slug);
     var wrap = child('span', continuing ? 'tv-continue-thumb-wrap' : 'tv-card-poster-wrap');
     var image = global.KhoPosters.create(continuing && !C.isCurrentMovie(item.slug) ? 'icon.png' : C.image(continuing ? (item.banner || item.thumb_url || item.poster_url || item.poster) : (item.poster_url || item.posterUrl || item.thumb_url), domain), continuing);
@@ -292,7 +293,7 @@
     serverIndex = 0;
     episodePage = 0;
     historyEntry = C.findHistory(movie.slug);
-    if (historyEntry) {
+    if (historyEntry && !data.audio) {
       for (var i = 0; i < servers.length; i++) {
         if (servers[i].server_name === historyEntry.serverName) { serverIndex = i; break; }
       }
@@ -311,10 +312,11 @@
       el('servers').appendChild(node);
     });
     renderEpisodes();
+    if (movie.audio_notice) text('detail-status', movie.audio_notice);
     focus(el('play').disabled ? el('detail-back') : el('play'));
     if (detailAutoPlay) { detailAutoPlay = false; resumePlayback(); }
   }
-  function openDetail(slug, autoPlay) {
+  function openDetail(slug, autoPlay, audioPreference) {
     if (!slug) return;
     if (!C.isCurrentMovie(slug)) {
       var legacy = C.findHistory(slug);
@@ -346,10 +348,12 @@
     el('episode-next').disabled = true;
     updateDetailRows();
     focus(el('detail-back'));
-    var saved = detailCache.get(slug);
+    var audio = /^(lt|tm)$/.test(audioPreference || '') ? audioPreference : '';
+    var detailKey = slug + ':' + audio;
+    var saved = detailCache.get(detailKey);
     if (saved) { displayDetail(saved); return; }
     var encoded = encodeURIComponent(slug);
-    detailRequest.get([C.API_BASE + '/phim/' + encoded], function (error, data) {
+    detailRequest.get([C.API_BASE + '/phim/' + encoded + (audio ? '?audio=' + audio : '')], function (error, data) {
       if (error || !data.movie || !C.isCurrentMovie(data.movie.slug)) {
         text('detail-title', 'Chưa tải được thông tin phim');
         text('detail-status', error ? error.message : 'Nguồn dữ liệu không trả về thông tin phim.');
@@ -359,7 +363,7 @@
         updateDetailRows();
         return;
       }
-      detailCache.set(slug, data);
+      detailCache.set(detailKey, data);
       displayDetail(data);
     }, function (json) { return !!json.movie; });
   }

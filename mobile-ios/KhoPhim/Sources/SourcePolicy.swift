@@ -11,7 +11,6 @@ enum SourcePolicy {
 
     static func categoryURL(_ path: String, page: Int = 1) -> URL? {
         let clean = path.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        guard !clean.contains("thuyet-minh"), !clean.contains("long-tieng") else { return nil }
         let route: String
         if ["phim-moi", "phim-moi-cap-nhat", "danh-sach/phim-moi-cap-nhat"].contains(clean) {
             route = "danh-sach/phim-moi-cap-nhat"
@@ -23,8 +22,9 @@ enum SourcePolicy {
         return URL(string: "\(apiBase)/\(route)?page=\(max(1, page))")
     }
 
-    static func detailURL(_ slug: String) -> URL? {
-        isCurrentSlug(slug) ? URL(string: "\(apiBase)/phim/\(slug)") : nil
+    static func detailURL(_ slug: String, audio: String? = nil) -> URL? {
+        let suffix = audio.map { ["lt", "tm"].contains($0) ? "?audio=" + $0 : "" } ?? ""
+        return isCurrentSlug(slug) ? URL(string: "\(apiBase)/phim/\(slug)" + suffix) : nil
     }
 
     static func imageURL(_ raw: String) -> String {

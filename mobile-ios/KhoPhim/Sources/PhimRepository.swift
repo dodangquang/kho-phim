@@ -40,7 +40,8 @@ class PhimRepository {
                     bannerUrl: finalBanner,
                     badge: quality?.isEmpty == false ? quality : nil,
                     episodeBadge: epBadge?.isEmpty == false ? epBadge : nil,
-                    modifiedTime: modifiedTime, rating: MovieRating.fromMovie(item)
+                    modifiedTime: modifiedTime, rating: MovieRating.fromMovie(item),
+                    audioPreference: (item["audio_preference"] as? String).flatMap { ["lt", "tm"].contains($0) ? $0 : nil }
                 )
             )
         }
@@ -85,14 +86,16 @@ class PhimRepository {
         async let vietNamReq = getCategoryPage(path: "quoc-gia/viet-nam")
         async let theaterReq = getCategoryPage(path: "phim-chieu-rap")
         async let seriesReq = getCategoryPage(path: "phim-bo")
+        async let dubbedReq = getCategoryPage(path: "phim-long-tieng")
+        async let narratedReq = getCategoryPage(path: "phim-thuyet-minh")
         async let actionReq = getCategoryPage(path: "the-loai/hanh-dong")
         async let animeReq = getCategoryPage(path: "the-loai/hoat-hinh")
         async let horrorReq = getCategoryPage(path: "the-loai/kinh-di")
         async let scifiReq = getCategoryPage(path: "the-loai/vien-tuong")
         async let romanceReq = getCategoryPage(path: "the-loai/tinh-cam")
 
-        let (moiCapNhat, vietNam, theater, series, action, anime, horror, scifi, romance) = await (
-            moiCapNhatReq, vietNamReq, theaterReq, seriesReq, actionReq, animeReq, horrorReq, scifiReq, romanceReq
+        let (moiCapNhat, vietNam, theater, series, dubbed, narrated, action, anime, horror, scifi, romance) = await (
+            moiCapNhatReq, vietNamReq, theaterReq, seriesReq, dubbedReq, narratedReq, actionReq, animeReq, horrorReq, scifiReq, romanceReq
         )
 
         let hero = moiCapNhat.first ?? vietNam.first
@@ -102,6 +105,8 @@ class PhimRepository {
         if !vietNam.isEmpty { sections.append(MovieSection(title: "🇻🇳 Phim Việt Nam", slug: "quoc-gia/viet-nam", movies: vietNam)) }
         if !theater.isEmpty { sections.append(MovieSection(title: "🍿 Phim Chiếu Rạp", slug: "phim-chieu-rap", movies: theater)) }
         if !series.isEmpty { sections.append(MovieSection(title: "📺 Phim Bộ Đang Hot", slug: "phim-bo", movies: series)) }
+        if !dubbed.isEmpty { sections.append(MovieSection(title: "🗣️ Phim Lồng Tiếng", slug: "phim-long-tieng", movies: dubbed)) }
+        if !narrated.isEmpty { sections.append(MovieSection(title: "🎙️ Phim Thuyết Minh", slug: "phim-thuyet-minh", movies: narrated)) }
         if !action.isEmpty { sections.append(MovieSection(title: "⚔️ Hành Động & Kịch Tính", slug: "the-loai/hanh-dong", movies: action)) }
         if !anime.isEmpty { sections.append(MovieSection(title: "💥 Anime & Hoạt Hình", slug: "the-loai/hoat-hinh", movies: anime)) }
         if !horror.isEmpty { sections.append(MovieSection(title: "👻 Kinh Dị & Rùng Rợn", slug: "the-loai/kinh-di", movies: horror)) }
@@ -131,8 +136,8 @@ class PhimRepository {
         return []
     }
 
-    func getMovieDetail(slug: String) async -> MovieDetail? {
-        guard let url = SourcePolicy.detailURL(slug) else { return nil }
+    func getMovieDetail(slug: String, audioPreference: String? = nil) async -> MovieDetail? {
+        guard let url = SourcePolicy.detailURL(slug, audio: audioPreference) else { return nil }
         let clean = slug
         let providers = [url]
 
@@ -147,7 +152,7 @@ class PhimRepository {
                    let movieObj = json["movie"] as? [String: Any] {
                     let title = (movieObj["name"] as? String) ?? clean
                     let content = (movieObj["content"] as? String) ?? ""
-                    let overview = content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    let overview = [(movieObj["audio_notice"] as? String) ?? "", content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)].filter { !$0.isEmpty }.joined(separator: "\n\n")
                     let poster = formatImageUrl((movieObj["poster_url"] as? String) ?? "")
                     let thumb = formatImageUrl((movieObj["thumb_url"] as? String) ?? "")
                     let finalPoster = !poster.isEmpty ? poster : thumb

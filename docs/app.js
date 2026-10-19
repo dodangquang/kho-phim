@@ -82,6 +82,8 @@
     { id: 'phim-le', title: '🎬 Phim Lẻ', path: 'v1/api/danh-sach/phim-le' },
     { id: 'phim-chieu-rap', title: '🍿 Chiếu Rạp', path: 'v1/api/danh-sach/phim-chieu-rap' },
     { id: 'phim-bo', title: '📺 Phim Bộ', path: 'v1/api/danh-sach/phim-bo' },
+    { id: 'long-tieng', title: '🗣️ Phim Lồng Tiếng', path: 'v1/api/danh-sach/phim-long-tieng' },
+    { id: 'thuyet-minh', title: '🎙️ Phim Thuyết Minh', path: 'v1/api/danh-sach/phim-thuyet-minh' },
     { id: 'hanh-dong', title: '⚔️ Hành Động', path: 'v1/api/the-loai/hanh-dong' },
     { id: 'hoat-hinh', title: '💥 Anime', path: 'v1/api/the-loai/hoat-hinh' },
     { id: 'kinh-di', title: '👻 Kinh Dị', path: 'v1/api/the-loai/kinh-di' },
@@ -397,7 +399,7 @@
   function createMovieCard(movie) {
     const card = document.createElement('div');
     card.className = 'movie-card';
-    card.onclick = () => openMovieDetail(movie.slug);
+    card.onclick = () => openMovieDetail(movie.slug, false, movie.audio_preference);
 
     const { primary, fallback } = getMovieImageUrls(movie);
     const badge = movie.quality || movie.year || '';
@@ -495,6 +497,8 @@
       CATEGORIES.find(c => c.id === 'viet-nam'),
       CATEGORIES.find(c => c.id === 'phim-le'),
       CATEGORIES.find(c => c.id === 'phim-bo'),
+      CATEGORIES.find(c => c.id === 'long-tieng'),
+      CATEGORIES.find(c => c.id === 'thuyet-minh'),
       CATEGORIES.find(c => c.id === 'phim-chieu-rap'),
       CATEGORIES.find(c => c.id === 'hanh-dong'),
       CATEGORIES.find(c => c.id === 'hoat-hinh'),
@@ -598,7 +602,7 @@
   }
 
   // Open Movie Detail Modal
-  window.openMovieDetail = async function (slug, autoPlay = false) {
+  window.openMovieDetail = async function (slug, autoPlay = false, audioPreference = '') {
     if (typeof slug !== 'string' || !/^[a-zA-Z0-9_-]{1,180}$/.test(slug)) return;
     if (!isCurrentMovie(slug)) {
       ++detailGeneration;
@@ -634,7 +638,7 @@
       const timeout = setTimeout(() => controller.abort(), 12000);
       let json;
       try {
-        const resp = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}`, { signal: controller.signal });
+        const resp = await fetch(`${API_BASE}/phim/${encodeURIComponent(slug)}${['lt', 'tm'].includes(audioPreference) ? '?audio=' + audioPreference : ''}`, { signal: controller.signal });
         if (!resp.ok) throw new Error('Máy chủ dữ liệu chưa phản hồi. Hãy thử lại.');
         json = await resp.json();
       } finally { clearTimeout(timeout); }
@@ -713,6 +717,7 @@
           </div>
 
           ${KhoRatings.html(movie, 'movie-rating-detail', true)}
+          ${movie.audio_notice ? `<p class="detail-overview">${KhoHistory.escape(movie.audio_notice)}</p>` : ''}
 
           <div style="display:flex; gap:10px; margin-bottom:20px;">
             <button class="btn-primary" style="flex:1;" onclick="playFirstOrResumeEpisode()">
@@ -811,7 +816,7 @@
     if (!episodes || episodes.length === 0) return;
     const historyItem = getWatchHistory().find(x => x.movieSlug === movie.slug);
     let serverIdx = currentServerIndex;
-    if (historyItem && historyItem.serverName) {
+    if (historyItem && historyItem.serverName && !movie.audio_preference) {
       const matchSrv = episodes.findIndex(s => s.server_name === historyItem.serverName);
       if (matchSrv !== -1) {
         serverIdx = matchSrv;

@@ -192,13 +192,13 @@ struct DetailView: View {
     @MainActor
     private func loadDetail() async {
         isLoading = true
-        let detail = await PhimRepository.shared.getMovieDetail(slug: movie.slug)
+        let detail = await PhimRepository.shared.getMovieDetail(slug: movie.slug, audioPreference: movie.audioPreference)
         guard !Task.isCancelled else { return }
         movieDetail = detail
         if let detail = detail {
             selectedServer = PlaybackPolicy.resumeEpisode(
                 in: detail.episodes,
-                progress: watchHistoryManager.getProgress(for: movie.slug),
+                progress: movie.audioPreference == nil ? watchHistoryManager.getProgress(for: movie.slug) : nil,
                 server: selectedServer
             )?.serverName ?? ""
         }

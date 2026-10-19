@@ -1,6 +1,6 @@
-# Kho Phim TV Web 1.0.15
+# Kho Phim TV Web 1.0.16
 
-Danh mục, tìm kiếm và nguồn phát sử dụng Tủ Phim qua `https://khophimqd.vercel.app/source`. Không có fallback sang nguồn phim cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; các danh sách riêng Thuyết Minh/Lồng Tiếng không còn được gửi tới API.
+Danh mục, tìm kiếm và nguồn phát sử dụng Tủ Phim qua `https://khophimqd.vercel.app/source`. Không có fallback sang nguồn phim cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; hai mục Lồng Tiếng/Thuyết Minh có trong menu và trang chủ, lọc theo nhãn âm thanh và có phân trang riêng. Mở từ một mục sẽ ưu tiên đúng server tương ứng.
 
 Lịch sử Google tiếp tục đồng bộ với web và APK bằng schema cũ. Phim cũ không bị xóa, được ẩn khỏi Xem tiếp và dùng ảnh mặc định trong Lịch sử. Chọn phim cũ sẽ mở tìm kiếm với tiêu đề đã lưu; người dùng tự chọn đúng năm/phần trên nguồn mới. Slug phim mới có tiền tố `tp--` để không trùng nguồn cũ.
 

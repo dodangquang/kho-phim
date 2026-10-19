@@ -55,11 +55,11 @@ fun DetailScreen(
     LaunchedEffect(currentMovie.slug) {
         isLoading = true
         try {
-            val detail = repository.getMovieDetail(currentMovie.slug)
+            val detail = repository.getMovieDetail(currentMovie.slug, currentMovie.audioPreference)
             movieDetail = detail
             if (detail.episodes.isNotEmpty()) {
                 val servers = detail.episodes.map { it.serverName }.distinct()
-                val targetServer = lastProgress?.serverName?.takeIf { servers.contains(it) } ?: servers.firstOrNull() ?: ""
+                val targetServer = (if (currentMovie.audioPreference == null) lastProgress?.serverName?.takeIf { servers.contains(it) } else null) ?: servers.firstOrNull() ?: ""
                 selectedServer = targetServer
             }
         } catch (e: Exception) {

@@ -1,6 +1,6 @@
-# Kho Phim Samsung TV 1.0.13
+# Kho Phim Samsung TV 1.0.14
 
-Bản 1.0.13 chuyển toàn bộ danh mục, tìm kiếm và nguồn phát sang Tủ Phim qua gateway chung. Không còn gọi nguồn phim cũ hay máy chủ dự phòng của nguồn cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; các mục danh sách riêng Thuyết Minh và Lồng Tiếng đã bỏ vì nguồn mới không hỗ trợ bộ lọc này.
+Bản 1.0.14 chuyển toàn bộ danh mục, tìm kiếm và nguồn phát sang Tủ Phim qua gateway chung. Không còn gọi nguồn phim cũ hay máy chủ dự phòng của nguồn cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; hai mục Lồng Tiếng và Thuyết Minh có bộ lọc đúng theo nhãn âm thanh, phân trang riêng và ưu tiên server tương ứng khi mở phim.
 
 Tải [WGT 1.0.13 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/v1.0.6/KhoPhim_Samsung_Tizen_v1.0.13_UNSIGNED.wgt) trong Release1.0.6; gói gồm12file runtime, cần Apps2Samsung ký/cài.
 

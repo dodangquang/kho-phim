@@ -16,6 +16,8 @@
   const CATEGORY_TABS = {
     single: { title: '🎬 Phim Lẻ', path: 'danh-sach/phim-le' },
     series: { title: '📺 Phim Bộ', path: 'danh-sach/phim-bo' },
+    dubbed: { title: '🗣️ Phim Lồng Tiếng', path: 'danh-sach/phim-long-tieng' },
+    narrated: { title: '🎙️ Phim Thuyết Minh', path: 'danh-sach/phim-thuyet-minh' },
     theater: { title: '🍿 Phim Chiếu Rạp', path: 'danh-sach/phim-chieu-rap' }
   };
 
@@ -26,6 +28,8 @@
     { title: `${VN_FLAG_SVG} Phim Việt Nam`, path: 'quoc-gia/viet-nam' },
     { title: '🍿 Chiếu Rạp Đặc Sắc', path: 'danh-sach/phim-chieu-rap' },
     { title: '📺 Phim Bộ Hot', path: 'danh-sach/phim-bo' },
+    { title: '🗣️ Phim Lồng Tiếng', path: 'danh-sach/phim-long-tieng' },
+    { title: '🎙️ Phim Thuyết Minh', path: 'danh-sach/phim-thuyet-minh' },
     { title: '⚔️ Phim Hành Động', path: 'the-loai/hanh-dong' },
     { title: '💥 Anime / Hoạt Hình', path: 'the-loai/hoat-hinh' },
     { title: '👻 Phim Kinh Dị', path: 'the-loai/kinh-di' },
@@ -293,11 +297,12 @@
     }
   }
 
-  async function fetchMovieDetail(slug) {
+  async function fetchMovieDetail(slug, audioPreference = '') {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const res = await fetch(API_BASE + '/phim/' + encodeURIComponent(slug), { signal: controller.signal });
+      const audio = ['lt', 'tm'].includes(audioPreference) ? '?audio=' + audioPreference : '';
+      const res = await fetch(API_BASE + '/phim/' + encodeURIComponent(slug) + audio, { signal: controller.signal });
       if (!res.ok) return null;
       const json = await res.json();
       return json && json.movie && isCurrentMovie(json.movie.slug) ? json : null;
@@ -494,7 +499,7 @@
     `;
 
     card.querySelector('img').onerror = function () { this.onerror = null; this.src = fallback; };
-    card.onclick = () => openMovieDetail(item.slug);
+    card.onclick = () => openMovieDetail(item.slug, false, item.audio_preference);
     return card;
   }
 
@@ -741,7 +746,7 @@
   // ==========================================================================
   // MOVIE DETAIL MODAL
   // ==========================================================================
-  async function openMovieDetail(slug, autoPlay = false) {
+  async function openMovieDetail(slug, autoPlay = false, audioPreference = '') {
     if (!isCurrentMovie(slug)) {
       ++detailGeneration;
       clearTimeout(detailAutoplayTimer);
@@ -759,7 +764,7 @@
     const generation = ++detailGeneration;
     clearTimeout(detailAutoplayTimer);
     showToast('Đang tải thông tin phim...');
-    const data = await fetchMovieDetail(slug);
+    const data = await fetchMovieDetail(slug, audioPreference);
     if (generation !== detailGeneration) return;
     if (!data || !data.movie) {
       showToast('Không thể tải thông tin phim này');
@@ -779,6 +784,14 @@
     const cats = movie.category ? (Array.isArray(movie.category) ? movie.category.map(c => c.name).join(', ') : '') : '';
     document.getElementById('tv-detail-category').textContent = cats || (movie.country ? movie.country[0]?.name : 'Phim Hay');
     document.getElementById('tv-detail-overview').textContent = movie.content ? movie.content.replace(/<[^>]*>?/gm, '') : 'Nội dung phim đang được cập nhật...';
+    let audioNotice = document.getElementById('tv-audio-notice');
+    if (!audioNotice) {
+      audioNotice = document.createElement('p');
+      audioNotice.id = 'tv-audio-notice';
+      document.getElementById('tv-detail-overview').before(audioNotice);
+    }
+    audioNotice.textContent = movie.audio_notice || '';
+    audioNotice.hidden = !movie.audio_notice;
 
     // Parse Episodes & Servers
     currentEpisodeList = [];
@@ -790,7 +803,7 @@
 
     const episodesArr = data.episodes || [];
     const history = getWatchHistory().find(x => x.slug === slug);
-    const savedServer = history && episodesArr.findIndex(srv => srv.server_name === history.serverName);
+    const savedServer = !data.audio && history ? episodesArr.findIndex(srv => srv.server_name === history.serverName) : -1;
     currentServerIndex = savedServer >= 0 ? savedServer : 0;
     if (episodesArr.length > 0) {
       episodesArr.forEach((srv, sIdx) => {
