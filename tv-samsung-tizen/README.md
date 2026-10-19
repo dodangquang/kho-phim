@@ -2,7 +2,7 @@
 
 Bản 1.0.14 chuyển toàn bộ danh mục, tìm kiếm và nguồn phát sang Tủ Phim qua gateway chung. Không còn gọi nguồn phim cũ hay máy chủ dự phòng của nguồn cũ. Chọn nguồn/ngôn ngữ trong danh sách server của từng phim; hai mục Lồng Tiếng và Thuyết Minh có bộ lọc đúng theo nhãn âm thanh, phân trang riêng và ưu tiên server tương ứng khi mở phim.
 
-Tải [WGT 1.0.13 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/v1.0.6/KhoPhim_Samsung_Tizen_v1.0.13_UNSIGNED.wgt) trong Release1.0.6; gói gồm12file runtime, cần Apps2Samsung ký/cài.
+Tải [WGT 1.0.14 UNSIGNED](https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Samsung_Tizen_v1.0.14_UNSIGNED.wgt) trong Release1.0.7; gói gồm12file runtime, cần Apps2Samsung ký/cài.
 
 Lịch sử cũ và khóa lưu trữ được giữ nguyên. Phim từ nguồn cũ dùng ảnh mặc định, không xuất hiện trong Xem tiếp; chọn một mục cũ sẽ mở tìm kiếm với đúng tiêu đề đã lưu để người dùng chọn lại năm/phần phù hợp. ID mới có tiền tố `tp--`, không tự ghép phim chỉ dựa trên tên.
 
