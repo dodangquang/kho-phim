@@ -24,6 +24,7 @@ test('public catalogue gets a new identity, real ratings and absolute provider i
   assert.equal(row.modified.time, '2026-10-19');
   assert.equal(row.imdb.vote_average, 8.3);
   assert.equal(row.poster_url, 'https://cdn.phimsrv.com/a.webp');
+  assert.equal(movie({ primarySlug: 'card', posterPath300: 'https://cdn.phimsrv.com/card/poster_300.webp', posterPathOriginal: 'https://cdn.phimsrv.com/card/poster_original.webp' }).poster_url, 'https://cdn.phimsrv.com/card/poster_300.webp');
   assert.equal(movie({ primarySlug: 'vip', vipOnly: true }), null);
   assert.equal(movie({ primarySlug: 'x'.repeat(177) }), null);
 });
