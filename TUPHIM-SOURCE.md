@@ -8,9 +8,9 @@ Web Mobile 1.0.17, Desktop 1.0.9, TV Web 1.0.15, Samsung 1.0.13, APK Mobile/TV 1
 
 Danh mục hỗ trợ mới cập nhật, phim lẻ (`single` và `movie`), phim bộ, chiếu rạp, thể loại, quốc gia và tìm kiếm. Loại các phim upstream đánh dấu `vipOnly`. Không tạo danh mục Thuyết minh/Lồng tiếng riêng vì upstream bỏ qua bộ lọc đó; lựa chọn âm thanh phụ thuộc server từng phim.
 
-Chỉ tạo link HLS cho tập có `useMedia: true`. Những lựa chọn chỉ có iframe ngoài không được gắn link HLS giả. Gateway đọc cấu hình JSON công khai trong trang embed, giải cách che URL mà trình phát công khai dùng, rồi trả manifest HLS với URI tuyệt đối. Không chạy JavaScript upstream, không giải mã video/DRM và không thay đổi danh tính/Referer để vượt lỗi 403. Phụ đề WebVTT ngoài được gắn thành nhóm phụ đề HLS. Video và phụ đề được tải trực tiếp từ CDN nguồn; gateway không chuyển tiếp byte video.
+Chỉ tạo link HLS cho tập có `useMedia: true`. Những lựa chọn chỉ có iframe ngoài không được gắn link HLS giả. Gateway đọc cấu hình JSON công khai trong trang embed và giải cách che URL mà trình phát công khai dùng. HLS không có phụ đề ngoài được chuyển hướng302 đến CDN để thiết bị xem tải trực tiếp; tránh đọc trước từ data centre khi CDN trả404 theo vị trí mạng. Với WebVTT ngoài, gateway trả manifest có nhóm phụ đề và URI tuyệt đối. Không chạy JavaScript upstream, không tự giải mã video/DRM và không thay đổi danh tính/Referer để vượt lỗi403. Video và phụ đề được tải trực tiếp từ CDN nguồn; gateway không chuyển tiếp byte video.
 
-Ưu tiên Diamond khi phim có server này, sau đó server có nhiều tập HLS hơn; vẫn giữ các lựa chọn khác. Một số server nguồn trả 403 hoặc tải segment chậm. Kho Phim báo lỗi để đổi server; việc thay nguồn không bảo đảm mọi server upstream luôn hoạt động hay tải nhanh. HLS có khóa mã hóa hiện được báo không hỗ trợ. Không sửa hoặc giả điểm IMDb/TMDB; điểm cập nhật cùng dữ liệu phim.
+Ưu tiên Diamond khi phim có server này, sau đó server có nhiều tập HLS hơn; vẫn giữ các lựa chọn khác. Một số server nguồn trả403 hoặc tải segment chậm. Kho Phim báo lỗi để đổi server; việc thay nguồn không bảo đảm mọi server upstream luôn hoạt động hay tải nhanh. Nhánh ghép phụ đề chưa hỗ trợ HLS có khóa mã hóa. Không sửa hoặc giả điểm IMDb/TMDB; điểm cập nhật cùng dữ liệu phim.
 
 ## Lịch sử
 
@@ -26,6 +26,8 @@ node docs/tests/source-browser.cjs
 node docs/tests/source-browser.cjs --webkit
 ```
 
-Kiểm tra thật đã nhận được danh mục, thể loại, quốc gia, tìm kiếm, chi tiết và HLS của `tp--ultraman-tiga` trên Diamond [VS]/[LT]. Master là iframe ngoài; Gold của phim mẫu trả 403. Kết quả trình duyệt và các kiểm tra thiết bị được ghi riêng trong báo cáo bàn giao, không coi mô phỏng WebKit/AVPlay là xác nhận trên iPhone hay TV thật.
+Kiểm tra thật đã nhận được danh mục, thể loại, quốc gia, tìm kiếm, chi tiết và HLS của `tp--ultraman-tiga` trên Diamond [VS]/[LT]. Một số tập Master chỉ có iframe ngoài; Gold của phim mẫu trả403. Kết quả trình duyệt và các kiểm tra thiết bị được ghi riêng trong báo cáo bàn giao, không coi mô phỏng WebKit/AVPlay là xác nhận trên iPhone hay TV thật.
+
+Production Vercel ngày19/10/2026: một lượt thử độc lập mỗi giao diện Mobile/Desktop/TV Web trên Edge, tìm phim qua UI thật, phát mặc định Diamond [VS] và tua±10s đều qua, startup4,7–5,3giây. Không giả dữ liệu, chuyển tiếp API hay dùng profile người dùng. Đây là kết quả phim mẫu; các lượt CDN chậm trước đó vẫn được ghi nhận. APK Mobile/TV1.0.6 đã ký cùng chứng chỉ cũ, xác minh44JUnit, hai build/lint, chữ kýv2/v3, zipalign16KB và SHA256 của byte tải công khai. WGT1.0.13 là unsigned. CI GitHub/iOS còn xếp hàng khi phát hành.
 
 Phân tích trình phát là tĩnh, không thực thi script của nhà cung cấp. Bằng chứng REA snapshot `0ce0b4122324af717eb3a3e50b30dfb23bd1eba1117dd35647e300fe933d771b`, parent evidence `ev_425e5be0e7406b4fb6f8f7d9e41a990adda3b8b170510aed92ae394576bff24f`. Đồ thị ban đầu không đầy đủ do mã làm rối; kết luận về URL/manifest được đối chiếu với phản hồi HTTP và phát thật, không suy ra từ kết quả trace không khớp.

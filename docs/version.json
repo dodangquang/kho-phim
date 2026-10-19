@@ -1,8 +1,8 @@
 {
-  "versionCode": 6,
-  "versionName": "1.0.5",
-  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_Mobile_v1.0.5.apk",
-  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_Mobile_v1.0.5.apk",
-  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.5/KhoPhim_TV_v1.0.5.apk",
-  "changelog": "Bản cập nhật v1.0.5: Đăng nhập Google để đồng bộ lịch sử với web, APK Mobile và Android TV; tiếp tục đúng phim, tập, server và vị trí đang xem. TV đăng nhập bằng QR qua điện thoại, Mobile xác nhận trong trình duyệt. Lưu ngoại tuyến và đồng bộ khi có mạng. Giữ các cải tiến phát/tua và điểm IMDb/TMDB."
+  "versionCode": 7,
+  "versionName": "1.0.6",
+  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.6/KhoPhim_Mobile_v1.0.6.apk",
+  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.6/KhoPhim_Mobile_v1.0.6.apk",
+  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.6/KhoPhim_TV_v1.0.6.apk",
+  "changelog": "Bản cập nhật v1.0.6: Chuyển toàn bộ nguồn phim sang Tủ Phim, bỏ nguồn cũ. Giữ đăng nhập Google, đồng bộ lịch sử, điểm IMDb/TMDB và tua ±10s. Lịch sử cũ vẫn được giữ, cần tìm lại phim trên Tủ Phim. Ưu tiên server Diamond khi có; đổi server nếu nguồn trả lỗi hoặc tải chậm."
 }
