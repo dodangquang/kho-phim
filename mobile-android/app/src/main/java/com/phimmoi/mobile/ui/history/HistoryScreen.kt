@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.phimmoi.mobile.data.SourcePolicy
 import com.phimmoi.mobile.data.MovieItem
 import com.phimmoi.mobile.data.WatchHistoryManager
 import com.phimmoi.mobile.data.WatchProgress
@@ -160,7 +161,7 @@ fun HistoryItemCard(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
-    val image = item.bannerUrl?.takeIf { it.isNotBlank() } ?: item.posterUrl
+    val image = if (SourcePolicy.isCurrentSlug(item.movieSlug)) SourcePolicy.imageUrl(item.bannerUrl?.takeIf { it.isNotBlank() } ?: item.posterUrl) else ""
 
     Row(
         modifier = Modifier

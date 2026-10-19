@@ -46,6 +46,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.phimmoitv.app.data.SourcePolicy
 import com.phimmoitv.app.data.MovieItem
 import com.phimmoitv.app.data.MovieSection
 import com.phimmoitv.app.data.PhimMoiRepository
@@ -114,7 +115,7 @@ fun HomeScreen(
     val cloudContext = androidx.compose.ui.platform.LocalContext.current
     val cloudHistory = remember { com.phimmoitv.app.data.CloudHistory.get(cloudContext) }
     val historyRevision by cloudHistory.revision.collectAsState()
-    LaunchedEffect(historyRevision) { historyList = watchHistoryManager?.getAllHistory() ?: emptyList() }
+    LaunchedEffect(historyRevision) { historyList = watchHistoryManager?.getAllHistory()?.filter { SourcePolicy.isCurrentSlug(it.movieSlug) } ?: emptyList() }
     val playFocusRequester = remember { FocusRequester() }
 
     val findVisibleCandidateSlug: () -> String? = {
@@ -264,7 +265,7 @@ fun HomeScreen(
     LaunchedEffect(currentTab) {
         try {
             if (currentTab == TvNavTab.HOME) {
-                historyList = watchHistoryManager?.getAllHistory() ?: emptyList()
+                historyList = watchHistoryManager?.getAllHistory()?.filter { SourcePolicy.isCurrentSlug(it.movieSlug) } ?: emptyList()
                 if (sections.isEmpty()) {
                     isLoading = true
                     val homeData = repository.getNetflixHomeSections()

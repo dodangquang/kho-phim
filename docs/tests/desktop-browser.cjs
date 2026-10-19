@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const root = path.resolve(__dirname, '..');
 const live = process.argv.includes('--live');
 const fixture = {
-  status: true, movie: { slug: 'fixture-2026', name: 'Phim thử', year: 2026 },
+  status: true, movie: { slug: 'tp--fixture-2026', name: 'Phim thử', year: 2026 },
   episodes: ['Vietsub', 'Thuyết Minh'].map((server_name, i) => ({ server_name, server_data: [1, 2].map(n => ({
     slug: 'tap-' + n, name: 'Tập ' + n, link_m3u8: `https://media.test/${i}/${n}.m3u8`, link_embed: 'https://embed.test/player'
   })) }))
@@ -31,11 +31,16 @@ async function main() {
     const page = await context.newPage(), errors = [], requests = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('request', r => requests.push(r.url()));
-    await page.route('https://phimimg.com/**', route => route.abort());
+    await page.route('https://cdn.phimsrv.com/**', route => route.abort());
     await page.route('https://embed.test/**', route => route.fulfill({ contentType: 'text/html', body: '<button>Phát nhúng</button>' }));
     let data = fixture;
-    if (live) data = await (await fetch('https://phimapi.com/phim/truyen-kinh-di-my-phan-13', { signal: AbortSignal.timeout(15000) })).json();
-    await page.route('https://phimapi.com/**', route => route.fulfill({ json: route.request().url().includes('/phim/') ? data : { status: true, items: [], data: { items: [] } } }));
+    if (live) {
+      const listing = await (await fetch('https://khophimqd.vercel.app/source/danh-sach/phim-moi-cap-nhat?page=1', { signal: AbortSignal.timeout(15000) })).json();
+      const slug = process.env.KHOPHIM_LIVE_SLUG || (listing.items || listing.data?.items || [])[0]?.slug;
+      assert.match(slug || '', /^tp--/);
+      data = await (await fetch('https://khophimqd.vercel.app/source/phim/' + slug, { signal: AbortSignal.timeout(15000) })).json();
+    }
+    await page.route('https://khophimqd.vercel.app/source/**', route => route.fulfill({ json: route.request().url().includes('/phim/') ? data : { status: true, items: [], data: { items: [] } } }));
     if (!live) await page.addInitScript(() => {
       const state = { ready: 0, time: 0, duration: NaN, ranges: [], paused: true, plays: 0 };
       const proto = HTMLMediaElement.prototype;
@@ -55,7 +60,7 @@ async function main() {
         const video = document.getElementById('tv-video-player');
         ['loadedmetadata', 'progress', 'canplay'].forEach(event => video.dispatchEvent(new Event(event)));
       };
-      localStorage.setItem('khophim_desktop_watch_history', JSON.stringify([{ slug: 'fixture-2026', serverName: 'Thuyết Minh', episodeSlug: 'tap-2', episodeName: 'Tập 2', positionMs: 65000 }]));
+      localStorage.setItem('khophim_desktop_watch_history', JSON.stringify([{ slug: 'tp--fixture-2026', serverName: 'Thuyết Minh', episodeSlug: 'tap-2', episodeName: 'Tập 2', positionMs: 65000 }]));
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/desktop/`);
     await page.waitForFunction(() => !!window.__desktopTest);
@@ -85,7 +90,7 @@ async function main() {
       await page.evaluate(() => window.__native.readyVideo());
       assert.equal(await page.locator('#tv-video-player').evaluate(v => v.currentTime), 0, 'new episode resets timing');
       await page.locator('#tv-player-btn-close').click();
-      await page.evaluate(async () => { await window.__desktopTest.openMovieDetail('fixture-2026', true); window.__desktopTest.closeMovieDetail(); });
+      await page.evaluate(async () => { await window.__desktopTest.openMovieDetail('tp--fixture-2026', true); window.__desktopTest.closeMovieDetail(); });
       await page.waitForTimeout(300);
       assert.equal(await page.locator('#tv-player-overlay').evaluate(el => el.classList.contains('open')), false, 'closing detail cancels deferred playback');
       assert.equal(requests.some(url => /jsdelivr|ophim1\.com/.test(url)), false);

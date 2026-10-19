@@ -38,8 +38,8 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     page.on('request', request => requests.push(request.url()));
     // Keep the test focused on playback; shelves and posters are unrelated traffic.
-    await page.route('https://phimapi.com/**', route => route.fulfill({ json: { status: true, items: [], data: { items: [], params: { pagination: { totalPages: 1 } } } } }));
-    await page.route('https://phimimg.com/**', route => route.abort());
+    await page.route('https://khophimqd.vercel.app/source/**', route => route.fulfill({ json: { status: true, items: [], data: { items: [], params: { pagination: { totalPages: 1 } } } } }));
+    await page.route('https://cdn.phimsrv.com/**', route => route.abort());
     if (!live) {
       await page.addInitScript(() => {
         const state = { ready: 0, time: 0, duration: NaN, ranges: [], paused: true, loads: 0 };
@@ -69,7 +69,7 @@ async function main() {
     assert.equal(requests.some(url => /hls.*\.js|jsdelivr/.test(url)), false, 'Browsing must not load HLS.js');
     if (!live) {
       await page.evaluate(() => {
-        const movie = { slug: 'test-movie', name: 'Phim thử' };
+        const movie = { slug: 'tp--test-movie', name: 'Phim thử' };
         const episodes = [{ slug: 'tap-1', name: 'Tập 1', link_m3u8: 'https://example.test/one.m3u8', link_embed: 'https://embed.example.test/player' }, { slug: 'tap-2', name: 'Tập 2', link_m3u8: 'https://example.test/two.m3u8' }];
         window.__testHelpers.startVideoPlayback(movie, episodes[0], episodes, 'Vietsub', 35);
         window.__native.readyVideo(120);
@@ -123,8 +123,11 @@ async function main() {
       assert.equal(requests.some(url => /hls.*\.js|jsdelivr/.test(url)), false);
       console.log(`PASS mobile UI (${useWebKit ? 'WebKit' : 'Edge'}): auto-hide/dismiss/reveal skip buttons, renewed timeout, Safari lifecycle, ±10s, fullscreen exit, history, next episode and cleanup`);
     } else {
-      for (const [slug, resume] of [['truyen-kinh-di-my-phan-13', 0], ['chim-vao-mat-em-phan-1', 180], ['yeu-mot-nguoi-khac-yeu-mot-nguoi-khac-khong-phai-em', 60]]) {
-        const data = await (await fetch('https://phimapi.com/phim/' + slug, { signal: AbortSignal.timeout(15000) })).json();
+      const listing = await (await fetch('https://khophimqd.vercel.app/source/danh-sach/phim-moi-cap-nhat?page=1', { signal: AbortSignal.timeout(15000) })).json();
+      const liveSlug = process.env.KHOPHIM_LIVE_SLUG || (listing.items || listing.data?.items || [])[0]?.slug;
+      assert.match(liveSlug || '', /^tp--/, 'A new-source playable movie is required');
+      for (const [slug, resume] of [[liveSlug, 0], [liveSlug, 180], [liveSlug, 60]]) {
+        const data = await (await fetch('https://khophimqd.vercel.app/source/phim/' + slug, { signal: AbortSignal.timeout(15000) })).json();
         const episodes = data.episodes[0].server_data;
         const start = Date.now();
         await page.evaluate(({ movie, episodes, name, resume }) => window.__testHelpers.startVideoPlayback(movie, episodes[0], episodes, name, resume), { movie: data.movie, episodes, name: data.episodes[0].server_name, resume });

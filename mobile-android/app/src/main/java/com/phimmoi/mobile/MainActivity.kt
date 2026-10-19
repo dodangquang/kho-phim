@@ -61,7 +61,6 @@ sealed interface Screen {
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var domainManager: DomainManager
     private lateinit var repository: PhimMoiRepository
     private lateinit var watchHistoryManager: WatchHistoryManager
     private lateinit var appUpdateManager: AppUpdateManager
@@ -69,8 +68,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        domainManager = DomainManager(applicationContext)
-        repository = PhimMoiRepository(domainManager)
+        repository = PhimMoiRepository()
         watchHistoryManager = WatchHistoryManager(applicationContext)
         appUpdateManager = AppUpdateManager(applicationContext)
 
@@ -188,7 +186,8 @@ class MainActivity : ComponentActivity() {
                                         repository = repository,
                                         watchHistoryManager = watchHistoryManager,
                                         onMovieClick = { movie ->
-                                            screenStack.add(Screen.Detail(movie))
+                                            if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                            else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                         },
                                         onCategoryMoreClick = { section ->
                                             screenStack.add(
@@ -219,7 +218,8 @@ class MainActivity : ComponentActivity() {
                                     SearchScreen(
                                         repository = repository,
                                         onMovieClick = { movie ->
-                                            screenStack.add(Screen.Detail(movie))
+                                            if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                            else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                         }
                                     )
                                 }
@@ -227,7 +227,8 @@ class MainActivity : ComponentActivity() {
                                     HistoryScreen(
                                         watchHistoryManager = watchHistoryManager,
                                         onMovieClick = { movie ->
-                                            screenStack.add(Screen.Detail(movie))
+                                            if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                            else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                         },
                                         onExploreClick = {
                                             screenStack.clear()
@@ -246,7 +247,8 @@ class MainActivity : ComponentActivity() {
                                 categoryPath = categoryBrowseScreen.categoryPath,
                                 repository = repository,
                                 onMovieClick = { movie ->
-                                    screenStack.add(Screen.Detail(movie))
+                                    if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                    else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                 },
                                 onBackPress = {
                                     if (screenStack.size > 1) {
@@ -335,7 +337,6 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     SettingsScreen(
-                                        domainManager = domainManager,
                                         appUpdateManager = appUpdateManager
                                     )
                                 }

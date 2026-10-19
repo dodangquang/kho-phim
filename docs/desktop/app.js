@@ -10,13 +10,8 @@
   // ==========================================================================
   // CONFIG & STATE
   // ==========================================================================
-  const API_DOMAINS = [
-    'https://phimmoic.info',
-    'https://phimmoichill.net',
-    'https://phimmoic.net',
-    'https://phimmoivip.org'
-  ];
-  let activeDomain = API_DOMAINS[0];
+  const API_BASE = 'https://khophimqd.vercel.app/source';
+  function isCurrentMovie(slug) { return typeof slug === 'string' && /^tp--[a-zA-Z0-9_-]{1,176}$/.test(slug); }
 
   const CATEGORY_TABS = {
     single: { title: '🎬 Phim Lẻ', path: 'danh-sach/phim-le' },
@@ -28,8 +23,6 @@
 
   const HOME_SECTIONS = [
     { title: '⚡ Phim Mới Cập Nhật', path: 'danh-sach/phim-moi-cap-nhat' },
-    { title: '🎙️ Phim Thuyết Minh', path: 'danh-sach/phim-thuyet-minh' },
-    { title: '🎧 Phim Lồng Tiếng', path: 'danh-sach/phim-long-tieng' },
     { title: `${VN_FLAG_SVG} Phim Việt Nam`, path: 'quoc-gia/viet-nam' },
     { title: '🍿 Chiếu Rạp Đặc Sắc', path: 'danh-sach/phim-chieu-rap' },
     { title: '📺 Phim Bộ Hot', path: 'danh-sach/phim-bo' },
@@ -99,8 +92,10 @@
     if (!trimmed) return 'icon.png';
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     if (trimmed.startsWith('//')) return 'https:' + trimmed;
-    return 'https://phimimg.com/' + trimmed.replace(/^\/+/, '');
+    return 'https://cdn.phimsrv.com/' + trimmed.replace(/^\/+/, '');
   }
+
+  function isSourceImage(value) { try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === 'cdn.phimsrv.com' && !url.username && !url.password; } catch (_) { return false; } }
 
   function resolveMovieImages(item) {
     if (!item) return { poster: 'icon.png', banner: 'icon.png', fallback: 'icon.png' };
@@ -112,8 +107,8 @@
 
     const posterBlocked = isBlockedDomain(formattedPoster);
     const thumbBlocked = isBlockedDomain(formattedThumb);
-    const posterIsCdn = formattedPoster.includes('phimimg.com') && !posterBlocked;
-    const thumbIsCdn = formattedThumb.includes('phimimg.com') && !thumbBlocked;
+    const posterIsCdn = isSourceImage(formattedPoster) && !posterBlocked;
+    const thumbIsCdn = isSourceImage(formattedThumb) && !thumbBlocked;
 
     let poster = 'icon.png';
     let banner = 'icon.png';
@@ -270,15 +265,15 @@
   }
 
   // ==========================================================================
-  // DATA FETCHING (PHIMAPI)
+  // DATA FETCHING (TỦ PHIM)
   // ==========================================================================
   async function fetchCategoryMovies(categoryPath, page = 1) {
     const clean = categoryPath.replace(/^\/+|\/+$/g, '');
     let apiUrl = '';
     if (clean === 'danh-sach/phim-moi-cap-nhat' || clean === 'phim-moi') {
-      apiUrl = `https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=${page}`;
+      apiUrl = `${API_BASE}/danh-sach/phim-moi-cap-nhat?page=${page}`;
     } else {
-      apiUrl = `https://phimapi.com/v1/api/${clean}?page=${page}&limit=24`;
+      apiUrl = `${API_BASE}/v1/api/${clean}?page=${page}&limit=24`;
     }
 
     try {
@@ -291,7 +286,7 @@
       } else if (data && Array.isArray(data.items)) {
         items = data.items;
       }
-      return items;
+      return items.filter(item => isCurrentMovie(item.slug));
     } catch (e) {
       console.warn('API error for', categoryPath, e);
       return [];
@@ -302,10 +297,10 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const res = await fetch('https://phimapi.com/phim/' + encodeURIComponent(slug), { signal: controller.signal });
+      const res = await fetch(API_BASE + '/phim/' + encodeURIComponent(slug), { signal: controller.signal });
       if (!res.ok) return null;
       const json = await res.json();
-      return json && json.movie ? json : null;
+      return json && json.movie && isCurrentMovie(json.movie.slug) ? json : null;
     } catch (_) { return null; }
     finally { clearTimeout(timeout); }
   }
@@ -313,13 +308,13 @@
   async function searchMovies(keyword) {
     if (!keyword.trim()) return [];
     const encoded = encodeURIComponent(keyword.trim());
-    const apiUrl = `https://phimapi.com/v1/api/tim-kiem?keyword=${encoded}&limit=40`;
+    const apiUrl = `${API_BASE}/v1/api/tim-kiem?keyword=${encoded}&limit=40`;
     try {
       const res = await fetch(apiUrl);
       if (res.ok) {
         const data = await res.json();
         if (data && data.data && Array.isArray(data.data.items)) {
-          return data.data.items;
+          return data.data.items.filter(item => isCurrentMovie(item.slug));
         }
       }
     } catch (_) {}
@@ -334,9 +329,6 @@
 
     // 1. Fetch first category for hero billboard
     let heroList = await fetchCategoryMovies(HOME_SECTIONS[0].path, 1);
-    if (heroList.length === 0) {
-      heroList = await fetchCategoryMovies('danh-sach/phim-thuyet-minh', 1);
-    }
     if (heroList.length > 0) {
       heroMovieData = heroList[0];
       renderBillboard(heroMovieData);
@@ -507,7 +499,7 @@
   }
 
   function renderContinueWatchingRow() {
-    const history = getWatchHistory();
+    const history = getWatchHistory().filter(item => isCurrentMovie(item.slug));
     if (!history || history.length === 0) {
       continueSection.style.display = 'none';
       return;
@@ -661,14 +653,14 @@
 
       card.innerHTML = `
         <div class="tv-continue-thumb-wrap">
-          <img src="${KhoHistory.escape(item.banner || item.poster)}" alt="${KhoHistory.escape(item.title)}" loading="lazy">
+          <img src="${KhoHistory.escape(isCurrentMovie(item.slug) ? (item.banner || item.poster) : 'icon.png')}" alt="${KhoHistory.escape(item.title)}" loading="lazy">
           <div class="tv-continue-progress">
             <div class="tv-continue-progress-bar" style="width: ${progressPercent}%;"></div>
           </div>
         </div>
         <div class="tv-continue-info">
           <div class="tv-continue-title">${KhoHistory.escape(item.title)}</div>
-          <div class="tv-continue-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • Đã xem ${progressPercent}%</div>
+          <div class="tv-continue-sub">${isCurrentMovie(item.slug) ? KhoHistory.escape(item.episodeName || 'Tập 1') + ' • Đã xem ' + progressPercent + '%' : 'Nguồn cũ đã ngừng dùng · Tìm lại trên Tủ Phim'}</div>
         </div>
       `;
 
@@ -689,18 +681,10 @@
   function setupSettings() {
     const domainList = document.getElementById('tv-domain-list');
     domainList.innerHTML = '';
-    API_DOMAINS.forEach(dom => {
-      const pill = document.createElement('div');
-      pill.className = `domain-pill ${dom === activeDomain ? 'active' : ''}`;
-      pill.setAttribute('tabindex', '0');
-      pill.textContent = dom.replace('https://', '');
-      pill.onclick = () => {
-        activeDomain = dom;
-        setupSettings();
-        showToast(`Đã chuyển sang máy chủ: ${dom}`);
-      };
-      domainList.appendChild(pill);
-    });
+    const source = document.createElement('span');
+    source.className = 'domain-pill active';
+    source.textContent = 'Tủ Phim';
+    domainList.appendChild(source);
 
     document.getElementById('tv-clear-cache-btn').onclick = () => {
       try {
@@ -758,6 +742,20 @@
   // MOVIE DETAIL MODAL
   // ==========================================================================
   async function openMovieDetail(slug, autoPlay = false) {
+    if (!isCurrentMovie(slug)) {
+      ++detailGeneration;
+      clearTimeout(detailAutoplayTimer);
+      const saved = getWatchHistory().find(item => item.slug === slug);
+      switchTab('search');
+      const input = document.getElementById('tv-search-input');
+      input.value = saved ? saved.title : '';
+      document.getElementById('tv-search-grid').innerHTML = '';
+      const status = document.getElementById('tv-search-status');
+      status.textContent = 'Nguồn cũ đã ngừng dùng. Tìm lại phim trên Tủ Phim.';
+      status.style.display = 'block';
+      input.focus();
+      return;
+    }
     const generation = ++detailGeneration;
     clearTimeout(detailAutoplayTimer);
     showToast('Đang tải thông tin phim...');

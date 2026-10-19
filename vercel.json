@@ -1,4 +1,10 @@
 {
   "outputDirectory": "docs",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/source/:path*", "destination": "/api/tuphim?path=:path*" }
+  ],
+  "functions": {
+    "api/tuphim.js": { "maxDuration": 60 }
+  }
 }

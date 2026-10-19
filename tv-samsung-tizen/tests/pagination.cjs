@@ -12,11 +12,11 @@ module.exports = function () {
     for (let displayPage = 1; displayPage <= 9; displayPage++) {
       const sourcePage = Math.floor((displayPage - 1) * 6 / sourceSize) + 1;
       const start = (sourcePage - 1) * sourceSize;
-      const items = Array.from({ length: Math.min(sourceSize, 49 - start) }, (_, index) => ({ slug: String(start + index) }));
+      const items = Array.from({ length: Math.min(sourceSize, 49 - start) }, (_, index) => ({ slug: 'tp--' + String(start + index) }));
       const result = core.list({ data: { items, params: { pagination: { totalItems: 49, totalItemsPerPage: sourceSize, totalPages: Math.ceil(49 / sourceSize) } } } }, displayPage);
       assert.equal(result.totalPages, 9);
       assert.ok(result.items.length <= 6);
-      found.push(...result.items.map(item => Number(item.slug)));
+      found.push(...result.items.map(item => Number(item.slug.slice(4))));
     }
     assert.deepEqual(found, Array.from({ length: 49 }, (_, index) => index));
   }

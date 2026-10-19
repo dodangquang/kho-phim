@@ -21,10 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phimmoitv.app.data.AppUpdateManager
-import com.phimmoitv.app.data.DomainManager
 import com.phimmoitv.app.data.EpisodeSource
 import com.phimmoitv.app.data.MovieItem
 import com.phimmoitv.app.data.PhimMoiRepository
+import com.phimmoitv.app.data.SourcePolicy
 import com.phimmoitv.app.data.UpdateInfo
 import com.phimmoitv.app.data.WatchHistoryManager
 import com.phimmoitv.app.ui.components.NetflixSidebar
@@ -60,7 +60,6 @@ sealed interface Screen {
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var domainManager: DomainManager
     private lateinit var repository: PhimMoiRepository
     private lateinit var watchHistoryManager: WatchHistoryManager
     private lateinit var appUpdateManager: AppUpdateManager
@@ -88,8 +87,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        domainManager = DomainManager(applicationContext)
-        repository = PhimMoiRepository(domainManager)
+        repository = PhimMoiRepository()
         watchHistoryManager = WatchHistoryManager(applicationContext)
         appUpdateManager = AppUpdateManager(applicationContext)
 
@@ -219,26 +217,13 @@ class MainActivity : ComponentActivity() {
                                             sidebarFocusTrigger = System.currentTimeMillis()
                                         },
                                         onMovieClick = { movie ->
-                                            screenStack.add(Screen.Detail(movie))
+                                            if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                            else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                         },
                                         onContinueWatchingClick = { item ->
-                                            screenStack.add(
-                                                Screen.Player(
-                                                    movieSlug = item.movieSlug,
-                                                    movieTitle = item.movieTitle,
-                                                    posterUrl = item.posterUrl,
-                                                    bannerUrl = item.bannerUrl,
-                                                    episode = EpisodeSource(
-                                                        id = item.episodeSlug,
-                                                        serverName = item.serverName,
-                                                        episodeName = item.episodeName,
-                                                        episodeSlug = item.episodeSlug,
-                                                        streamUrl = item.streamUrl
-                                                    ),
-                                                    allEpisodes = emptyList(),
-                                                    initialPositionMs = item.positionMs
-                                                )
-                                            )
+                                            if (SourcePolicy.isCurrentSlug(item.movieSlug)) {
+                                                screenStack.add(Screen.Detail(MovieItem(item.movieTitle, item.movieSlug, item.posterUrl, item.bannerUrl)))
+                                            } else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                         },
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -249,7 +234,8 @@ class MainActivity : ComponentActivity() {
                                         HistoryScreen(
                                             watchHistoryManager = watchHistoryManager,
                                             onMovieClick = { movie ->
-                                                screenStack.add(Screen.Detail(movie))
+                                                if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                                else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                             },
                                             onNavigateLeft = {
                                                 sidebarFocusTrigger = System.currentTimeMillis()
@@ -268,7 +254,8 @@ class MainActivity : ComponentActivity() {
                                         SearchScreen(
                                             repository = repository,
                                             onMovieClick = { movie ->
-                                                screenStack.add(Screen.Detail(movie))
+                                                if (SourcePolicy.isCurrentSlug(movie.slug)) screenStack.add(Screen.Detail(movie))
+                                                else Toast.makeText(context, SourcePolicy.LEGACY_MESSAGE, Toast.LENGTH_LONG).show()
                                             },
                                             onNavigateLeft = {
                                                 sidebarFocusTrigger = System.currentTimeMillis()
@@ -280,7 +267,6 @@ class MainActivity : ComponentActivity() {
 
                                     TvNavTab.SETTINGS -> {
                                         SettingsScreen(
-                                            domainManager = domainManager,
                                             appUpdateManager = appUpdateManager,
                                             onNavigateLeft = {
                                                 sidebarFocusTrigger = System.currentTimeMillis()

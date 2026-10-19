@@ -2,7 +2,10 @@
 (function (global) {
   'use strict';
   var C = {};
-  C.VERSION = '1.0.14';
+  C.VERSION = '1.0.15';
+  C.API_BASE = 'https://khophimqd.vercel.app/source';
+  C.SOURCE_ID = 'tuphim-v1';
+  C.isCurrentMovie = function (slug) { return typeof slug === 'string' && /^tp--[a-zA-Z0-9_-]{1,176}$/.test(slug); };
   C.PAGE_SIZE = 6;
   C.SHELF_HEIGHT = 540;
   C.EPISODE_PAGE_SIZE = 24;
@@ -17,7 +20,7 @@
     var url = C.safeUrl(value);
     if (url) return url;
     if (/^[a-z]+:/i.test(String(value))) return 'icon.png';
-    return (C.safeUrl(domain) || 'https://phimimg.com').replace(/\/$/, '') + '/' + String(value).replace(/^\/+/, '');
+    return (C.safeUrl(domain) || 'https://cdn.phimsrv.com').replace(/\/$/, '') + '/' + String(value).replace(/^\/+/, '');
   };
   C.stream = function (episode) {
     var direct = C.safeUrl(episode.link_m3u8 || episode.linkM3u8);
@@ -42,7 +45,7 @@
   C.list = function (json, displayPage) {
     var data = json.data || json;
     var pagination = (data.params && data.params.pagination) || json.pagination || {};
-    var raw = Array.isArray(data.items) ? data.items : [];
+    var raw = Array.isArray(data.items) ? data.items.filter(function (item) { return C.isCurrentMovie(item.slug); }) : [];
     var sourceSize = Number(pagination.totalItemsPerPage) || C.PAGE_SIZE;
     var offset = (((displayPage || 1) - 1) * C.PAGE_SIZE) % sourceSize;
     var items = raw.slice(offset, offset + C.PAGE_SIZE);
@@ -50,7 +53,7 @@
       items: items,
       totalPages: Math.max(1, Math.ceil((Number(pagination.totalItems) || (Number(pagination.totalPages) || 1) * sourceSize) / C.PAGE_SIZE)),
       sourceSize: sourceSize,
-      imageDomain: data.APP_DOMAIN_CDN_IMAGE || 'https://phimimg.com'
+      imageDomain: data.APP_DOMAIN_CDN_IMAGE || 'https://cdn.phimsrv.com'
     };
   };
   C.history = function () { return global.KhoSync.history().map(global.KhoSyncView.tv); };
@@ -109,6 +112,7 @@
   };
   C.Cache = function (limit) { this.limit = limit; this.entries = []; };
   C.Cache.prototype.get = function (key) {
+    key = C.SOURCE_ID + '|' + key;
     for (var i = 0; i < this.entries.length; i++) {
       if (this.entries[i].key === key) {
         var entry = this.entries.splice(i, 1)[0];
@@ -120,6 +124,7 @@
     return null;
   };
   C.Cache.prototype.set = function (key, value) {
+    key = C.SOURCE_ID + '|' + key;
     this.entries = this.entries.filter(function (entry) { return entry.key !== key; });
     this.entries.unshift({ key: key, value: value, time: Date.now() });
     this.entries = this.entries.slice(0, this.limit);

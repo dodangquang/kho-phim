@@ -1,13 +1,11 @@
-/* Same eleven shelves as the original UI; only visible shelves own live cards.
+/* Supported Tủ Phim catalog shelves; only visible shelves own live cards.
    ES5, one cancellable catalog request, visible shelves only, six films per shelf. */
 (function (global) {
   'use strict';
   var C = global.KhoCore;
   var definitions = [
-    ['🎙️ Phim Thuyết Minh', 'danh-sach/phim-thuyet-minh'],
-    ['🎧 Phim Lồng Tiếng', 'danh-sach/phim-long-tieng'],
-    ['🇻🇳 Phim Việt Nam', 'quoc-gia/viet-nam'],
     ['⚡ Mới Cập Nhật Tập Mới', 'danh-sach/phim-moi'],
+    ['🇻🇳 Phim Việt Nam', 'quoc-gia/viet-nam'],
     ['🍿 Chiếu Rạp Đặc Sắc', 'danh-sach/phim-chieu-rap'],
     ['📺 Phim Bộ Hot', 'danh-sach/phim-bo'],
     ['⚔️ Phim Hành Động', 'the-loai/hanh-dong'],
@@ -87,7 +85,7 @@
     this.options.changed();
   };
   Home.prototype.continueWatching = function () {
-    var list = C.history().slice(0, C.PAGE_SIZE);
+    var list = C.history().filter(function (item) { return C.isCurrentMovie(item.slug); }).slice(0, C.PAGE_SIZE);
     var stamp = JSON.stringify(list);
     if (stamp === this.continueStamp) return;
     this.continueStamp = stamp;
@@ -96,7 +94,7 @@
     var row = document.getElementById('continue-row');
     row.textContent = '';
     var self = this;
-    list.forEach(function (item) { row.appendChild(self.options.card(item, true, 'https://phimimg.com')); });
+    list.forEach(function (item) { row.appendChild(self.options.card(item, true, 'https://cdn.phimsrv.com')); });
     this.options.images(row);
   };
   Home.prototype.activate = function () {
@@ -178,7 +176,7 @@
     this.loading = target.index;
     var self = this;
     var sourcePage = Math.floor((target.page - 1) * C.PAGE_SIZE / target.sourceSize) + 1;
-    var url = 'https://phimapi.com/v1/api/' + target.path + '?page=' + sourcePage + '&limit=' + C.PAGE_SIZE;
+    var url = C.API_BASE + '/v1/api/' + target.path + '?page=' + sourcePage + '&limit=' + C.PAGE_SIZE;
     this.request.get([url], function (error, data) {
       self.loading = -1;
       if (!self.active || !target.mounted) return;

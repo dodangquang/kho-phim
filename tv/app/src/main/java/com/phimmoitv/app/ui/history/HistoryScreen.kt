@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.phimmoitv.app.data.SourcePolicy
 import com.phimmoitv.app.data.MovieItem
 import com.phimmoitv.app.data.WatchHistoryManager
 import com.phimmoitv.app.data.WatchProgress
@@ -339,7 +340,7 @@ private fun HistoryCard(
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(item.bannerUrl?.ifEmpty { null } ?: item.posterUrl)
+                    .data(if (SourcePolicy.isCurrentSlug(item.movieSlug)) SourcePolicy.imageUrl(item.bannerUrl?.ifEmpty { null } ?: item.posterUrl) else "")
                     .crossfade(true)
                     .build(),
                 contentDescription = item.movieTitle,

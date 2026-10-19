@@ -102,7 +102,7 @@ struct HomeView: View {
                             }
 
                             // Continue Watching (Only on Home)
-                            if categoryTab == .home && !watchHistoryManager.historyList.isEmpty {
+                            if categoryTab == .home && !watchHistoryManager.currentSourceHistory.isEmpty {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Tiếp Tục Xem")
                                         .font(.system(size: 16, weight: .bold))
@@ -111,7 +111,7 @@ struct HomeView: View {
 
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         LazyHStack(spacing: 12) {
-                                            ForEach(watchHistoryManager.historyList) { item in
+                                            ForEach(watchHistoryManager.currentSourceHistory) { item in
                                                 ContinueWatchingCard(item: item) {
                                                     selectedMovie = MovieItem(
                                                         title: item.movieTitle,

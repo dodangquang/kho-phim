@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phimmoi.mobile.BuildConfig
 import com.phimmoi.mobile.data.AppUpdateManager
-import com.phimmoi.mobile.data.DomainManager
 import com.phimmoi.mobile.data.UpdateInfo
 import com.phimmoi.mobile.ui.theme.NetflixBlack
 import com.phimmoi.mobile.ui.theme.NetflixCard
@@ -30,14 +29,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
-    domainManager: DomainManager,
     appUpdateManager: AppUpdateManager
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var currentDomain by remember { mutableStateOf(domainManager.getActiveDomain()) }
-    var statusMessage by remember { mutableStateOf("Tên miền đang hoạt động bình thường") }
-    var customDomainInput by remember { mutableStateOf("") }
 
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -157,150 +152,11 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Active Domain Card
         item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = NetflixCard),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "TÊN MIỀN KẾT NỐI",
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = currentDomain,
-                        color = NetflixRed,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Trạng thái: $statusMessage",
-                        color = Color(0xFF46D369),
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    statusMessage = "Đang kiểm tra server..."
-                                    val working = domainManager.resolveWorkingDomain()
-                                    if (working != null) currentDomain = working
-                                    statusMessage = working?.let { "Đã kết nối: $it" } ?: "Không kết nối được tên miền nào. Hãy kiểm tra mạng hoặc nhập tên miền khác."
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Kiểm tra domain", fontSize = 12.sp)
-                        }
-
-
-                    }
-                }
-            }
-        }
-
-        // 3. Fallback Domains List
-        item {
-            Text(
-                text = "Tên Miền Dự Phòng Sẵn Có",
-                color = TextWhite,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        items(domainManager.getAllFallbackDomains()) { domain ->
-            val isCurrent = domain == currentDomain
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isCurrent) NetflixRed.copy(alpha = 0.15f) else NetflixCard)
-                    .border(
-                        1.dp,
-                        if (isCurrent) NetflixRed else Color.Transparent,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = domain,
-                    color = if (isCurrent) NetflixRed else TextWhite,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-
-                if (isCurrent) {
-                    Text(text = "✓ Đang dùng", color = NetflixRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                } else {
-                    TextButton(onClick = {
-                        domainManager.setActiveDomain(domain)
-                        currentDomain = domain
-                        statusMessage = "Đã chuyển sang $domain"
-                    }) {
-                        Text("Kích hoạt", color = Color.White, fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-
-        // 4. Custom domain input
-        item {
-            Column {
-                Text(
-                    text = "Nhập Tên Miền Thủ Công",
-                    color = TextWhite,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = customDomainInput,
-                        onValueChange = { customDomainInput = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("https://domain-moi.com", color = TextMuted, fontSize = 12.sp) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = NetflixCard,
-                            unfocusedContainerColor = NetflixCard,
-                            focusedTextColor = TextWhite,
-                            unfocusedTextColor = TextWhite,
-                            focusedBorderColor = NetflixRed,
-                            unfocusedBorderColor = Color.Transparent
-                        )
-                    )
-                    Button(
-                        onClick = {
-                            if (customDomainInput.isNotBlank()) {
-                                domainManager.setActiveDomain(customDomainInput)
-                                currentDomain = domainManager.getActiveDomain()
-                                statusMessage = "Đã lưu: $currentDomain"
-                                customDomainInput = ""
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = NetflixRed),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Lưu")
-                    }
-                }
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text("NGUỒN PHIM: TỦ PHIM", color = TextWhite, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Danh mục và máy chủ phát được lấy từ Tủ Phim. Chọn Vietsub hoặc âm thanh tại danh sách máy chủ của từng phim.", color = TextMuted, fontSize = 13.sp)
             }
         }
     }

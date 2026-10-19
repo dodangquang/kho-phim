@@ -4,6 +4,7 @@ import Combine
 class WatchHistoryManager: ObservableObject {
     @Published var historyList: [WatchProgress] = []
     private let key = "watch_history"
+    var currentSourceHistory: [WatchProgress] { historyList.filter { SourcePolicy.isCurrentSlug($0.movieSlug) } }
 
     init() {
         loadHistory()

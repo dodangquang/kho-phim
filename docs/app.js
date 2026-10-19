@@ -3,20 +3,11 @@
   'use strict';
 
   // API Config
-  const API_BASE = 'https://phimapi.com';
-  const IMG_BASE = 'https://phimimg.com';
+  const API_BASE = 'https://khophimqd.vercel.app/source';
+  const IMG_BASE = 'https://cdn.phimsrv.com';
 
-  // Danh sách các phim đối chiếu máy chủ bị lỗi link/404 -> tự động xóa khỏi kho
-  const BROKEN_MOVIE_SLUGS = new Set([
-    'vision-quest',
-    'mot-tran-thanh-danh'
-  ]);
-
-  function isBrokenMovie(slug) {
-    if (!slug) return false;
-    const clean = slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '');
-    return BROKEN_MOVIE_SLUGS.has(clean) || clean.includes('vision-quest') || clean.includes('mot-tran-thanh-danh');
-  }
+  // Source identity is part of the saved slug; legacy history stays separate.
+  function isCurrentMovie(slug) { return typeof slug === 'string' && /^tp--[a-zA-Z0-9_-]{1,176}$/.test(slug); }
 
   // State
   let currentTab = 'home';
@@ -86,9 +77,7 @@
   // Categories Definition
   const CATEGORIES = [
     { id: 'all', title: 'Tất cả' },
-    { id: 'moi-cap-nhat', title: '⚡ Phim Mới Cập Nhật', path: 'danh-sach/phim-moi-cap-nhat', legacy: true },
-    { id: 'phim-thuyet-minh', title: '🎙️ Thuyết Minh', path: 'v1/api/danh-sach/phim-thuyet-minh' },
-    { id: 'phim-long-tieng', title: '🎧 Lồng Tiếng', path: 'v1/api/danh-sach/phim-long-tieng' },
+    { id: 'moi-cap-nhat', title: '⚡ Phim Mới Cập Nhật', path: 'danh-sach/phim-moi-cap-nhat' },
     { id: 'viet-nam', title: `${VN_FLAG_HTML}Việt Nam`, path: 'v1/api/quoc-gia/viet-nam' },
     { id: 'phim-le', title: '🎬 Phim Lẻ', path: 'v1/api/danh-sach/phim-le' },
     { id: 'phim-chieu-rap', title: '🍿 Chiếu Rạp', path: 'v1/api/danh-sach/phim-chieu-rap' },
@@ -118,7 +107,7 @@
       return `${IMG_BASE}/${clean}`;
     }
 
-    // Check if domain prefix without protocol (e.g. danviet.vn/..., i.ex-cdn.com/..., phimimg.com/...)
+    // Check if domain prefix without protocol (e.g. cdn.phimsrv.com/...)
     if (/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\//.test(clean)) {
       return 'https://' + clean;
     }
@@ -139,8 +128,7 @@
 
   function isReliableCdn(url) {
     if (!url) return false;
-    const lower = url.toLowerCase();
-    return (lower.includes('phimimg.com') || lower.includes('img.phimapi.com') || lower.includes('kkphim')) && !isBlockedOrThirdPartyDomain(url);
+    try { const parsed = new URL(url); return parsed.protocol === 'https:' && parsed.hostname === 'cdn.phimsrv.com' && !parsed.username && !parsed.password; } catch (_) { return false; }
   }
 
   function getMovieImageUrls(movie) {
@@ -186,7 +174,7 @@
   }
 
   // Local Storage History Helper
-  function getWatchHistory() { return KhoSync.history().filter(item => !isBrokenMovie(item.movieSlug)).map(KhoSyncView.mobile); }
+  function getWatchHistory() { return KhoSync.history().map(KhoSyncView.mobile); }
 
   function saveWatchHistoryItem(item) {
     if (!item || !item.movieSlug) return;
@@ -308,15 +296,13 @@
 
   // Fetch Category Data
   async function fetchCategory(cat, page = 1) {
-    const url = cat.legacy
-      ? `${API_BASE}/${cat.path}?page=${page}`
-      : `${API_BASE}/${cat.path}?page=${page}`;
+    const url = `${API_BASE}/${cat.path}?page=${page}`;
     try {
       const resp = await fetch(url);
       const data = await resp.json();
       const rawItems = (data.data && data.data.items) ? data.data.items : (data.items || []);
-      // Loại bỏ các phim bị lỗi link/404 khỏi kho
-      const filteredRawItems = rawItems.filter(m => !isBrokenMovie(m.slug));
+      // Only current-source identifiers enter the catalog.
+      const filteredRawItems = rawItems.filter(m => isCurrentMovie(m.slug));
       // Sort movies by newest updated first (modified.time descending)
       const items = [...filteredRawItems].sort((a, b) => {
         const timeA = (a.modified && a.modified.time) ? a.modified.time : '';
@@ -443,7 +429,7 @@
   // Render Continue Watching Shelf on Home Screen (Landscape card matching mobile app)
   function renderContinueWatchingHome() {
     if (!continueWatchingSection) return;
-    const history = getWatchHistory().filter(item => !isBrokenMovie(item.movieSlug));
+    const history = getWatchHistory().filter(item => isCurrentMovie(item.movieSlug));
     if (!history || history.length === 0) {
       continueWatchingSection.style.display = 'none';
       continueWatchingSection.innerHTML = '';
@@ -506,8 +492,6 @@
     // Fetch top sections in parallel
     const homeSectionsDef = [
       CATEGORIES.find(c => c.id === 'moi-cap-nhat'),
-      CATEGORIES.find(c => c.id === 'phim-thuyet-minh'),
-      CATEGORIES.find(c => c.id === 'phim-long-tieng'),
       CATEGORIES.find(c => c.id === 'viet-nam'),
       CATEGORIES.find(c => c.id === 'phim-le'),
       CATEGORIES.find(c => c.id === 'phim-bo'),
@@ -616,6 +600,17 @@
   // Open Movie Detail Modal
   window.openMovieDetail = async function (slug, autoPlay = false) {
     if (typeof slug !== 'string' || !/^[a-zA-Z0-9_-]{1,180}$/.test(slug)) return;
+    if (!isCurrentMovie(slug)) {
+      ++detailGeneration;
+      const saved = getWatchHistory().find(item => item.movieSlug === slug);
+      switchTab('search');
+      searchInput.value = saved ? saved.movieTitle : '';
+      searchGrid.innerHTML = '';
+      searchStatus.textContent = 'Nguồn cũ đã ngừng dùng. Tìm lại phim trên Tủ Phim.';
+      searchStatus.style.display = 'block';
+      if (searchInput.value) { searchClearBtn.style.display = 'flex'; searchInput.focus(); }
+      return;
+    }
     const generation = ++detailGeneration;
     if (!window.location.hash.startsWith('#detail-') && !window.location.hash.startsWith('#player-')) {
       try {
@@ -644,18 +639,7 @@
         json = await resp.json();
       } finally { clearTimeout(timeout); }
       if (generation !== detailGeneration) return;
-      if (!json || !json.movie) throw new Error('Chưa tải được thông tin phim. Hãy thử lại.');
-
-      if (isBrokenMovie(slug) || isBrokenMovie(json.movie.slug)) {
-        detailModal.innerHTML = `
-          <div class="detail-modal" style="padding:40px; text-align:center;">
-            <p style="font-size:16px; margin-bottom:12px; color:var(--accent-red); font-weight:bold;">Phim này đã bị gỡ khỏi kho</p>
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">Máy chủ gốc của nhà cung cấp bị lỗi nguồn phát (HTTP 404). Hệ thống đã tự động đối chiếu và loại bỏ phim này khỏi kho.</p>
-            <button class="btn-primary" onclick="closeMovieDetail()">Đóng</button>
-          </div>
-        `;
-        return;
-      }
+      if (!json || !json.movie || !isCurrentMovie(json.movie.slug)) throw new Error('Chưa tải được thông tin phim. Hãy thử lại.');
 
       const movie = json.movie;
       const episodes = json.episodes || [];
@@ -1310,7 +1294,7 @@
       const resp = await fetch(`${API_BASE}/v1/api/tim-kiem?keyword=${encoded}&limit=40`);
       const data = await resp.json();
       const rawItems = (data.data && data.data.items) ? data.data.items : [];
-      const items = rawItems.filter(m => !isBrokenMovie(m.slug));
+      const items = rawItems.filter(m => isCurrentMovie(m.slug));
 
       searchStatus.innerHTML = '';
 
@@ -1331,7 +1315,7 @@
 
   // History Screen Render
   function renderHistoryScreen() {
-    const history = getWatchHistory().filter(item => !isBrokenMovie(item.movieSlug));
+    const history = getWatchHistory();
     const clearBtn = document.getElementById('history-clear-btn');
     if (!history || history.length === 0) {
       if (historyEmpty) historyEmpty.style.display = 'block';
@@ -1358,10 +1342,10 @@
         : (item.currentTime > 0 ? `Đã xem ${formattedCurrent}` : 'Vừa xem');
 
       card.innerHTML = `
-        <img class="history-thumb" src="${KhoHistory.escape(item.posterUrl || 'icon.png')}" alt="${KhoHistory.escape(item.movieTitle || 'Phim')}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
+        <img class="history-thumb" src="${KhoHistory.escape(isCurrentMovie(item.movieSlug) ? (item.posterUrl || 'icon.png') : 'icon.png')}" alt="${KhoHistory.escape(item.movieTitle || 'Phim')}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='icon.png';">
         <div class="history-info">
           <div class="history-title">${KhoHistory.escape(item.movieTitle || 'Phim')}</div>
-          <div class="history-sub">${KhoHistory.escape(item.episodeName || 'Tập 1')} • ${KhoHistory.escape(item.serverName || 'VIP')}</div>
+          <div class="history-sub">${isCurrentMovie(item.movieSlug) ? KhoHistory.escape(item.episodeName || 'Tập 1') + ' • ' + KhoHistory.escape(item.serverName || 'VIP') : 'Nguồn cũ đã ngừng dùng · Tìm lại trên Tủ Phim'}</div>
           <div class="history-sub" style="font-size:11px; color:var(--text-muted);">${progressLabel}</div>
           <div class="history-progress-wrap">
             <div class="history-progress-bar" style="width: ${Math.max(5, progressPct)}%;"></div>
@@ -1369,7 +1353,7 @@
         </div>
         <div class="history-actions">
           <button class="btn-resume" type="button">
-            Tiếp tục
+            ${isCurrentMovie(item.movieSlug) ? 'Tiếp tục' : 'Tìm lại phim'}
           </button>
           <button class="icon-btn delete-btn" type="button" title="Xoá">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>

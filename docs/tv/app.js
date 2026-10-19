@@ -145,7 +145,7 @@
     card.onclick = function () { openDetail(item.slug, continuing); };
     card.setAttribute('data-slug', item.slug);
     var wrap = child('span', continuing ? 'tv-continue-thumb-wrap' : 'tv-card-poster-wrap');
-    var image = global.KhoPosters.create(C.image(continuing ? (item.banner || item.thumb_url || item.poster_url || item.poster) : (item.poster_url || item.posterUrl || item.thumb_url), domain), continuing);
+    var image = global.KhoPosters.create(continuing && !C.isCurrentMovie(item.slug) ? 'icon.png' : C.image(continuing ? (item.banner || item.thumb_url || item.poster_url || item.poster) : (item.poster_url || item.posterUrl || item.thumb_url), domain), continuing);
     wrap.appendChild(image);
     if (continuing) {
       var track = child('span', 'tv-continue-progress');
@@ -160,7 +160,7 @@
     }
     var info = child('span', continuing ? 'tv-continue-info' : 'tv-card-info');
     info.appendChild(child('span', continuing ? 'tv-continue-title' : 'tv-card-title', item.name || item.title || item.origin_name || item.slug));
-    if (continuing) info.appendChild(child('span', 'tv-continue-sub', 'Xem tiếp · ' + (item.episodeName || 'Tập 1')));
+    if (continuing) info.appendChild(child('span', 'tv-continue-sub', C.isCurrentMovie(item.slug) ? 'Xem tiếp · ' + (item.episodeName || 'Tập 1') : 'Nguồn cũ đã ngừng dùng · Tìm lại trên Tủ Phim'));
     else {
       var meta = child('span', 'tv-card-meta');
       meta.appendChild(child('span', 'tv-card-match', item.lang || 'Vietsub'));
@@ -200,7 +200,7 @@
     if (path === 'home') { home.activate(); return; }
     if (path === 'history') {
       var entries = C.history();
-      renderList({ items: entries.slice((page - 1) * C.PAGE_SIZE, page * C.PAGE_SIZE), totalPages: Math.max(1, Math.ceil(entries.length / C.PAGE_SIZE)), imageDomain: 'https://phimimg.com' }, moveFocus); return;
+      renderList({ items: entries.slice((page - 1) * C.PAGE_SIZE, page * C.PAGE_SIZE), totalPages: Math.max(1, Math.ceil(entries.length / C.PAGE_SIZE)), imageDomain: 'https://cdn.phimsrv.com' }, moveFocus); return;
     }
     if (path === 'search' && !query) { renderList({ items: [], totalPages: 1 }, false); text('status', 'Nhập từ khóa tìm kiếm trên remote để khám phá kho phim.'); return; }
     var key = path + '|' + query + '|' + page;
@@ -211,7 +211,7 @@
     updateMainRows([]); if (moveFocus) focus(el('retry'));
     var suffix = path === 'search' ? 'tim-kiem?keyword=' + encodeURIComponent(query) + '&' : path + '?';
     var sourcePage = Math.floor((page - 1) * C.PAGE_SIZE / (sourceSizes[path] || C.PAGE_SIZE)) + 1;
-    request.get(['https://phimapi.com/v1/api/' + suffix + 'page=' + sourcePage + '&limit=' + C.PAGE_SIZE], function (error, data) {
+    request.get([C.API_BASE + '/v1/api/' + suffix + 'page=' + sourcePage + '&limit=' + C.PAGE_SIZE], function (error, data) {
       busy = false;
       if (error) { text('status', error.message); text('page-label', 'Không có kết nối'); el('previous').disabled = page <= 1; updateMainRows([]); return; }
       var result = C.list(data, page); sourceSizes[path] = result.sourceSize;
@@ -320,6 +320,15 @@
   }
   function openDetail(slug, autoPlay) {
     if (!slug) return;
+    if (!C.isCurrentMovie(slug)) {
+      var legacy = C.findHistory(slug);
+      for (var i = 0; i < categories.length; i++) if (categories[i][1] === 'search') { switchCategory(i); break; }
+      el('search-input').value = legacy ? (legacy.title || legacy.name || '') : '';
+      text('status', 'Nguồn cũ đã ngừng dùng. Tìm lại phim trên Tủ Phim.');
+      toast('Nguồn cũ đã ngừng dùng. Tìm lại phim trên Tủ Phim.');
+      focus(el('search-input'));
+      return;
+    }
     detailAutoPlay = !!autoPlay;
     home.pause();
     if (scene === 'main') lastMainFocus = currentFocus;
@@ -344,8 +353,8 @@
     var saved = detailCache.get(slug);
     if (saved) { displayDetail(saved); return; }
     var encoded = encodeURIComponent(slug);
-    detailRequest.get(['https://phimapi.com/phim/' + encoded], function (error, data) {
-      if (error || !data.movie) {
+    detailRequest.get([C.API_BASE + '/phim/' + encoded], function (error, data) {
+      if (error || !data.movie || !C.isCurrentMovie(data.movie.slug)) {
         text('detail-title', 'Chưa tải được thông tin phim');
         text('detail-status', error ? error.message : 'Nguồn dữ liệu không trả về thông tin phim.');
         el('play').disabled = false;

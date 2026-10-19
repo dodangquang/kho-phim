@@ -50,6 +50,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.phimmoi.mobile.data.PlaybackSupport
+import com.phimmoi.mobile.data.SourcePolicy
 import com.phimmoi.mobile.data.EpisodeSource
 import com.phimmoi.mobile.data.WatchHistoryManager
 import com.phimmoi.mobile.data.WatchProgress
@@ -166,6 +167,7 @@ fun MobilePlayerScreen(
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ false)
             .build().apply {
+                trackSelectionParameters = trackSelectionParameters.buildUpon().setPreferredTextLanguage("vi").build()
                 playWhenReady = true
             }
     }
@@ -248,7 +250,7 @@ fun MobilePlayerScreen(
 
     LaunchedEffect(currentEp) {
         errorMessage = null
-        val rawUrl = PlaybackSupport.nativeStream(currentEp.streamUrl).orEmpty()
+        val rawUrl = currentEp.streamUrl.takeIf(SourcePolicy::isGatewayStream).orEmpty()
         if (rawUrl.isNotBlank()) {
             try {
                 val sanitized = rawUrl.replace(" ", "%20")
@@ -362,7 +364,7 @@ fun MobilePlayerScreen(
                     Button(
                         onClick = {
                             errorMessage = null
-                            val rawUrl = PlaybackSupport.nativeStream(currentEp.streamUrl).orEmpty()
+                            val rawUrl = currentEp.streamUrl.takeIf(SourcePolicy::isGatewayStream).orEmpty()
                             if (rawUrl.isNotBlank()) {
                                 try {
                                     val sanitized = rawUrl.replace(" ", "%20")

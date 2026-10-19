@@ -65,8 +65,8 @@ async function main(){
     }
     return reply(400,{error:{message:'UNSUPPORTED_TEST_REQUEST'}});
    });
-   await context.route('https://phimapi.com/**',route=>route.fulfill({json:{status:true,items:[],data:{items:[],params:{pagination:{totalPages:1}}}}}));
-   await context.route('https://phimimg.com/**',route=>route.abort());
+   await context.route('https://khophimqd.vercel.app/source/**',route=>route.fulfill({json:{status:true,items:[],data:{items:[],params:{pagination:{totalPages:1}}}}}));
+   await context.route('https://cdn.phimsrv.com/**',route=>route.abort());
    if(seed)await context.addInitScript(()=>localStorage.setItem('khophim_history',JSON.stringify([{movieSlug:'phim-2026',movieTitle:'Phim thử đồng bộ',episodeSlug:'tap-2',episodeName:'Tập 2',serverName:'Thuyết Minh',currentTime:65,duration:120,timestamp:Date.now()-1000}])));
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));return {context,page,errors};
   }

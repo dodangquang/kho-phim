@@ -184,3 +184,26 @@ test('native recovery preserves an intentional pause', () => {
   s.video.error = { code: 3 }; s.emit('error'); s.ready(); s.emit('progress');
   assert.equal(s.video.currentTime, 40); assert.equal(s.video.playCalls, 1); assert.equal(s.video.paused, true);
 });
+
+
+test('a manifest that never becomes ready fails once; startup pause events cannot disable its deadline', async () => {
+  const s = setup({ native: false }); s.installHls();
+  s.player.open('unavailable.m3u8'); await flush();
+  s.emit('pause'); // The decoder internally pauses while attaching MediaSource.
+  s.expire();
+  assert.equal(s.calls.filter(name => name === 'onError').length, 1);
+  assert.equal(s.instances[0].destroyed, true);
+  assert.equal(s.timers.size, 0);
+
+  const paused = setup({ native: false }); paused.installHls();
+  paused.player.open('ready.m3u8', 65, { autoplay: false }); await flush();
+  paused.instances[0].handlers.manifest(); paused.ready(); paused.emit('progress'); paused.expire();
+  assert.equal(paused.video.currentTime, 65);
+  assert.equal(paused.video.paused, true);
+  assert.deepEqual(paused.calls, [], 'A completed manifest with intentional pause is not a startup failure');
+
+  const canceled = setup({ native: false }); canceled.installHls();
+  canceled.player.open('old.m3u8'); await flush();
+  canceled.player.stop(); canceled.expire();
+  assert.deepEqual(canceled.calls, [], 'Closing playback cancels the startup deadline');
+});

@@ -2,15 +2,23 @@ name: Playback regression tests
 
 on:
   push:
-    paths: ['docs/**', 'tv-samsung-tizen/**', '.github/workflows/playback-tests.yml']
+    paths: ['docs/**', 'tv-samsung-tizen/**', 'api/**', 'lib/**', 'tools/tests/**', 'vercel.json', '.github/workflows/playback-tests.yml']
   pull_request:
-    paths: ['docs/**', 'tv-samsung-tizen/**', '.github/workflows/playback-tests.yml']
+    paths: ['docs/**', 'tv-samsung-tizen/**', 'api/**', 'lib/**', 'tools/tests/**', 'vercel.json', '.github/workflows/playback-tests.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  source-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tools/tests/tuphim.test.cjs
   web-players:
     runs-on: windows-latest
     steps:
@@ -35,6 +43,7 @@ jobs:
           node docs/tests/ratings-browser.cjs
           node docs/tests/ratings-browser.cjs --xss
           node docs/tests/sync-browser.cjs
+          node docs/tests/source-browser.cjs
           node tv-samsung-tizen/tests/regression.cjs
         env:
           NODE_PATH: ${{ github.workspace }}/tv-samsung-tizen/node_modules

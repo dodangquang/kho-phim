@@ -48,7 +48,7 @@ fun SearchScreen(
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
     val trendingTags = listOf(
-        "Thuyết Minh", "Lồng Tiếng", "Chiếu Rạp", "Anime",
+        "Chiếu Rạp", "Anime",
         "Hành Động", "Việt Nam", "Hàn Quốc", "Kinh Dị", "Tình Cảm", "Viễn Tưởng"
     )
 

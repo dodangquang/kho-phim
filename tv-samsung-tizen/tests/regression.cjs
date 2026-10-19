@@ -13,7 +13,7 @@ fs.mkdirSync(artifacts, { recursive: true });
 const results = [];
 function pass(name) { results.push(name); console.log('PASS ' + name); }
 function movie(index) {
-  return { slug: 'phim-' + index, name: 'Phim thử nghiệm ' + index, year: 2026, quality: 'HD', lang: 'Vietsub', poster_url: 'https://posters.example/film-' + index + '.png' };
+  return { slug: 'tp--phim-' + index, name: 'Phim thử nghiệm ' + index, year: 2026, quality: 'HD', lang: 'Vietsub', poster_url: 'https://cdn.phimsrv.com/film-' + index + '.png' };
 }
 function mockPlatform() {
   const state = { name: 'NONE', calls: [], listener: null, pending: [], manual: false, duration: 3600000 };
@@ -80,15 +80,16 @@ function mockPlatform() {
     const initialPosterGate = new Promise(resolve => { releaseInitialPosters = resolve; });
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
+      if (/phimapi\.com|phimmoi|ophim1\.com|phimimg\.com/.test(url.hostname)) throw new Error('Retired source requested: ' + url.hostname);
       if (url.origin === base) { await route.continue(); return; }
-      if (url.hostname !== 'phimapi.com' && url.hostname !== 'ophim1.com') {
-        if (url.hostname === 'posters.example') { posterRequests.push(url.href); await initialPosterGate; }
+      if (url.hostname !== 'khophimqd.vercel.app' || !url.pathname.startsWith('/source/')) {
+        if (url.hostname === 'cdn.phimsrv.com') { posterRequests.push(url.href); await initialPosterGate; }
         await route.fulfill({ status: 200, contentType: 'image/png', headers: { 'cache-control': 'no-store' }, body: fs.readFileSync(path.join(root, 'icon.png')) }); return;
       }
       apiRequests.push(url.href);
-      if (mode.offline || (mode.failDetail && url.pathname.indexOf('/phim/') === 0)) { await route.abort(); return; }
+      if (mode.offline || (mode.failDetail && url.pathname.indexOf('/source/phim/') === 0)) { await route.abort(); return; }
       let json;
-      if (url.pathname.indexOf('/phim/') === 0) {
+      if (url.pathname.indexOf('/source/phim/') === 0) {
         json = { status: true, movie: { ...movie(Number(url.pathname.split('-').pop()) || 0), content: '<b>Mô tả phim thử nghiệm để kiểm tra giao diện TV và danh sách tập.</b>', category: [{ name: 'Hành động' }] }, episodes: [
           { server_name: 'Vietsub', server_data: Array.from({ length: 500 }, (_, index) => ({ name: 'Tập ' + (index + 1), slug: 'tap-' + (index + 1), link_m3u8: 'https://media.example/episode-' + index + '.m3u8' })) },
           { server_name: 'Lồng tiếng', server_data: [{ name: 'Tập 1', slug: 'tap-1', link_m3u8: 'https://media.example/dub.m3u8' }] }
@@ -101,7 +102,7 @@ function mockPlatform() {
         if (keyword === 'old') await new Promise(resolve => setTimeout(resolve, 220));
         const items = Array.from({ length: size }, (_, index) => movie((page - 1) * size + index));
         if (keyword) items.forEach(item => { item.name = keyword + ' ' + item.name; });
-        json = { status: 'success', data: { items, APP_DOMAIN_CDN_IMAGE: 'https://phimimg.com', params: { pagination: { totalItems: 120, totalItemsPerPage: size, currentPage: page, totalPages: 120 / size } } } };
+        json = { status: 'success', data: { items, APP_DOMAIN_CDN_IMAGE: 'https://cdn.phimsrv.com', params: { pagination: { totalItems: 120, totalItemsPerPage: size, currentPage: page, totalPages: 120 / size } } } };
       }
       await route.fulfill({ json, headers: { 'access-control-allow-origin': '*' } }).catch(() => {});
     });
@@ -115,7 +116,7 @@ function mockPlatform() {
     assert.equal(await page.locator('iframe').count(), 0);
     assert.equal(await page.locator('#hero').evaluate(node => node.offsetHeight), 480);
     assert.equal(await page.locator('#sidebar').evaluate(node => node.offsetWidth), 68);
-    assert.equal(await page.locator('#shelves > .tv-shelf-section').count(), 11);
+    assert.equal(await page.locator('#shelves > .tv-shelf-section').count(), 9);
     await page.waitForTimeout(100);
     assert.ok(apiRequests.length <= 2, 'Only nearby shelves may request initial data');
     assert.ok(await page.locator('#shelves .tv-card').count() <= 18);
@@ -150,7 +151,7 @@ function mockPlatform() {
     await page.keyboard.press('Escape');
     await page.locator('#hero-play').evaluate(node => node.focus());
     pass('Movie cards retain focus, Enter/Space activation and Return after replacing native buttons');
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 9; i++) {
       await page.keyboard.press('ArrowDown');
       await page.waitForFunction(index => {
         const shelf = document.activeElement.closest('[data-shelf]');
@@ -161,7 +162,7 @@ function mockPlatform() {
     }
     await page.locator('#menu [data-tab="home"]').click();
     await page.waitForFunction(() => document.querySelectorAll('[data-shelf="0"] .tv-card').length === 6);
-    pass('Remote traverses all eleven virtual shelves without losing focus or growing DOM');
+    pass('Remote traverses all nine supported virtual shelves without losing focus or growing DOM');
     const firstShelf = page.locator('[data-shelf="0"]');
     await firstShelf.locator('.tv-card-more').last().click();
     await page.waitForFunction(() => document.querySelector('[data-shelf="0"] .tv-card-title') && document.querySelector('[data-shelf="0"] .tv-card-title').textContent === 'Phim thử nghiệm 6');
@@ -181,15 +182,15 @@ function mockPlatform() {
     await page.waitForFunction(() => Array.from(document.querySelectorAll('[data-shelf="0"] canvas')).every(canvas => canvas._painted));
     assert.equal(posterRequests.filter(url => /\/film-[0-5]\.png$/.test(url)).length, loadedFirstPosters);
     pass('Distant shelves restore all six posters without focus or refetch, with HTTP image cache disabled');
-    await page.locator('[data-shelf="3"]').evaluate(node => { document.querySelector('#main').scrollTop = node.offsetTop - 50; });
-    await page.waitForFunction(() => document.querySelectorAll('[data-shelf="3"] .tv-card').length === 6);
+    await page.locator('[data-shelf="0"]').evaluate(node => { document.querySelector('#main').scrollTop = node.offsetTop - 50; });
+    await page.waitForFunction(() => document.querySelectorAll('[data-shelf="0"] .tv-card').length === 6);
     for (const expectedStart of [6, 12, 18, 24]) {
-      await page.locator('[data-shelf="3"] .tv-card-more').last().click();
+      await page.locator('[data-shelf="0"] .tv-card-more').last().click();
       await page.waitForFunction(expected => {
-        const title = document.querySelector('[data-shelf="3"] .tv-card-title');
+        const title = document.querySelector('[data-shelf="0"] .tv-card-title');
         return title && title.textContent === 'Phim thử nghiệm ' + expected;
       }, expectedStart);
-      assert.equal(await page.locator('[data-shelf="3"] .tv-card').count(), 6);
+      assert.equal(await page.locator('[data-shelf="0"] .tv-card').count(), 6);
     }
     assert.ok(apiRequests.some(url => url.includes('/phim-moi?page=1&limit=6')));
     assert.ok(apiRequests.some(url => url.includes('/phim-moi?page=2&limit=6')));
@@ -338,7 +339,7 @@ function mockPlatform() {
     assert.equal(apiRequests.some(url => url.indexOf('ophim1.com') !== -1), false);
     pass('Primary detail API failure shows retry and permits returning without a request to the dead backup');
     mode.failDetail = false;
-    await page.evaluate(() => localStorage.setItem('khophim_tv_watch_history', JSON.stringify([{ slug: 'phim-0', name: 'Phim xem tiếp', poster_url: 'https://images.example/poster.png', banner: 'https://images.example/banner.png', episodeSlug: 'tap-1', episodeName: 'Tập 1', serverName: 'Vietsub', positionMs: 90000, durationMs: 3600000 }])));
+    await page.evaluate(() => localStorage.setItem('khophim_tv_watch_history', JSON.stringify([{ slug: 'tp--phim-0', name: 'Phim xem tiếp', poster_url: 'https://images.example/poster.png', banner: 'https://images.example/banner.png', episodeSlug: 'tap-1', episodeName: 'Tập 1', serverName: 'Vietsub', positionMs: 90000, durationMs: 3600000 }])));
     await page.locator('#menu [data-tab="home"]').click();
     await page.locator('#continue-row .tv-continue-card').first().click();
     await page.waitForFunction(() => window.__av.name === 'PLAYING');

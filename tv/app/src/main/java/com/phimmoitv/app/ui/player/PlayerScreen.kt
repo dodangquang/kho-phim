@@ -37,6 +37,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.phimmoitv.app.data.PlaybackSupport
+import com.phimmoitv.app.data.SourcePolicy
 import com.phimmoitv.app.data.EpisodeSource
 import com.phimmoitv.app.data.WatchHistoryManager
 import com.phimmoitv.app.data.WatchProgress
@@ -103,6 +104,7 @@ fun PlayerScreen(
         ExoPlayer.Builder(context)
             .setLoadControl(loadControl)
             .build().apply {
+                trackSelectionParameters = trackSelectionParameters.buildUpon().setPreferredTextLanguage("vi").build()
                 playWhenReady = true
             }
     }
@@ -184,7 +186,7 @@ fun PlayerScreen(
 
     LaunchedEffect(currentEpisode, retryAttempt) {
         errorMessage = null
-        val streamUrl = PlaybackSupport.nativeStream(currentEpisode.streamUrl)
+        val streamUrl = currentEpisode.streamUrl.takeIf(SourcePolicy::isGatewayStream)
         if (streamUrl == null) {
             isBuffering = false
             errorMessage = "Nguồn này không có video trực tiếp hợp lệ. Hãy chọn nguồn khác."

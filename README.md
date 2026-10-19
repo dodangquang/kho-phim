@@ -1,6 +1,6 @@
 # Kho Phim - Đa Nền Tảng (Android TV • Android Mobile • iOS)
 
-Ứng dụng xem phim đa nền tảng tốc độ cao, hỗ trợ nguồn phát HLS đa server (Vietsub, Thuyết minh, Lồng tiếng), chặn quảng cáo độc hại và đồng bộ lịch sử xem.
+Ứng dụng xem phim đa nền tảng, dùng nguồn Tủ Phim với HLS đa server và đồng bộ lịch sử xem. Chi tiết chuyển nguồn, lịch sử cũ và giới hạn server: [TUPHIM-SOURCE.md](TUPHIM-SOURCE.md).
 
 ## 📱 Các Phiên Bản
 
@@ -29,7 +29,7 @@ Web Mobile/Desktop/TV và hai APK dùng chung tài khoản Google trên Firebase
 - **Hệ thống nguồn phát linh hoạt:** Hỗ trợ đa server m3u8 (Server VIP, Server Phụ, Thuyết Minh, Lồng Tiếng, Vietsub).
 - **Tự động lưu lịch sử xem:** Ghi nhớ chính xác thời gian đã xem của từng tập phim và cho phép tiếp tục xem chỉ với một chạm.
 - **Chặn quảng cáo (AdBlocker):** Tự động loại bỏ popup, chuyển hướng độc hại và banner gây giật lag.
-- **Nguồn dữ liệu:** ưu tiên PhimAPI; Android vẫn có đường dự phòng từ tên miền do người dùng chọn. Đã bỏ URL cấu hình tên miền và endpoint OPhim trả 404.
+- **Nguồn dữ liệu:** chỉ Tủ Phim qua gateway chung trên Vercel. Đã bỏ hoàn toàn API, tên miền và dự phòng nguồn cũ. Lịch sử cũ được giữ để tìm lại phim, không tự mở bằng mã phim của nguồn mới.
 
 ## 🚀 Tải File Cài Đặt (Releases)
 Android Mobile và Android TV 1.0.5/code6 có trong [GitHub Release v1.0.5](https://github.com/dodangquang/kho-phim/releases/tag/v1.0.5). Hai APK giữ application ID và chứng chỉ của bản 1.0.2. Mở **Cài đặt → Kiểm tra cập nhật** hoặc mở lại app để kiểm tra tự động; Android vẫn yêu cầu xác nhận cài đặt. `version.json` và `docs/version.json` dùng cùng thông tin phiên bản và link riêng cho từng nền tảng.
