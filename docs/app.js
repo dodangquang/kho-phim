@@ -65,6 +65,8 @@
   const playerErrorText = document.getElementById('player-error-text');
   const playerSwitchModeBtn = document.getElementById('player-switch-mode-btn');
   const playerToast = document.getElementById('player-toast');
+  const seekControls = document.getElementById('player-seek-controls');
+  let seekControlsTimer = null;
   const mobilePlayer = new window.KhoMobilePlayer(videoPlayer, {
     onBeforeError: () => trackAndSaveHistory(),
     onError: () => handlePlaybackError('', currentPlayingEpisode ? currentPlayingEpisode.link_embed : ''),
@@ -868,7 +870,44 @@
   window.seekVideoBy = function (seconds) {
     if (currentPlayerMode !== 'hls') return;
     if (!mobilePlayer.seekBy(seconds)) showPlayerToast('Đang chuẩn bị video để tua…');
+    showSeekControls();
   };
+
+  // These are page controls, separate from Safari's native video controls.
+  function hideSeekControls() {
+    clearTimeout(seekControlsTimer);
+    seekControlsTimer = null;
+    seekControls.hidden = true;
+  }
+
+  function scheduleSeekControlsHide() {
+    clearTimeout(seekControlsTimer);
+    if (seekControls.hidden) return;
+    seekControlsTimer = setTimeout(() => {
+      seekControlsTimer = null;
+      // Keep keyboard users' focused controls available until focus leaves.
+      try { if (seekControls.querySelector(':focus-visible')) return; }
+      catch (_) {} // Older Safari versions do not recognize this selector.
+      hideSeekControls();
+    }, 3000);
+  }
+
+  function showSeekControls() {
+    if (!currentPlayingEpisode || currentPlayerMode !== 'hls' || videoPlayer.webkitDisplayingFullscreen) return;
+    seekControls.hidden = false;
+    scheduleSeekControlsHide();
+  }
+
+  window.hideSeekControls = hideSeekControls;
+  videoPlayer.addEventListener('pointerup', () => {
+    if (seekControls.hidden) showSeekControls();
+    else hideSeekControls();
+  });
+  seekControls.addEventListener('pointerdown', () => clearTimeout(seekControlsTimer));
+  seekControls.addEventListener('pointerup', scheduleSeekControlsHide);
+  seekControls.addEventListener('pointercancel', scheduleSeekControlsHide);
+  seekControls.addEventListener('focusout', scheduleSeekControlsHide);
+  videoPlayer.addEventListener('webkitbeginfullscreen', hideSeekControls);
 
   // Player Source & Toast Helpers
   function showPlayerToast(text, duration = 3500) {
@@ -884,7 +923,8 @@
   function updatePlayerModeButton() {
     const btn = document.getElementById('player-switch-mode-btn');
     if (!btn) return;
-    document.getElementById('player-seek-controls').hidden = currentPlayerMode === 'embed';
+    if (currentPlayerMode === 'embed') hideSeekControls();
+    else showSeekControls();
     if (currentPlayerMode === 'embed') {
       btn.textContent = 'Nguồn: Dự phòng';
       btn.classList.add('embed-active');
@@ -1104,6 +1144,7 @@
 
   // Close Player
   window.closeVideoPlayer = function (fromPopState = false) {
+    hideSeekControls();
     trackAndSaveHistory();
     currentPlayerMode = 'hls';
 
@@ -1186,7 +1227,10 @@
   });
 
   // Leaving iOS native fullscreen keeps the same source and playback position.
-  videoPlayer.addEventListener('webkitendfullscreen', () => trackAndSaveHistory());
+  videoPlayer.addEventListener('webkitendfullscreen', () => {
+    trackAndSaveHistory();
+    showSeekControls();
+  });
 
   // Save history on pause and when user switches apps or minimizes Safari
   let lastRecordedHistorySec = 0;
@@ -1203,7 +1247,10 @@
   });
   window.addEventListener('pagehide', () => trackAndSaveHistory());
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) trackAndSaveHistory();
+    if (document.hidden) {
+      trackAndSaveHistory();
+      hideSeekControls();
+    }
   });
 
   // Browser back button & iOS edge swipe navigation support

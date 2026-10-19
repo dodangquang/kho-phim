@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const root = path.resolve(__dirname, '..');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
 const live = process.argv.includes('--live');
+const useWebKit = process.argv.includes('--webkit');
 
 async function main() {
   const server = http.createServer((request, response) => {
@@ -22,10 +23,17 @@ async function main() {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'msedge', headless: true });
+    browser = useWebKit ? await webkit.launch({ headless: true }) : await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       ...(live ? {} : { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' }) });
     const page = await context.newPage();
+    const seekControls = page.locator('#player-seek-controls');
+    async function revealSeekControls() {
+      if (!await seekControls.isVisible()) {
+        await page.locator('#video-player').tap({ position: { x: 140, y: 180 } });
+        await seekControls.waitFor({ state: 'visible' });
+      }
+    }
     const errors = [], requests = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('request', request => requests.push(request.url()));
@@ -70,8 +78,23 @@ async function main() {
       });
       assert.equal(await page.locator('#video-player').evaluate(video => video.currentTime), 35);
       await page.screenshot({ path: path.join(process.env.KHOPHIM_TEST_OUTPUT || path.resolve(root, '../../'), 'mobile-player.png') });
+      await page.waitForTimeout(3200);
+      assert.equal(await seekControls.isVisible(), false, 'Skip controls automatically hide while watching');
+      await revealSeekControls();
+      await page.getByRole('button', { name: 'Ẩn nút tua', exact: true }).click();
+      assert.equal(await seekControls.isVisible(), false, 'Dismiss immediately hides the skip controls');
+      await page.evaluate(() => document.getElementById('video-player').dispatchEvent(new Event('playing')));
+      assert.equal(await seekControls.isVisible(), false, 'Buffering completion cannot undo manual dismissal');
+      await page.screenshot({ path: path.join(process.env.KHOPHIM_TEST_OUTPUT || path.resolve(root, '../../'), `mobile-seek-hidden-${useWebKit ? 'webkit' : 'edge'}.png`) });
+      await revealSeekControls();
+      await page.locator('#video-player').tap({ position: { x: 140, y: 180 } });
+      assert.equal(await seekControls.isVisible(), false, 'Tapping the video toggles visible skip controls off');
+      await revealSeekControls();
+      await page.waitForTimeout(1700);
       await page.getByRole('button', { name: 'Tiến 10 giây' }).click();
       assert.equal(await page.locator('#video-player').evaluate(video => video.currentTime), 45);
+      await page.waitForTimeout(1700);
+      assert.equal(await seekControls.isVisible(), true, 'Using a skip button renews the hide deadline');
       await page.getByRole('button', { name: 'Lùi 10 giây' }).click();
       assert.equal(await page.locator('#video-player').evaluate(video => video.currentTime), 35);
       await page.evaluate(() => {
@@ -87,6 +110,7 @@ async function main() {
       await page.evaluate(() => { window.togglePlayerSource(); window.__native.readyVideo(120); });
       assert.equal(await page.locator('#video-player').evaluate(video => video.currentTime), 61, 'Returning from embed resumes the direct-stream position');
       await page.evaluate(() => { window.__native.paused = true; });
+      await revealSeekControls();
       await page.getByRole('button', { name: 'Tiến 10 giây' }).click();
       assert.equal(await page.locator('#video-player').evaluate(video => video.paused), true, 'Seeking preserves pause');
       await page.evaluate(() => window.playNextEpisode());
@@ -95,8 +119,9 @@ async function main() {
       await page.evaluate(() => window.closeVideoPlayer(true));
       assert.equal(await page.locator('#video-player').evaluate(video => video.hasAttribute('src')), false);
       assert.equal(await page.locator('#player-overlay').evaluate(element => element.classList.contains('open')), false);
+      assert.equal(await seekControls.isVisible(), false, 'Closing playback clears and hides skip controls');
       assert.equal(requests.some(url => /hls.*\.js|jsdelivr/.test(url)), false);
-      console.log('PASS mobile UI: Safari lifecycle, ±10s buttons, fullscreen exit, history without home rerenders, next episode and cleanup');
+      console.log(`PASS mobile UI (${useWebKit ? 'WebKit' : 'Edge'}): auto-hide/dismiss/reveal skip buttons, renewed timeout, Safari lifecycle, ±10s, fullscreen exit, history, next episode and cleanup`);
     } else {
       for (const [slug, resume] of [['truyen-kinh-di-my-phan-13', 0], ['chim-vao-mat-em-phan-1', 180], ['yeu-mot-nguoi-khac-yeu-mot-nguoi-khac-khong-phai-em', 60]]) {
         const data = await (await fetch('https://phimapi.com/phim/' + slug, { signal: AbortSignal.timeout(15000) })).json();
@@ -106,9 +131,13 @@ async function main() {
         await page.waitForFunction(resume => { const v = document.getElementById('video-player'); return v.currentTime > resume + 1 && !v.paused && v.readyState >= 2; }, resume, { timeout: 45000 });
         const startupMs = Date.now() - start;
         const before = await page.locator('#video-player').evaluate(video => video.currentTime);
+        await revealSeekControls();
+        await page.locator('#video-player').evaluate(video => { if (video.paused) return video.play(); });
         await page.getByRole('button', { name: 'Tiến 10 giây' }).click();
         await page.waitForFunction(target => { const v = document.getElementById('video-player'); return v.currentTime >= target && !v.seeking && v.readyState >= 2; }, before + 9, { timeout: 30000 });
         const forward = await page.locator('#video-player').evaluate(video => video.currentTime);
+        await revealSeekControls();
+        await page.locator('#video-player').evaluate(video => { if (video.paused) return video.play(); });
         await page.getByRole('button', { name: 'Lùi 10 giây' }).click();
         await page.waitForFunction(target => { const v = document.getElementById('video-player'); return v.currentTime < target - 5 && !v.seeking && v.readyState >= 2; }, forward, { timeout: 30000 });
         const backward = await page.locator('#video-player').evaluate(video => video.currentTime);
