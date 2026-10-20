@@ -86,7 +86,9 @@ test('detail loads later episode pages on the original source index', async () =
   assert.equal(r.json.episodes[0].server_data.length, 2);
   assert.deepEqual(r.json.episodes.map(s => s.server_name), ['Diamond [VS]', 'Gold [LT]']);
   assert.match(r.json.episodes[0].server_data[1].link_m3u8, /\/source\/stream\/abcdefgh\/index\.m3u8$/);
-  assert.equal(r.json.episodes[0].server_data[0].link_embed, '');
+  assert.equal(r.json.episodes[0].server_data[0].link_embed, 'https://api.phimsrv.com/v1/embed/12345678');
+  assert.equal(r.json.episodes[0].server_data[1].link_embed, 'https://api.phimsrv.com/v1/embed/abcdefgh');
+  assert.equal(r.json.episodes[1].server_data[0].link_embed, 'https://api.phimsrv.com/v1/embed/goldhash');
   assert.equal(requests.length, 2);
   const preferred = await source('phim/tp--series', new URLSearchParams({ audio: 'lt' }));
   assert.equal(preferred.json.episodes[0].server_name, 'Gold [LT]');
