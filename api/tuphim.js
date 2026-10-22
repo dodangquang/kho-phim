@@ -6,6 +6,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Kho-Stream-Version', '2');
   if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
   if (!['GET', 'HEAD'].includes(req.method)) { res.statusCode = 405; res.setHeader('Allow', 'GET, HEAD, OPTIONS'); return res.end(); }
   try {
