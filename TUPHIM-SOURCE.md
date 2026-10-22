@@ -18,6 +18,8 @@ Gateway lọc hai clip riêng có mã đường dẫn `18d007379882ef14b73445b93
 
 Manifest chất lượng được trỏ qua các đường `playlist-0.m3u8` có chỉ số giới hạn, tối đa ba cấp và32 tham chiếu mỗi cấp. Mọi URL đều lấy từ manifest của tập gốc; client không gửi URL tùy ý. Cache15giây, kiểm tra DNS/kích thước/timeout như nhánh phụ đề; byte video tiếp tục từ CDN. Bản cài đang dùng gateway Tủ Phim nhận thay đổi khi mở lại phim, không cần đổi APK/WGT chỉ để nhận bộ lọc này.
 
+Function `api/tuphim.js` đặt rõ tại Singapore (`functions["api/tuphim.js"].regions: ["sin1"]`), gần CDN nguồn và người dùng Việt Nam. Cùng manifest mẫu trả404 khi đọc từ function ở Mỹ (`iad1`) nhưng trả200 tại `sin1`; chỉ đặt `regions` ở mức project chưa đổi vị trí thực thi function trong lượt thử. Kiểm tra vị trí thực tế bằng deployment metadata, `x-vercel-id` và runtime log. Không đổi header danh tính hoặc quyền truy cập của CDN.
+
 Đối chiếu ngày22/10/2026: Thức Tỉnh (2026), tập2 Diamond, hash `51020a500c1a071f50`, có11 segment clip chèn từ901,60–931,84giây. Lọc30,24giây làm thời lượng2736,36→2706,12giây (45:36→45:06). Thức Tỉnh (2020), tập2 cũng chứa cùng clip ở CDN khác. Kiểm tra phát thật trên giao diện Desktop/Edge đi qua chỗ nối và tua, không yêu cầu segment quảng cáo. Đây không phải xác nhận phát trên phần cứng iPhone/Samsung/Android thật.
 
 ## Độ mới của danh sách tập
