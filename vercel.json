@@ -22,6 +22,6 @@
     { "source": "/source/:path*", "destination": "/api/tuphim?path=:path*" }
   ],
   "functions": {
-    "api/tuphim.js": { "maxDuration": 60 }
+    "api/tuphim.js": { "maxDuration": 60, "regions": ["sin1"] }
   }
 }
