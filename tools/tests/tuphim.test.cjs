@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createSource, movie, publicEpisode, withSubtitles, secureUrl, isPrivate } = require('../../lib/tuphim');
-function fixture(episode) {
+const { filterAds } = require('../../lib/hls-ads');
+function fixture(episode, url = 'https://media.example.org/path/master.m3u8?token=fixture') {
   const key = 'public-fixture-key';
-  const url = 'https://media.example.org/path/master.m3u8?token=fixture';
   const encrypted_url = Array.from(url, (c, i) => (c.charCodeAt(0) ^ key.charCodeAt(i % key.length)).toString(16).padStart(2, '0')).join('');
   return '<script>let config={publicKey:' + JSON.stringify(key) + ',episode:' + JSON.stringify({ encrypted_url, ...episode }) + '};neverExecute()</script>';
 }
@@ -27,6 +27,92 @@ test('public catalogue gets a new identity, real ratings and absolute provider i
   assert.equal(movie({ primarySlug: 'card', posterPath300: 'https://cdn.phimsrv.com/card/poster_300.webp', posterPathOriginal: 'https://cdn.phimsrv.com/card/poster_original.webp' }).poster_url, 'https://cdn.phimsrv.com/card/poster_300.webp');
   assert.equal(movie({ primarySlug: 'vip', vipOnly: true }), null);
   assert.equal(movie({ primarySlug: 'x'.repeat(177) }), null);
+});
+
+const adClip = 'd61a03b1dabe537cc05ffe5c9c280f56';
+const adManifest = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:7\n#EXT-X-MEDIA-SEQUENCE:0\n' +
+  '#EXTINF:4.0,\nfilm-before.ts\n#EXT-X-DISCONTINUITY\n' +
+  '#EXTINF:3.72,\n/v8/' + adClip + '/segment_0001.ts\n' +
+  '#EXTINF:2.36,\n/v8/' + adClip + '/segment_0002.ts\n' +
+  '#EXT-X-DISCONTINUITY\n#EXTINF:5.0,\nfilm-after.ts\n#EXT-X-ENDLIST\n';
+test('known inserted clips are removed with a timestamp reset between intact film segments', () => {
+  const result = filterAds(adManifest, 'https://a.kvp726.com/movie/index.m3u8');
+  assert.equal(result.removed, 2); assert.equal(result.seconds, 6.08);
+  assert.doesNotMatch(result.body, new RegExp(adClip));
+  assert.match(result.body, /#EXTINF:4\.0,\nfilm-before\.ts/);
+  assert.match(result.body, /#EXT-X-DISCONTINUITY\n#EXTINF:5\.0,\nfilm-after\.ts/);
+  assert.equal(result.body.match(/^#EXT-X-DISCONTINUITY$/gm).length, 1);
+  const unknown = adManifest.replaceAll(adClip, adClip + 'film');
+  assert.equal(filterAds(unknown, 'https://a.kvp726.com/').body, unknown);
+  const ordinaryFirstSegment = adManifest.replaceAll('/v8/' + adClip + '/segment_0001.ts', 'streamaaa0000.png').replaceAll('/v8/' + adClip + '/segment_0002.ts', 'convertv7/film.ts');
+  assert.equal(filterAds(ordinaryFirstSegment, 'https://a.kvp726.com/').removed, 0);
+});
+test('live, encrypted, mapped and timestamped playlists keep their original content', () => {
+  for (const body of [adManifest.replace('#EXT-X-ENDLIST', ''), ...[
+    '#EXT-X-KEY:METHOD=AES-128,URI="key"', '#EXT-X-MAP:URI="init.mp4"',
+    '#EXT-X-BYTERANGE:1000@0', '#EXT-X-PROGRAM-DATE-TIME:2026-10-22T00:00:00Z'
+  ].map(tag => adManifest.replace('#EXT-X-VERSION:3', tag))]) {
+    assert.deepEqual(filterAds(body, 'https://a.kvp726.com/'), { body, removed: 0, seconds: 0 });
+  }
+});
+test('gateway follows indexed provider variants and filters manifests without fetching video bytes', async () => {
+  const url = 'https://a.kvp726.com/movie/master.m3u8';
+  const { source, requests } = mocked({
+    'https://api.phimsrv.com/v1/embed/12345678': fixture({}, url),
+    [url]: '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=3500000\n3500kb/index.m3u8\n',
+    'https://a.kvp726.com/movie/3500kb/index.m3u8': adManifest
+  });
+  const master = await source('stream/12345678/index.m3u8');
+  assert.match(master.hls, /https:\/\/khophimqd\.vercel\.app\/source\/stream\/12345678\/playlist-0\.m3u8/);
+  const media = await source('stream/12345678/playlist-0.m3u8');
+  assert.doesNotMatch(media.hls, new RegExp(adClip));
+  assert.match(media.hls, /https:\/\/a\.kvp726\.com\/movie\/3500kb\/film-after\.ts/);
+  assert.equal(requests.length, 3);
+  assert.ok(requests.every(r => !/\.ts$/.test(r.url)));
+  await assert.rejects(source('stream/12345678/playlist-1.m3u8'), { status: 404 });
+  await assert.rejects(source('stream/12345678/playlist-32.m3u8'), { status: 404 });
+  assert.equal(requests.length, 3);
+});
+test('external subtitle timelines keep the original media duration and subtitle group', async () => {
+  const url = 'https://s5.phim1280.tv/movie/index.m3u8';
+  const { source } = mocked({
+    'https://api.phimsrv.com/v1/embed/12345678': fixture({ subtitles: [{ lang: 'vi', url: 'https://cdn.phimsrv.com/sub.vtt' }] }, url),
+    [url]: adManifest
+  });
+  const master = await source('stream/12345678/index.m3u8');
+  assert.match(master.hls, /SUBTITLES="kho-sub"/);
+  assert.match(master.hls, /https:\/\/s5\.phim1280\.tv\/movie\/index\.m3u8/);
+  assert.doesNotMatch(master.hls, /playlist-/);
+});
+test('a CDN refusing server-side reads still redirects to its original device stream', async () => {
+  const url = 'https://a.kvp726.com/movie/master.m3u8', requests = [];
+  const source = createSource({ lookup: async () => [{ address: '93.184.216.34' }], fetchImpl: async target => {
+    requests.push(target);
+    return target.includes('/embed/') ? new Response(fixture({}, url)) : new Response('Forbidden', { status: 403 });
+  }});
+  assert.deepEqual(await source('stream/12345678/index.m3u8'), { redirect: url });
+  assert.equal(requests.length, 2);
+});
+test('ordinary first segments and unsupported master metadata preserve the original device path', async () => {
+  for (const body of [adManifest.replaceAll(adClip, 'ordinary-film'), '#EXTM3U\n#EXT-X-SESSION-DATA:DATA-ID="metadata",URI="metadata.json"\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nvideo.m3u8\n']) {
+    const url = 'https://a.kvp726.com/movie/index.m3u8';
+    const { source } = mocked({ 'https://api.phimsrv.com/v1/embed/12345678': fixture({}, url), [url]: body });
+    assert.deepEqual(await source('stream/12345678/index.m3u8'), { redirect: url });
+  }
+});
+test('separate audio timelines remain untouched and nested video variants use bounded paths', async () => {
+  const url = 'https://a.kvp726.com/movie/master.m3u8';
+  const routes = {
+    'https://api.phimsrv.com/v1/embed/12345678': fixture({}, url),
+    [url]: '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Original",URI="audio/index.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=3500000,AUDIO="a"\nnested.m3u8\n',
+    'https://a.kvp726.com/movie/nested.m3u8': '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=3500000\nvideo/index.m3u8\n',
+    'https://a.kvp726.com/movie/video/index.m3u8': adManifest,
+    'https://a.kvp726.com/movie/audio/index.m3u8': adManifest.replaceAll(adClip, 'ordinary-audio')
+  };
+  assert.deepEqual(await mocked(routes).source('stream/12345678/index.m3u8'), { redirect: url });
+  const { source } = mocked({ ...routes, [url]: '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=3500000\nnested.m3u8\n' });
+  assert.match((await source('stream/12345678/playlist-0.m3u8')).hls, /playlist-0-0\.m3u8/);
+  assert.doesNotMatch((await source('stream/12345678/playlist-0-0.m3u8')).hls, new RegExp(adClip));
 });
 test('public player config is parsed as inert JSON and only ordinary HTTPS HLS is accepted', () => {
   const data = publicEpisode(fixture({ subtitles: [{ lang: 'vi', label: 'Tiếng Việt', url: 'https://media.example.org/sub/vi.vtt' }] }));
