@@ -107,6 +107,7 @@ function mockPlatform() {
       await route.fulfill({ json, headers: { 'access-control-allow-origin': '*' } }).catch(() => {});
     });
     const page = await context.newPage();
+    await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base);

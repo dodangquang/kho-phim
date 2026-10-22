@@ -15,7 +15,7 @@ const baseBundle = JSON.parse(build().text);
 const results = [];
 function pass(name) { results.push(name); console.log('PASS ' + name); }
 function release(version, options = {}) {
-  const data = JSON.parse(JSON.stringify(baseBundle).replaceAll('1.0.15', version));
+  const data = JSON.parse(JSON.stringify(baseBundle).replaceAll(baseBundle.version, version));
   if (options.broken) data.js = 'throw new Error("Update boot failure fixture");';
   const text = JSON.stringify(data) + '\n';
   const sha256 = crypto.createHash('sha256').update(text).digest('hex');
@@ -68,6 +68,7 @@ async function main() {
       return route.fulfill({ json: { status: true, items: [movie], data: { items: [movie], params: { pagination: { totalItems: 1, totalItemsPerPage: 6 } } } }, headers: { 'Access-Control-Allow-Origin': '*' } });
     });
     const page = await context.newPage();
+    await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const url = 'http://127.0.0.1:' + server.address().port;
@@ -76,14 +77,14 @@ async function main() {
     const versionIs = version => page.waitForFunction(v => window.KhoCore && KhoCore.VERSION === v && KhoBoot.ready && !JSON.parse(localStorage.getItem('khophim_samsung_ota_v1')).trial, version);
     await page.goto(url);
     await ready();
-    assert.equal(await page.evaluate(() => KhoCore.VERSION), '1.0.15');
+    assert.equal(await page.evaluate(() => KhoCore.VERSION), baseBundle.version);
     await page.evaluate(() => {
       localStorage.setItem('unrelated-data', 'keep');
       KhoCore.save({ slug: 'tp--auto-update', name: 'Phim thử cập nhật', positionMs: 12000, serverName: 'Lồng tiếng', episodeSlug: 'tap-1' });
     });
     const history = await page.evaluate(() => localStorage.getItem('khophim_tv_watch_history'));
     await staged('1.0.16');
-    assert.equal(await page.evaluate(() => KhoCore.VERSION), '1.0.15');
+    assert.equal(await page.evaluate(() => KhoCore.VERSION), baseBundle.version);
     pass('New release downloads in background without reloading the current runtime');
     await page.locator('#menu [data-tab="settings"]').click();
     await page.locator('#menu [data-tab="settings"]').focus();
@@ -161,15 +162,15 @@ async function main() {
     await page.reload(); await versionIs('1.0.17');
     await page.locator('#menu [data-tab="settings"]').click();
     await page.locator('#update-restore').click();
-    await versionIs('1.0.15');
+    await versionIs(baseBundle.version);
     assert.equal(await page.evaluate(() => localStorage.getItem('unrelated-data')), 'keep');
     pass('Settings can restore the bundled release without removing app data');
     await page.evaluate(({ KEY, record }) => localStorage.setItem(KEY, JSON.stringify({ active: record, pending: null, trial: record.sha256, rejected: [] })), { KEY, record: release('1.0.22').record });
     offline = true;
-    await page.reload(); await versionIs('1.0.15');
+    await page.reload(); await versionIs(baseBundle.version);
     pass('Interrupted prior trial falls back on next launch instead of a crash loop');
     await page.evaluate(KEY => localStorage.setItem(KEY, '{broken'), KEY);
-    await page.reload(); await versionIs('1.0.15');
+    await page.reload(); await versionIs(baseBundle.version);
     pass('Corrupt update storage recovers to the bundled runtime');
     assert.deepEqual(errors, ['Update boot failure fixture']);
     fs.writeFileSync(path.join(output, 'samsung-auto-update-tests.json'), JSON.stringify({ passed: results.length, tests: results, browser: browser.version(), note: 'Isolated fixture, AVPlay stub; no physical TV/signing validation.' }, null, 2));

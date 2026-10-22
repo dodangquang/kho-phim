@@ -27,6 +27,7 @@ async function main() {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       ...(live ? {} : { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' }) });
     const page = await context.newPage();
+    await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
     const seekControls = page.locator('#player-seek-controls');
     async function revealSeekControls() {
       if (!await seekControls.isVisible()) {

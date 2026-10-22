@@ -1,8 +1,8 @@
 {
-  "versionCode": 8,
-  "versionName": "1.0.7",
-  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Mobile_v1.0.7.apk",
-  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_Mobile_v1.0.7.apk",
-  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.7/KhoPhim_TV_v1.0.7.apk",
-  "changelog": "Bản cập nhật v1.0.7: Thêm hai mục Phim Lồng Tiếng và Phim Thuyết Minh, lọc đúng theo nhãn âm thanh của Tủ Phim và có phân trang riêng. Mở từ danh mục sẽ ưu tiên server tương ứng; thông báo rõ khi chưa thấy server đúng nhãn. Giữ tài khoản Google, đồng bộ và lịch sử hiện có."
+  "versionCode": 9,
+  "versionName": "1.0.8",
+  "apkUrl": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.8/KhoPhim_Mobile_v1.0.8.apk",
+  "apkUrlMobile": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.8/KhoPhim_Mobile_v1.0.8.apk",
+  "apkUrlTv": "https://github.com/dodangquang/kho-phim/releases/download/v1.0.8/KhoPhim_TV_v1.0.8.apk",
+  "changelog": "Bản cập nhật v1.0.8: Thêm thông báo chung khi mở Kho Phim, chỉ hiện lại khi có nội dung mới. Đã loại bỏ quảng cáo 9922.com trong các nguồn phát tương thích có đoạn quảng cáo đã được nhận diện. Giữ tài khoản Google, đồng bộ và lịch sử hiện có."
 }

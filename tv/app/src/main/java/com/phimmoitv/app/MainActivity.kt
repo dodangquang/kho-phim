@@ -25,6 +25,8 @@ import com.phimmoitv.app.data.EpisodeSource
 import com.phimmoitv.app.data.MovieItem
 import com.phimmoitv.app.data.PhimMoiRepository
 import com.phimmoitv.app.data.SourcePolicy
+import com.phimmoitv.app.data.StartupNotice
+import com.phimmoitv.app.data.StartupNoticeManager
 import com.phimmoitv.app.data.UpdateInfo
 import com.phimmoitv.app.data.WatchHistoryManager
 import com.phimmoitv.app.ui.components.NetflixSidebar
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: PhimMoiRepository
     private lateinit var watchHistoryManager: WatchHistoryManager
     private lateinit var appUpdateManager: AppUpdateManager
+    private lateinit var startupNoticeManager: StartupNoticeManager
     private var rescueFocusTrigger by mutableLongStateOf(0L)
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -90,6 +93,7 @@ class MainActivity : ComponentActivity() {
         repository = PhimMoiRepository()
         watchHistoryManager = WatchHistoryManager(applicationContext)
         appUpdateManager = AppUpdateManager(applicationContext)
+        startupNoticeManager = StartupNoticeManager(applicationContext)
 
         setContent {
             PhimMoiTvTheme {
@@ -107,6 +111,9 @@ class MainActivity : ComponentActivity() {
                 var updateProgress by remember { mutableStateOf<Float?>(null) }
                 var updateError by remember { mutableStateOf<String?>(null) }
                 var isDownloaded by remember { mutableStateOf(false) }
+                var updateCheckDone by remember { mutableStateOf(false) }
+                var startupNotice by remember { mutableStateOf<StartupNotice?>(null) }
+                LaunchedEffect(Unit) { startupNotice = startupNoticeManager.fetchUnseen() }
                 val updateBtnFocusRequester = remember { FocusRequester() }
 
                 LaunchedEffect(Unit) {
@@ -119,6 +126,8 @@ class MainActivity : ComponentActivity() {
                         }
                     } catch (e: Exception) {
                         // Silently handle error on auto check
+                    } finally {
+                        updateCheckDone = true
                     }
                 }
 
@@ -336,6 +345,25 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+                }
+
+                if (startupNotice != null && updateCheckDone && !showUpdateDialog && currentScreen !is Screen.Player) {
+                    val notice = startupNotice!!
+                    val acknowledge = {
+                        startupNoticeManager.acknowledge(notice)
+                        startupNotice = null
+                    }
+                    val noticeFocus = remember { FocusRequester() }
+                    LaunchedEffect(notice.id) { delay(200L); noticeFocus.requestFocus() }
+                    AlertDialog(
+                        onDismissRequest = acknowledge,
+                        title = { Text(notice.title, color = Color.White) },
+                        text = { Text(notice.message, color = Color.White) },
+                        confirmButton = {
+                            TvButton(text = "Đã hiểu", isPrimary = true, focusRequester = noticeFocus, onClick = acknowledge)
+                        },
+                        containerColor = NetflixCard
+                    )
                 }
 
                 if (showUpdateDialog && updateInfo != null) {

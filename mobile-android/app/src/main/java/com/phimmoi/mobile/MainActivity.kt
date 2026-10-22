@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: PhimMoiRepository
     private lateinit var watchHistoryManager: WatchHistoryManager
     private lateinit var appUpdateManager: AppUpdateManager
+    private lateinit var startupNoticeManager: StartupNoticeManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
         repository = PhimMoiRepository()
         watchHistoryManager = WatchHistoryManager(applicationContext)
         appUpdateManager = AppUpdateManager(applicationContext)
+        startupNoticeManager = StartupNoticeManager(applicationContext)
 
         setContent {
             PhimMoiMobileTheme {
@@ -85,6 +87,9 @@ class MainActivity : ComponentActivity() {
                 var updateProgress by remember { mutableStateOf<Float?>(null) }
                 var updateError by remember { mutableStateOf<String?>(null) }
                 var isDownloaded by remember { mutableStateOf(false) }
+                var updateCheckDone by remember { mutableStateOf(false) }
+                var startupNotice by remember { mutableStateOf<StartupNotice?>(null) }
+                LaunchedEffect(Unit) { startupNotice = startupNoticeManager.fetchUnseen() }
 
                 LaunchedEffect(Unit) {
                     delay(1500L)
@@ -96,6 +101,8 @@ class MainActivity : ComponentActivity() {
                         }
                     } catch (e: Exception) {
                         // Silently handle error on auto check
+                    } finally {
+                        updateCheckDone = true
                     }
                 }
 
@@ -343,6 +350,23 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+
+                if (startupNotice != null && updateCheckDone && !showUpdateDialog && currentScreen !is Screen.Player) {
+                    val notice = startupNotice!!
+                    val acknowledge = {
+                        startupNoticeManager.acknowledge(notice)
+                        startupNotice = null
+                    }
+                    AlertDialog(
+                        onDismissRequest = acknowledge,
+                        title = { Text(notice.title, color = Color.White) },
+                        text = { Text(notice.message, color = Color.White) },
+                        confirmButton = {
+                            Button(onClick = acknowledge) { Text("Đã hiểu") }
+                        },
+                        containerColor = NetflixCard
+                    )
                 }
 
                 if (showUpdateDialog && updateInfo != null) {

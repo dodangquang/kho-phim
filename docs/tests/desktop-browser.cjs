@@ -29,6 +29,7 @@ async function main() {
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, ...(live ? {} : { userAgent: 'Safari/605.1.15' }) });
     const page = await context.newPage(), errors = [], requests = [];
+    await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
     page.on('pageerror', e => errors.push(e.message));
     page.on('request', r => requests.push(r.url()));
     await page.route('https://cdn.phimsrv.com/**', route => route.abort());
