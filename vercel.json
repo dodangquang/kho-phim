@@ -1,5 +1,6 @@
 {
   "outputDirectory": "docs",
+  "regions": ["sin1"],
   "cleanUrls": true,
   "headers": [
     {
