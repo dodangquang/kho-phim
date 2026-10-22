@@ -1,4 +1,6 @@
-# Kho Phim Samsung TV 1.0.15
+# Kho Phim Samsung TV — runtime 1.0.16, WGT 1.0.15
+
+Runtime 1.0.16 thêm thông báo khi mở ứng dụng, dùng chung `docs/announcement.json` với web và Android. Thông báo quảng cáo 9922.com hiện một lần sau khi xác nhận bằng OK/Back; chờ nếu đang mở trình phát. Không cần cài lại WGT 1.0.15. Xem `../ANNOUNCEMENTS.md` để quản lý nội dung.
 
 ## Tự động cập nhật từ 1.0.15
 

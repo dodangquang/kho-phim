@@ -28,8 +28,12 @@ test('Published bundle matches source, digest, UTF-8 size, shell and package ver
   assert.equal(bytes.length, manifest.size);
   assert.equal(bytes.toString('utf8'), text);
   assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), manifest.sha256);
-  assert.match(fs.readFileSync(path.join(root, 'updater.js'), 'utf8'), new RegExp("PACKAGE_VERSION = '" + manifest.version.replaceAll('.', '\\.') + "'"));
-  assert.match(fs.readFileSync(path.join(root, 'config.xml'), 'utf8'), new RegExp('version="' + manifest.version.replaceAll('.', '\\.') + '"'));
+  const shellVersion = /PACKAGE_VERSION = '([^']+)'/.exec(fs.readFileSync(path.join(root, 'updater.js'), 'utf8'))[1];
+  assert.match(fs.readFileSync(path.join(root, 'config.xml'), 'utf8'), new RegExp('version="' + shellVersion.replaceAll('.', '\\.') + '"'));
+  // An OTA may advance the runtime without requiring a replacement WGT shell.
+  const parts = version => version.split('.').map(Number);
+  const firstChange = parts(manifest.version).findIndex((value, i) => value !== parts(shellVersion)[i]);
+  assert.ok(firstChange === -1 || parts(manifest.version)[firstChange] > parts(shellVersion)[firstChange]);
   assert.equal(/<script\b|<iframe\b/i.test(JSON.parse(text).html), false);
   assert.ok(manifest.size < 800000);
 });

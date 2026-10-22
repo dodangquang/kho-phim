@@ -42,6 +42,7 @@ async function main() {
         return route.fulfill({ json: { status: true, items: [movie], data: { items: [movie], params: { pagination: { totalItems: 1, totalPages: 1, totalItemsPerPage: 6 } } } } });
       });
       const page = await context.newPage();
+    await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://127.0.0.1:' + server.address().port + (mobile ? '/?mode=mobile' : '/' + surface + '/'));

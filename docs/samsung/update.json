@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "shell": 1,
-  "version": "1.0.15",
-  "bundle": "bundles/572adf080c3ee7722688897748486f30ed15f32736b11913511083909a89eb67.json",
-  "sha256": "572adf080c3ee7722688897748486f30ed15f32736b11913511083909a89eb67",
-  "size": 113597
+  "version": "1.0.16",
+  "bundle": "bundles/ad625b036a84c03e687cff56210f4bcf88d13258584d4db7059273a6b3334a9c.json",
+  "sha256": "ad625b036a84c03e687cff56210f4bcf88d13258584d4db7059273a6b3334a9c",
+  "size": 118367
 }

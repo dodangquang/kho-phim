@@ -68,7 +68,9 @@ async function main(){
    await context.route('https://khophimqd.vercel.app/source/**',route=>route.fulfill({json:{status:true,items:[],data:{items:[],params:{pagination:{totalPages:1}}}}}));
    await context.route('https://cdn.phimsrv.com/**',route=>route.abort());
    if(seed)await context.addInitScript(()=>localStorage.setItem('khophim_history',JSON.stringify([{movieSlug:'phim-2026',movieTitle:'Phim thử đồng bộ',episodeSlug:'tap-2',episodeName:'Tập 2',serverName:'Thuyết Minh',currentTime:65,duration:120,timestamp:Date.now()-1000}])));
-   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));return {context,page,errors};
+   const page=await context.newPage(),errors=[];
+   await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
+   page.on('pageerror',e=>errors.push(e.message));return {context,page,errors};
   }
   async function login(page,back,user='alice'){
    await page.goto(origin+'/docs/account/?return='+encodeURIComponent(back));await page.evaluate(user=>{window.__googleUser=user},user);

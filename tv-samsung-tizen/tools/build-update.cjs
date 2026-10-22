@@ -10,7 +10,7 @@ function build() {
   const version = JSON.parse(source('package.json')).version;
   if (!source('core.js').includes("C.VERSION = '" + version + "'")) throw new Error('Runtime version disagrees with package.json');
   const html = /<body[^>]*>([\s\S]*)<\/body>/i.exec(source('index.html'))[1].replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').trim();
-  const data = { schema: 1, shell: 1, version, html, css: source('style.css') + '\n' + source('tv-compat.css'), js: scripts.map(file => '/* ' + file + ' */\n' + source(file)).join('\n;\n') };
+  const data = { schema: 1, shell: 1, version, html, css: source('style.css') + '\n' + source('tv-compat.css') + '\n' + source('../docs/announcement.css'), js: scripts.map(file => '/* ' + file + ' */\n' + source(file)).join('\n;\n') + '\n;\n' + source('../docs/announcement.js') };
   if (/<\s*(?:script|iframe|base)\b/i.test(html)) throw new Error('Runtime HTML must not embed executable scripts or frames');
   const text = JSON.stringify(data) + '\n';
   const sha256 = crypto.createHash('sha256').update(text).digest('hex');

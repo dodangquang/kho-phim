@@ -33,6 +33,7 @@ async function main() {
       const mobile = surface === 'mobile';
       const context = await browser.newContext({viewport:mobile ? {width:390,height:844} : {width:1366,height:768},isMobile:mobile,hasTouch:mobile});
       const page = await context.newPage(), errors=[];
+      await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
       page.on('pageerror', error => errors.push(error.message));
       await page.route('https://khophimqd.vercel.app/source/**', route => {
         const slug = new URL(route.request().url()).pathname.split('/phim/')[1];

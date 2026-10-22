@@ -57,6 +57,7 @@ async function main() {
       });
       await context.route('https://cdn.phimsrv.com/**', route => route.fulfill({ contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: fs.readFileSync(path.join(root, 'tv-samsung-tizen/icon.png')) }));
       const page = await context.newPage();
+      await page.route('**/announcement.json', route => route.fulfill({ json: { active: false }, headers: { 'Access-Control-Allow-Origin': '*' } }));
       page.on('pageerror', error => errors.push(error.message));
       page.on('request', request => requests.push(request.url()));
       const pathname = mobile ? '/docs/?mode=mobile' : surface === 'samsung' ? '/tv-samsung-tizen/' : '/docs/' + surface + '/';
